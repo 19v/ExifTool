@@ -23,6 +23,10 @@ final class PhotoLibraryViewModel: ObservableObject {
     @Published private(set) var albums: [PhotoAlbum] = []
 
     func prepare() async {
+        await refresh()
+    }
+
+    func refresh() async {
         let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
 
         switch status {

@@ -48,6 +48,13 @@ extension ToolbarItemPlacement {
 struct PlatformAlbumList: View {
     let albums: [PhotoAlbum]
     let readOnlyMode: Bool
+    let onRefresh: (() async -> Void)?
+
+    init(albums: [PhotoAlbum], readOnlyMode: Bool, onRefresh: (() async -> Void)? = nil) {
+        self.albums = albums
+        self.readOnlyMode = readOnlyMode
+        self.onRefresh = onRefresh
+    }
 
     var body: some View {
         List(albums) { album in
@@ -56,6 +63,9 @@ struct PlatformAlbumList: View {
             } label: {
                 AlbumRowView(album: album)
             }
+        }
+        .refreshable {
+            await onRefresh?()
         }
         .listStyle(.insetGrouped)
     }

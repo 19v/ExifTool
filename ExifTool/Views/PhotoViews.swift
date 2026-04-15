@@ -16,7 +16,11 @@ struct PhotoPickerTabView: View {
     var body: some View {
         NavigationStack {
             LibraryAuthorizationContent(library: library, emptyTitle: "没有可显示的照片") {
-                PhotoAssetGridView(assets: library.assets, readOnlyMode: readOnlyMode)
+                PhotoAssetGridView(
+                    assets: library.assets,
+                    readOnlyMode: readOnlyMode,
+                    onRefresh: library.refresh
+                )
             }
             .navigationTitle("照片")
             .platformInlineNavigationTitle()
@@ -31,7 +35,11 @@ struct AlbumsTabView: View {
     var body: some View {
         NavigationStack {
             LibraryAuthorizationContent(library: library, emptyTitle: "没有找到相册") {
-                PlatformAlbumList(albums: library.albums, readOnlyMode: readOnlyMode)
+                PlatformAlbumList(
+                    albums: library.albums,
+                    readOnlyMode: readOnlyMode,
+                    onRefresh: library.refresh
+                )
             }
             .navigationTitle("相册")
             .platformInlineNavigationTitle()
@@ -103,7 +111,11 @@ struct SearchTabView: View {
                     } else if results.isEmpty {
                         ContentUnavailableView("没有匹配照片", systemImage: "photo.on.rectangle.angled")
                     } else {
-                        PhotoAssetGridView(assets: results, readOnlyMode: readOnlyMode)
+                        PhotoAssetGridView(
+                            assets: results,
+                            readOnlyMode: readOnlyMode,
+                            onRefresh: library.refresh
+                        )
                     }
                 }
             }
@@ -170,12 +182,19 @@ struct LibraryAuthorizationContent<Content: View>: View {
 struct PhotoAssetGridView: View {
     let assets: [PhotoAsset]
     let readOnlyMode: Bool
+    let onRefresh: (() async -> Void)?
 
     private let columns = [
         GridItem(.flexible(), spacing: 3),
         GridItem(.flexible(), spacing: 3),
         GridItem(.flexible(), spacing: 3)
     ]
+
+    init(assets: [PhotoAsset], readOnlyMode: Bool, onRefresh: (() async -> Void)? = nil) {
+        self.assets = assets
+        self.readOnlyMode = readOnlyMode
+        self.onRefresh = onRefresh
+    }
 
     var body: some View {
         ScrollView {
@@ -195,6 +214,9 @@ struct PhotoAssetGridView: View {
                 }
             }
             .padding(3)
+        }
+        .refreshable {
+            await onRefresh?()
         }
         .overlay(alignment: .bottom) {
             if readOnlyMode {
