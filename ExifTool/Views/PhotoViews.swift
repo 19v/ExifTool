@@ -983,16 +983,7 @@ struct PhotoAssetGridView: View {
         ScrollView {
             LazyVGrid(columns: columns, spacing: 3) {
                 ForEach(assets) { asset in
-                    NavigationLink {
-                        PhotoDetailView(
-                            assets: assets,
-                            initialAssetID: asset.id,
-                            readOnlyMode: readOnlyMode
-                        )
-                    } label: {
-                        PhotoThumbnail(asset: asset)
-                    }
-                    .buttonStyle(.plain)
+                    detailTrigger(for: asset)
                     .id(asset.id)
                     .onAppear {
                         onAssetAppear?(asset.id)
@@ -1021,6 +1012,19 @@ struct PhotoAssetGridView: View {
                     .padding(.bottom, 12)
             }
         }
+    }
+    @ViewBuilder
+    private func detailTrigger(for asset: PhotoAsset) -> some View {
+        NavigationLink {
+            PhotoDetailView(
+                assets: assets,
+                initialAssetID: asset.id,
+                readOnlyMode: readOnlyMode
+            )
+        } label: {
+            PhotoThumbnail(asset: asset)
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -1074,31 +1078,23 @@ struct PhotoDetailView: View {
     let readOnlyMode: Bool
     
     @State private var showsChineseKeys = false
-    @State private var selectedAssetID: String
     
     init(assets: [PhotoAsset], initialAssetID: String, readOnlyMode: Bool) {
         self.assets = assets
         self.initialAssetID = initialAssetID
         self.readOnlyMode = readOnlyMode
-        _selectedAssetID = State(initialValue: initialAssetID)
     }
     
     var body: some View {
         Group {
-            if assets.isEmpty {
-                ContentUnavailableView("没有可显示的照片", systemImage: "photo")
+            if let currentAsset {
+                PhotoDetailPage(
+                    asset: currentAsset,
+                    readOnlyMode: readOnlyMode,
+                    showsChineseKeys: showsChineseKeys
+                )
             } else {
-                TabView(selection: $selectedAssetID) {
-                    ForEach(assets) { asset in
-                        PhotoDetailPage(
-                            asset: asset,
-                            readOnlyMode: readOnlyMode,
-                            showsChineseKeys: showsChineseKeys
-                        )
-                        .tag(asset.id)
-                    }
-                }
-                .platformDetailPagingStyle()
+                ContentUnavailableView("没有可显示的照片", systemImage: "photo")
             }
         }
         .navigationTitle(navigationTitle)
@@ -1115,11 +1111,23 @@ struct PhotoDetailView: View {
     }
     
     private var navigationTitle: String {
-        guard let currentIndex = assets.firstIndex(where: { $0.id == selectedAssetID }) else {
+        guard let currentIndex else {
             return "照片信息"
         }
         
         return "照片信息 \(currentIndex + 1)/\(assets.count)"
+    }
+
+    private var currentAsset: PhotoAsset? {
+        assets.first(where: { $0.id == initialAssetID }) ?? assets.first
+    }
+
+    private var currentIndex: Int? {
+        guard let currentAsset else {
+            return nil
+        }
+
+        return assets.firstIndex(where: { $0.id == currentAsset.id })
     }
 }
 
@@ -1153,30 +1161,7 @@ struct PhotoDetailPage: View {
     }
     
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                PhotoPreview(asset: asset)
-                
-                readOnlyBanner
-                
-                switch detail {
-                case .loading:
-                    ProgressView("正在读取 Exif")
-                        .frame(maxWidth: .infinity, minHeight: 120)
-                case .loaded(let metadata):
-                    metadataContent(metadata)
-                case .needsDownload(let message):
-                    downloadOriginalContent(message)
-                case .failed(let message):
-                    ContentUnavailableView(
-                        "无法读取 Exif",
-                        systemImage: "exclamationmark.triangle",
-                        description: Text(message)
-                    )
-                }
-            }
-            .padding()
-        }
+        legacyDetailLayout
         .task(id: asset.id) {
             await loadMetadata(allowNetwork: false)
         }
@@ -1204,6 +1189,33 @@ struct PhotoDetailPage: View {
             }
         } message: {
             Text("这张照片的原图可能只保存在 iCloud。应用需要联网把原图下载到本机后才能读取完整 Exif，你也可以保持离线，或在设置里改成仅显示已下载到本地的照片。")
+        }
+    }
+
+    private var legacyDetailLayout: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                PhotoPreview(asset: asset)
+
+                readOnlyBanner
+
+                switch detail {
+                case .loading:
+                    ProgressView("正在读取 Exif")
+                        .frame(maxWidth: .infinity, minHeight: 120)
+                case .loaded(let metadata):
+                    metadataContent(metadata)
+                case .needsDownload(let message):
+                    downloadOriginalContent(message)
+                case .failed(let message):
+                    ContentUnavailableView(
+                        "无法读取 Exif",
+                        systemImage: "exclamationmark.triangle",
+                        description: Text(message)
+                    )
+                }
+            }
+            .padding()
         }
     }
     
@@ -1309,17 +1321,42 @@ struct PhotoDetailPage: View {
     }
     
     private func filteredMetadataSections(from metadata: PhotoMetadata) -> [MetadataSection] {
-        guard let visibleMetadataKeys else {
-            return metadata.sections
-        }
-        
-        return metadata.sections.compactMap { section in
-            let items = section.items.filter { visibleMetadataKeys.contains($0.key) }
-            guard !items.isEmpty else {
-                return nil
+        let sections: [MetadataSection]
+
+        if let visibleMetadataKeys {
+            sections = metadata.sections.compactMap { section in
+                let items = section.items.filter { visibleMetadataKeys.contains($0.key) }
+                guard !items.isEmpty else {
+                    return nil
+                }
+
+                return MetadataSection(id: section.id, title: section.title, items: items)
             }
-            
-            return MetadataSection(id: section.id, title: section.title, items: items)
+        } else {
+            sections = metadata.sections
+        }
+
+        return sections
+            .enumerated()
+            .sorted { lhs, rhs in
+                let lhsPriority = specialMetadataSectionPriority(for: lhs.element)
+                let rhsPriority = specialMetadataSectionPriority(for: rhs.element)
+
+                if lhsPriority != rhsPriority {
+                    return lhsPriority < rhsPriority
+                }
+
+                return lhs.offset < rhs.offset
+            }
+            .map(\.element)
+    }
+
+    private func specialMetadataSectionPriority(for section: MetadataSection) -> Int {
+        switch section.id {
+        case "fujifilm-parameters", "nikon-parameters":
+            return 0
+        default:
+            return 1
         }
     }
 }
@@ -1330,26 +1367,76 @@ struct PhotoPreview: View {
     @State private var image: PlatformImage?
     
     var body: some View {
-        ZStack {
-            Rectangle()
-                .fill(Color.platformSecondaryBackground)
-            
+        Group {
             if let image {
                 Image(platformImage: image)
                     .resizable()
-                    .scaledToFit()
+                    .aspectRatio(image.size, contentMode: .fit)
+                    .frame(maxWidth: .infinity)
             } else {
                 ProgressView()
+                    .frame(maxWidth: .infinity, minHeight: 320)
+                    .background(Color.platformSecondaryBackground)
             }
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: 320)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .task(id: asset.id) {
-            image = await PhotoLoader.thumbnail(for: asset, size: CGSize(width: 900, height: 900))
+            image = await PhotoLoader.previewImage(for: asset, size: CGSize(width: 900, height: 900))
         }
     }
 }
+
+#if os(iOS)
+struct PhotoStagePreview: View {
+    let asset: PhotoAsset
+
+    @State private var image: PlatformImage?
+
+    var body: some View {
+        GeometryReader { proxy in
+            let displaySize = previewSize(in: proxy.size)
+
+            ZStack {
+                RoundedRectangle(cornerRadius: 24)
+                    .fill(Color.white.opacity(0.06))
+
+                if let image {
+                    Image(platformImage: image)
+                        .resizable()
+                        .interpolation(.high)
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: displaySize.width, height: displaySize.height)
+                } else {
+                    ProgressView()
+                        .tint(.white)
+                }
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .task(id: asset.id) {
+            image = await PhotoLoader.previewImage(for: asset, size: CGSize(width: 1800, height: 1800))
+        }
+    }
+
+    private func previewSize(in containerSize: CGSize) -> CGSize {
+        guard containerSize.width > 0, containerSize.height > 0 else {
+            return .zero
+        }
+
+        let imageAspectRatio = max(CGFloat(asset.pixelWidth), 1) / max(CGFloat(asset.pixelHeight), 1)
+        let containerAspectRatio = containerSize.width / containerSize.height
+
+        if imageAspectRatio > containerAspectRatio {
+            let width = containerSize.width
+            return CGSize(width: width, height: width / imageAspectRatio)
+        } else {
+            let height = containerSize.height
+            return CGSize(width: height * imageAspectRatio, height: height)
+        }
+    }
+}
+#endif
 
 struct MetadataSectionView: View {
     let section: MetadataSection

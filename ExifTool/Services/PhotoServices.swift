@@ -113,6 +113,15 @@ enum PhotoLoader {
         }
     }
 
+    static func previewImage(for asset: PhotoAsset, size: CGSize) async -> PlatformImage? {
+        switch asset.source {
+        case .photoLibrary(let photoLibraryAsset):
+            return await previewImage(for: photoLibraryAsset, size: size)
+        case .file(let file):
+            return thumbnail(from: file.data, maxPixelLength: max(size.width, size.height))
+        }
+    }
+
     static func metadata(for asset: PhotoAsset, allowNetwork: Bool) async -> PhotoDetailState {
         switch asset.source {
         case .photoLibrary(let photoLibraryAsset):
@@ -160,16 +169,24 @@ enum PhotoLoader {
     }
 
     private static func thumbnail(for asset: PHAsset, size: CGSize) async -> PlatformImage? {
+        await requestImage(for: asset, size: size, contentMode: .aspectFill)
+    }
+
+    private static func previewImage(for asset: PHAsset, size: CGSize) async -> PlatformImage? {
+        await requestImage(for: asset, size: size, contentMode: .aspectFit)
+    }
+
+    private static func requestImage(for asset: PHAsset, size: CGSize, contentMode: PHImageContentMode) async -> PlatformImage? {
         await withCheckedContinuation { continuation in
             let options = PHImageRequestOptions()
             options.deliveryMode = .highQualityFormat
-            options.resizeMode = .exact
+            options.resizeMode = contentMode == .aspectFit ? .fast : .exact
             options.isNetworkAccessAllowed = false
 
             PHImageManager.default().requestImage(
                 for: asset,
                 targetSize: size,
-                contentMode: .aspectFill,
+                contentMode: contentMode,
                 options: options
             ) { image, _ in
                 continuation.resume(returning: image)
