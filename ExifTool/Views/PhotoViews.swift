@@ -23,47 +23,46 @@ struct PhotoPickerTabView: View {
     
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
+            Group {
+                #if os(iOS)
+                switch library.authorizationState {
+                case .denied:
+                    ManualPhotoPickerAccessView(picker: manualPicker, readOnlyMode: readOnlyMode)
+                default:
+                    LibraryAuthorizationContent(library: library, emptyTitle: "没有可显示的照片") {
+                        PhotoAssetGridView(
+                            assets: library.assets,
+                            readOnlyMode: readOnlyMode,
+                            isLoadingMore: library.showsOnlyLocalAssets && library.hasMoreLocalAssets,
+                            onAssetAppear: library.loadMoreLocalAssetsIfNeeded,
+                            onRefresh: library.refresh
+                        )
+                    }
+                }
+                #else
+                LibraryAuthorizationContent(library: library, emptyTitle: "没有可显示的照片") {
+                    PhotoAssetGridView(
+                        assets: library.assets,
+                        readOnlyMode: readOnlyMode,
+                        isLoadingMore: false,
+                        onRefresh: library.refresh
+                    )
+                }
+                #endif
+            }
+            .navigationTitle("照片")
+            .platformInlineNavigationTitle()
+            .safeAreaInset(edge: .bottom) {
                 if library.showsOnlyLocalAssets, let bannerText = localPhotosBanner {
                     LocalPhotosStatusBanner(
                         text: bannerText,
                         state: localPhotosBannerState,
                         localPhotosCount: library.localPhotosCount,
                         localAlbumsCount: nil,
-                        emphasis: .compact
+                        emphasis: .floating
                     )
                 }
-
-                Group {
-                    #if os(iOS)
-                    switch library.authorizationState {
-                    case .denied:
-                        ManualPhotoPickerAccessView(picker: manualPicker, readOnlyMode: readOnlyMode)
-                    default:
-                        LibraryAuthorizationContent(library: library, emptyTitle: "没有可显示的照片") {
-                            PhotoAssetGridView(
-                                assets: library.assets,
-                                readOnlyMode: readOnlyMode,
-                                isLoadingMore: library.showsOnlyLocalAssets && library.hasMoreLocalAssets,
-                                onAssetAppear: library.loadMoreLocalAssetsIfNeeded,
-                                onRefresh: library.refresh
-                            )
-                        }
-                    }
-                    #else
-                    LibraryAuthorizationContent(library: library, emptyTitle: "没有可显示的照片") {
-                        PhotoAssetGridView(
-                            assets: library.assets,
-                            readOnlyMode: readOnlyMode,
-                            isLoadingMore: false,
-                            onRefresh: library.refresh
-                        )
-                    }
-                    #endif
-                }
             }
-            .navigationTitle("照片")
-            .platformInlineNavigationTitle()
         }
     }
 
@@ -100,25 +99,24 @@ struct AlbumsTabView: View {
     
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                if library.showsOnlyLocalAssets && library.isBuildingLocalAlbumStats {
-                    localAlbumStatsBanner
-                }
-
-                LibraryAuthorizationContent(library: library, emptyTitle: "没有找到相册") {
-                    PlatformAlbumList(
-                        albums: library.albums,
-                        readOnlyMode: readOnlyMode,
-                        showsOnlyLocalAssets: library.showsOnlyLocalAssets,
-                        onRefresh: library.refresh
-                    )
-                }
+            LibraryAuthorizationContent(library: library, emptyTitle: "没有找到相册") {
+                PlatformAlbumList(
+                    albums: library.albums,
+                    readOnlyMode: readOnlyMode,
+                    showsOnlyLocalAssets: library.showsOnlyLocalAssets,
+                    onRefresh: library.refresh
+                )
             }
             .navigationTitle("相册")
             .platformInlineNavigationTitle()
             .task(id: library.showsOnlyLocalAssets) {
                 if library.showsOnlyLocalAssets {
                     library.buildRemainingLocalAlbumStatsIfNeeded()
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                if library.showsOnlyLocalAssets && library.isBuildingLocalAlbumStats {
+                    localAlbumStatsBanner
                 }
             }
         }
@@ -130,7 +128,7 @@ struct AlbumsTabView: View {
             state: .buildingAlbums,
             localPhotosCount: library.localPhotosCount,
             localAlbumsCount: library.localAlbumsCount,
-            emphasis: .compact
+            emphasis: .floating
         )
     }
 }
@@ -214,20 +212,8 @@ struct SearchTabView: View {
     
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                if library.showsOnlyLocalAssets, let bannerText = searchBannerText {
-                    LocalPhotosStatusBanner(
-                        text: bannerText,
-                        state: searchBannerState,
-                        localPhotosCount: searchBannerPhotosCount,
-                        localAlbumsCount: searchBannerAlbumsCount,
-                        emphasis: .compact
-                    )
-                }
-
-                LibraryAuthorizationContent(library: library, emptyTitle: "没有可搜索的照片") {
-                    searchContent
-                }
+            LibraryAuthorizationContent(library: library, emptyTitle: "没有可搜索的照片") {
+                searchContent
             }
             .navigationTitle("搜索")
             .platformInlineNavigationTitle()
@@ -243,6 +229,17 @@ struct SearchTabView: View {
             }
             .task {
                 refreshSearchPager()
+            }
+            .safeAreaInset(edge: .bottom) {
+                if library.showsOnlyLocalAssets, let bannerText = searchBannerText {
+                    LocalPhotosStatusBanner(
+                        text: bannerText,
+                        state: searchBannerState,
+                        localPhotosCount: searchBannerPhotosCount,
+                        localAlbumsCount: searchBannerAlbumsCount,
+                        emphasis: .floating
+                    )
+                }
             }
         }
     }
@@ -332,6 +329,7 @@ struct LocalPhotosStatusBanner: View {
     enum Emphasis {
         case compact
         case card
+        case floating
     }
 
     let text: String
@@ -367,6 +365,17 @@ struct LocalPhotosStatusBanner: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
         .background(backgroundStyle, in: RoundedRectangle(cornerRadius: 14))
+        .overlay {
+            if emphasis == .floating {
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(.white.opacity(0.22), lineWidth: 0.8)
+            }
+        }
+        .shadow(
+            color: emphasis == .floating ? .black.opacity(0.12) : .clear,
+            radius: emphasis == .floating ? 16 : 0,
+            y: emphasis == .floating ? 8 : 0
+        )
         .padding(.horizontal, horizontalInset)
         .padding(.top, topInset)
         .padding(.bottom, bottomInset)
@@ -440,6 +449,8 @@ struct LocalPhotosStatusBanner: View {
             return AnyShapeStyle(Color.platformSecondaryBackground)
         case .card:
             return AnyShapeStyle(Color.platformSecondaryBackground)
+        case .floating:
+            return AnyShapeStyle(.ultraThinMaterial)
         }
     }
 
@@ -447,6 +458,8 @@ struct LocalPhotosStatusBanner: View {
         switch emphasis {
         case .compact, .card:
             return 12
+        case .floating:
+            return 16
         }
     }
 
@@ -456,6 +469,8 @@ struct LocalPhotosStatusBanner: View {
             return 8
         case .card:
             return 0
+        case .floating:
+            return 8
         }
     }
 
@@ -465,6 +480,8 @@ struct LocalPhotosStatusBanner: View {
             return 6
         case .card:
             return 0
+        case .floating:
+            return 6
         }
     }
 
