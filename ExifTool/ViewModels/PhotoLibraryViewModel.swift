@@ -6,10 +6,23 @@
 //
 
 import Combine
+import Foundation
 import Photos
 
 @MainActor
 final class PhotoLibraryViewModel: ObservableObject {
+    enum LocalPhotosSummaryState {
+        case loading
+        case paginating
+        case buildingAlbums
+        case complete
+    }
+
+    private static let localOnlyScanBatchSize = 48
+    private static let localOnlyPageSize = 90
+    private static let localOnlyPrefetchThreshold = 24
+    private static let localOnlyAlbumRefreshInterval = 4
+
     enum AccessScope {
         case unknown
         case limited
@@ -29,8 +42,74 @@ final class PhotoLibraryViewModel: ObservableObject {
     @Published private(set) var authorizationState: AuthorizationState = .unknown
     @Published private(set) var assets: [PhotoAsset] = []
     @Published private(set) var albums: [PhotoAlbum] = []
+    @Published private(set) var localOnlyAssetIDs: Set<String> = []
+    @Published private(set) var showsOnlyLocalAssets = false
+    @Published private(set) var isFilteringLocalAssets = false
+    @Published private(set) var hasMoreLocalAssets = false
+    @Published private(set) var isBuildingLocalAlbumStats = false
+
+    var searchableAssets: [PhotoAsset] {
+        showsOnlyLocalAssets ? allFetchedAssets : assets
+    }
+
+    var localPhotosSummaryText: String? {
+        guard showsOnlyLocalAssets else {
+            return nil
+        }
+
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+
+        let localPhotoCount = formatter.string(from: NSNumber(value: localOnlyAssetIDs.count)) ?? "\(localOnlyAssetIDs.count)"
+        let albumCount = formatter.string(from: NSNumber(value: albums.count)) ?? "\(albums.count)"
+
+        if isFilteringLocalAssets && assets.isEmpty {
+            return "正在读取已下载到本地的照片"
+        }
+        if hasMoreLocalAssets {
+            return "已发现 \(localPhotoCount) 张本地照片，继续下滑可加载更多。"
+        }
+        if isBuildingLocalAlbumStats {
+            return "已发现 \(localPhotoCount) 张本地照片，正在补充相册统计。"
+        }
+        return "已发现 \(localPhotoCount) 张本地照片，当前共有 \(albumCount) 个相册。"
+    }
+
+    var localPhotosSummaryState: LocalPhotosSummaryState? {
+        guard showsOnlyLocalAssets else {
+            return nil
+        }
+
+        if isFilteringLocalAssets && assets.isEmpty {
+            return .loading
+        }
+        if hasMoreLocalAssets {
+            return .paginating
+        }
+        if isBuildingLocalAlbumStats {
+            return .buildingAlbums
+        }
+        return .complete
+    }
+
+    var localPhotosCount: Int? {
+        showsOnlyLocalAssets ? localOnlyAssetIDs.count : nil
+    }
+
+    var localAlbumsCount: Int? {
+        showsOnlyLocalAssets ? albums.count : nil
+    }
     
-    func prepare() async {
+    private var refreshTask: Task<Void, Never>?
+    private var albumStatsTask: Task<Void, Never>?
+    private var allFetchedAssets: [PhotoAsset] = []
+    private var nextLocalOnlyScanIndex = 0
+    private var isLoadingNextLocalOnlyPage = false
+    private var localOnlySessionID = UUID()
+    private var localAvailabilityByID: [String: Bool] = [:]
+    
+    func prepare(showingOnlyLocalAssets: Bool) async {
+        showsOnlyLocalAssets = showingOnlyLocalAssets
         await refresh()
     }
     
@@ -45,8 +124,17 @@ final class PhotoLibraryViewModel: ObservableObject {
             loadAssets(for: status)
         }
     }
+
+    func setShowsOnlyLocalAssets(_ enabled: Bool) async {
+        showsOnlyLocalAssets = enabled
+        await refresh()
+    }
     
     private func loadAssets(for status: PHAuthorizationStatus) {
+        refreshTask?.cancel()
+        albumStatsTask?.cancel()
+        localOnlySessionID = UUID()
+
         switch status {
         case .authorized:
             accessScope = .full
@@ -57,31 +145,61 @@ final class PhotoLibraryViewModel: ObservableObject {
         case .denied, .restricted:
             accessScope = .denied
             authorizationState = .denied
-            assets = []
-            albums = []
+            resetLoadedContent()
             return
         case .notDetermined:
             accessScope = .unknown
             authorizationState = .unknown
-            assets = []
-            albums = []
+            resetLoadedContent()
             return
         @unknown default:
             accessScope = .denied
             authorizationState = .denied
-            assets = []
-            albums = []
+            resetLoadedContent()
             return
         }
-        
-        assets = Self.fetchImageAssets()
-        albums = Self.fetchImageAlbums()
-        if assets.isEmpty {
-            authorizationState = .empty
+
+        refreshTask = Task { [showsOnlyLocalAssets] in
+            let fetchedAssets = await Self.fetchImageAssetsOffMain()
+            self.allFetchedAssets = fetchedAssets
+
+            if showsOnlyLocalAssets {
+                isFilteringLocalAssets = true
+                self.nextLocalOnlyScanIndex = 0
+                self.isLoadingNextLocalOnlyPage = false
+                self.hasMoreLocalAssets = !fetchedAssets.isEmpty
+                self.localOnlyAssetIDs = []
+                self.assets = []
+                self.albums = []
+                self.isBuildingLocalAlbumStats = false
+                self.authorizationState = authorizationStateForCurrentScope
+
+                guard !fetchedAssets.isEmpty else {
+                    self.authorizationState = .empty
+                    self.isFilteringLocalAssets = false
+                    self.hasMoreLocalAssets = false
+                    return
+                }
+                
+                await loadNextLocalOnlyPage(for: self.localOnlySessionID)
+            } else {
+                guard !Task.isCancelled else {
+                    return
+                }
+
+                self.nextLocalOnlyScanIndex = fetchedAssets.count
+                self.hasMoreLocalAssets = false
+                self.localOnlyAssetIDs = Set(fetchedAssets.map(\.id))
+                self.assets = fetchedAssets
+                self.albums = await Self.fetchImageAlbumsOffMain()
+                self.isBuildingLocalAlbumStats = false
+                self.authorizationState = fetchedAssets.isEmpty ? .empty : authorizationStateForCurrentScope
+                self.isFilteringLocalAssets = false
+            }
         }
     }
     
-    static func fetchImageAssets(in collection: PHAssetCollection? = nil) -> [PhotoAsset] {
+    nonisolated static func fetchImageAssets(in collection: PHAssetCollection? = nil) -> [PhotoAsset] {
         let options = PHFetchOptions()
         options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
         options.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.image.rawValue)
@@ -101,8 +219,197 @@ final class PhotoLibraryViewModel: ObservableObject {
         
         return fetchedAssets
     }
+
+    nonisolated static func fetchImageAssetsOffMain(in collection: PHAssetCollection? = nil) async -> [PhotoAsset] {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let assets = Self.fetchImageAssets(in: collection)
+                continuation.resume(returning: assets)
+            }
+        }
+    }
+
+    func loadMoreLocalAssetsIfNeeded(currentAssetID: String?) {
+        guard showsOnlyLocalAssets, !isLoadingNextLocalOnlyPage, hasMoreLocalAssets else {
+            return
+        }
+
+        if assets.isEmpty {
+            Task {
+                await loadNextLocalOnlyPage(for: localOnlySessionID)
+            }
+            return
+        }
+
+        guard let currentAssetID,
+              let currentIndex = assets.firstIndex(where: { $0.id == currentAssetID }) else {
+            return
+        }
+
+        let thresholdIndex = max(assets.count - Self.localOnlyPrefetchThreshold, 0)
+        guard currentIndex >= thresholdIndex else {
+            return
+        }
+
+        Task {
+            await loadNextLocalOnlyPage(for: localOnlySessionID)
+        }
+    }
+
+    func buildRemainingLocalAlbumStatsIfNeeded() {
+        guard showsOnlyLocalAssets, !isBuildingLocalAlbumStats else {
+            return
+        }
+
+        let sessionID = localOnlySessionID
+        albumStatsTask?.cancel()
+        albumStatsTask = Task { [weak self] in
+            await self?.buildRemainingLocalAlbumStats(for: sessionID)
+        }
+    }
     
-    private static func fetchImageAlbums() -> [PhotoAlbum] {
+    private var authorizationStateForCurrentScope: AuthorizationState {
+        switch accessScope {
+        case .full:
+            return .authorized
+        case .limited:
+            return .limited
+        case .denied:
+            return .denied
+        case .unknown:
+            return .unknown
+        }
+    }
+
+    private func resetLoadedContent() {
+        albumStatsTask?.cancel()
+        allFetchedAssets = []
+        nextLocalOnlyScanIndex = 0
+        isLoadingNextLocalOnlyPage = false
+        assets = []
+        albums = []
+        localOnlyAssetIDs = []
+        hasMoreLocalAssets = false
+        isFilteringLocalAssets = false
+        isBuildingLocalAlbumStats = false
+        localAvailabilityByID = [:]
+    }
+
+    private func loadNextLocalOnlyPage(for sessionID: UUID) async {
+        guard sessionID == localOnlySessionID, showsOnlyLocalAssets, !isLoadingNextLocalOnlyPage else {
+            return
+        }
+
+        isLoadingNextLocalOnlyPage = true
+        defer {
+            isLoadingNextLocalOnlyPage = false
+            isFilteringLocalAssets = false
+        }
+
+        var matchedAssets: [PhotoAsset] = []
+
+        while matchedAssets.count < Self.localOnlyPageSize, nextLocalOnlyScanIndex < allFetchedAssets.count {
+            let batchEnd = min(nextLocalOnlyScanIndex + Self.localOnlyScanBatchSize, allFetchedAssets.count)
+            let assetBatch = Array(allFetchedAssets[nextLocalOnlyScanIndex..<batchEnd])
+            nextLocalOnlyScanIndex = batchEnd
+
+            let batchAssetIDs = await locallyAvailableIDs(in: assetBatch)
+            guard !Task.isCancelled, sessionID == localOnlySessionID else {
+                return
+            }
+
+            localOnlyAssetIDs.formUnion(batchAssetIDs)
+            matchedAssets.append(contentsOf: assetBatch.filter { batchAssetIDs.contains($0.id) })
+        }
+
+        if !matchedAssets.isEmpty {
+            assets.append(contentsOf: matchedAssets)
+            albums = await Self.fetchImageAlbumsOffMain(filteringTo: localOnlyAssetIDs)
+        }
+
+        hasMoreLocalAssets = nextLocalOnlyScanIndex < allFetchedAssets.count
+        authorizationState = assets.isEmpty && !hasMoreLocalAssets ? .empty : authorizationStateForCurrentScope
+    }
+
+    private func buildRemainingLocalAlbumStats(for sessionID: UUID) async {
+        guard sessionID == localOnlySessionID, showsOnlyLocalAssets else {
+            return
+        }
+
+        var scanIndex = nextLocalOnlyScanIndex
+        guard scanIndex < allFetchedAssets.count else {
+            isBuildingLocalAlbumStats = false
+            return
+        }
+
+        isBuildingLocalAlbumStats = true
+        defer { isBuildingLocalAlbumStats = false }
+
+        var scannedBatchCount = 0
+
+        while scanIndex < allFetchedAssets.count {
+            let batchEnd = min(scanIndex + Self.localOnlyScanBatchSize, allFetchedAssets.count)
+            let assetBatch = Array(allFetchedAssets[scanIndex..<batchEnd])
+            scanIndex = batchEnd
+
+            let batchAssetIDs = await locallyAvailableIDs(in: assetBatch)
+            guard !Task.isCancelled, sessionID == localOnlySessionID else {
+                return
+            }
+
+            localOnlyAssetIDs.formUnion(batchAssetIDs)
+            scannedBatchCount += 1
+
+            let shouldRefreshAlbums =
+                scannedBatchCount.isMultiple(of: Self.localOnlyAlbumRefreshInterval) ||
+                batchEnd == allFetchedAssets.count
+            if shouldRefreshAlbums {
+                albums = await Self.fetchImageAlbumsOffMain(filteringTo: localOnlyAssetIDs)
+                try? await Task.sleep(for: .milliseconds(80))
+            }
+        }
+    }
+
+    private func locallyAvailableIDs(in assets: [PhotoAsset]) async -> Set<String> {
+        var knownIDs = Set<String>()
+        var unknownAssets: [PhotoAsset] = []
+        unknownAssets.reserveCapacity(assets.count)
+
+        for asset in assets {
+            if let isLocal = localAvailabilityByID[asset.id] {
+                if isLocal {
+                    knownIDs.insert(asset.id)
+                }
+            } else {
+                unknownAssets.append(asset)
+            }
+        }
+
+        guard !unknownAssets.isEmpty else {
+            return knownIDs
+        }
+
+        let resolvedLocalIDs = await PhotoLoader.locallyAvailableAssetIDs(from: unknownAssets)
+        let resolvedLocalIDSet = Set(resolvedLocalIDs)
+
+        for asset in unknownAssets {
+            localAvailabilityByID[asset.id] = resolvedLocalIDSet.contains(asset.id)
+        }
+
+        knownIDs.formUnion(resolvedLocalIDSet)
+        return knownIDs
+    }
+
+    nonisolated private static func fetchImageAlbumsOffMain(filteringTo assetIDs: Set<String>? = nil) async -> [PhotoAlbum] {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let albums = Self.fetchImageAlbums(filteringTo: assetIDs)
+                continuation.resume(returning: albums)
+            }
+        }
+    }
+
+    nonisolated private static func fetchImageAlbums(filteringTo assetIDs: Set<String>? = nil) -> [PhotoAlbum] {
         let imageOptions = PHFetchOptions()
         imageOptions.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.image.rawValue)
         
@@ -115,7 +422,20 @@ final class PhotoLibraryViewModel: ObservableObject {
                     return
                 }
                 
-                let count = PHAsset.fetchAssets(in: collection, options: imageOptions).count
+                let fetchedAssets = PHAsset.fetchAssets(in: collection, options: imageOptions)
+                let count: Int
+                if let assetIDs {
+                    var matchedCount = 0
+                    fetchedAssets.enumerateObjects { asset, _, _ in
+                        if assetIDs.contains(asset.localIdentifier) {
+                            matchedCount += 1
+                        }
+                    }
+                    count = matchedCount
+                } else {
+                    count = fetchedAssets.count
+                }
+
                 guard count > 0 else {
                     return
                 }

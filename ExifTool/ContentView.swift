@@ -16,6 +16,8 @@ struct ContentView: View {
     @StateObject private var library = PhotoLibraryViewModel()
     @State private var selectedTab = AppTab.picker
     @AppStorage("readOnlyMode") private var readOnlyMode = true
+    @AppStorage("allowsICloudDownload") private var allowsICloudDownload = false
+    @AppStorage("showsOnlyLocalPhotos") private var showsOnlyLocalPhotos = false
     @Environment(\.scenePhase) private var scenePhase
 #if os(iOS)
     @StateObject private var manualPicker = ManualPhotoPickerViewModel()
@@ -45,13 +47,18 @@ struct ContentView: View {
 #endif
 #if !os(macOS)
             .task {
-                await library.prepare()
+                await library.prepare(showingOnlyLocalAssets: showsOnlyLocalPhotos)
             }
             .onAppear {
                 syncSelectedTab()
             }
             .onChange(of: library.accessScope) { _, _ in
                 syncSelectedTab()
+            }
+            .onChange(of: showsOnlyLocalPhotos) { _, isEnabled in
+                Task {
+                    await library.setShowsOnlyLocalAssets(isEnabled)
+                }
             }
             .onChange(of: scenePhase) { _, newPhase in
                 guard newPhase == .active else {
@@ -79,7 +86,11 @@ struct ContentView: View {
             }
             
             Tab("设置", systemImage: "gearshape", value: AppTab.settings) {
-                SettingsTabView(readOnlyMode: $readOnlyMode)
+                SettingsTabView(
+                    readOnlyMode: $readOnlyMode,
+                    allowsICloudDownload: $allowsICloudDownload,
+                    showsOnlyLocalPhotos: $showsOnlyLocalPhotos
+                )
             }
 #else
             if showsLibraryTabs {
@@ -98,7 +109,15 @@ struct ContentView: View {
                 Tab("设置", systemImage: "gearshape", value: AppTab.settings) {
                     SettingsTabView(
                         readOnlyMode: $readOnlyMode,
-                        authorizationState: library.authorizationState
+                        authorizationState: library.authorizationState,
+                        localPhotosSummary: library.localPhotosSummaryText,
+                        localPhotosSummaryState: library.localPhotosSummaryState,
+                        localPhotosCount: library.localPhotosCount,
+                        localAlbumsCount: library.localAlbumsCount,
+                        localPhotosSummaryDestination: localPhotosSummaryDestination,
+                        onOpenLocalPhotosSummary: openLocalPhotosSummary,
+                        allowsICloudDownload: $allowsICloudDownload,
+                        showsOnlyLocalPhotos: $showsOnlyLocalPhotos
                     )
                 }
                 
@@ -113,7 +132,15 @@ struct ContentView: View {
                 Tab("设置", systemImage: "gearshape", value: AppTab.settings) {
                     SettingsTabView(
                         readOnlyMode: $readOnlyMode,
-                        authorizationState: library.authorizationState
+                        authorizationState: library.authorizationState,
+                        localPhotosSummary: library.localPhotosSummaryText,
+                        localPhotosSummaryState: library.localPhotosSummaryState,
+                        localPhotosCount: library.localPhotosCount,
+                        localAlbumsCount: library.localAlbumsCount,
+                        localPhotosSummaryDestination: localPhotosSummaryDestination,
+                        onOpenLocalPhotosSummary: openLocalPhotosSummary,
+                        allowsICloudDownload: $allowsICloudDownload,
+                        showsOnlyLocalPhotos: $showsOnlyLocalPhotos
                     )
                 }
             }
@@ -184,6 +211,30 @@ struct ContentView: View {
         }
         
         return topViewController
+    }
+
+    private var localPhotosSummaryDestination: AppTab? {
+        guard showsOnlyLocalPhotos else {
+            return nil
+        }
+
+        if library.isBuildingLocalAlbumStats {
+            return .albums
+        }
+
+        if showsLibraryTabs {
+            return .photos
+        }
+
+        return .settings
+    }
+
+    private func openLocalPhotosSummary() {
+        guard let destination = localPhotosSummaryDestination else {
+            return
+        }
+
+        selectedTab = destination
     }
 #endif
 }

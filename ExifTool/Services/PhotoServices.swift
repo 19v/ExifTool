@@ -122,6 +122,43 @@ enum PhotoLoader {
         }
     }
 
+    static func locallyAvailableAssetIDs(from assets: [PhotoAsset]) async -> Set<String> {
+        let libraryAssets = assets.compactMap(\.photoLibraryAsset)
+        guard !libraryAssets.isEmpty else {
+            return Set(assets.map(\.id))
+        }
+
+        var availableIDs = Set<String>()
+        let batchSize = 12
+        var batchStart = 0
+
+        while batchStart < libraryAssets.count {
+            let batch = Array(libraryAssets[batchStart ..< min(batchStart + batchSize, libraryAssets.count)])
+
+            let batchResults = await withTaskGroup(of: String?.self) { group in
+                for asset in batch {
+                    group.addTask {
+                        let isLocal = await hasLocalOriginalData(for: asset)
+                        return isLocal ? asset.localIdentifier : nil
+                    }
+                }
+
+                var identifiers: [String] = []
+                for await identifier in group {
+                    if let identifier {
+                        identifiers.append(identifier)
+                    }
+                }
+                return identifiers
+            }
+
+            availableIDs.formUnion(batchResults)
+            batchStart += batchSize
+        }
+
+        return availableIDs
+    }
+
     private static func thumbnail(for asset: PHAsset, size: CGSize) async -> PlatformImage? {
         await withCheckedContinuation { continuation in
             let options = PHImageRequestOptions()
@@ -236,6 +273,10 @@ enum PhotoLoader {
                 continuation.resume(returning: !allowNetwork && isInCloud ? nil : data)
             }
         }
+    }
+
+    private static func hasLocalOriginalData(for asset: PHAsset) async -> Bool {
+        await imageManagerData(for: asset, allowNetwork: false) != nil
     }
 }
 

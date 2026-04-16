@@ -49,11 +49,16 @@ extension ToolbarItemPlacement {
 struct PlatformAlbumList: View {
     let albums: [PhotoAlbum]
     let readOnlyMode: Bool
+    let showsOnlyLocalAssets: Bool
 
     var body: some View {
         List(albums) { album in
             NavigationLink {
-                AlbumDetailView(album: album, readOnlyMode: readOnlyMode)
+                AlbumDetailView(
+                    album: album,
+                    readOnlyMode: readOnlyMode,
+                    showsOnlyLocalAssets: showsOnlyLocalAssets
+                )
             } label: {
                 AlbumRowView(album: album)
             }

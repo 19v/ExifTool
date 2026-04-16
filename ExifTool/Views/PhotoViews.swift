@@ -5,6 +5,7 @@
 //  Created by Haochen on 2026/4/12.
 //
 
+import Combine
 import CoreLocation
 import Photos
 import SwiftUI
@@ -22,33 +23,74 @@ struct PhotoPickerTabView: View {
     
     var body: some View {
         NavigationStack {
-            Group {
-                #if os(iOS)
-                switch library.authorizationState {
-                case .denied:
-                    ManualPhotoPickerAccessView(picker: manualPicker, readOnlyMode: readOnlyMode)
-                default:
+            VStack(spacing: 0) {
+                if library.showsOnlyLocalAssets, let bannerText = localPhotosBanner {
+                    LocalPhotosStatusBanner(
+                        text: bannerText,
+                        state: localPhotosBannerState,
+                        localPhotosCount: library.localPhotosCount,
+                        localAlbumsCount: nil,
+                        emphasis: .compact
+                    )
+                }
+
+                Group {
+                    #if os(iOS)
+                    switch library.authorizationState {
+                    case .denied:
+                        ManualPhotoPickerAccessView(picker: manualPicker, readOnlyMode: readOnlyMode)
+                    default:
+                        LibraryAuthorizationContent(library: library, emptyTitle: "没有可显示的照片") {
+                            PhotoAssetGridView(
+                                assets: library.assets,
+                                readOnlyMode: readOnlyMode,
+                                isLoadingMore: library.showsOnlyLocalAssets && library.hasMoreLocalAssets,
+                                onAssetAppear: library.loadMoreLocalAssetsIfNeeded,
+                                onRefresh: library.refresh
+                            )
+                        }
+                    }
+                    #else
                     LibraryAuthorizationContent(library: library, emptyTitle: "没有可显示的照片") {
                         PhotoAssetGridView(
                             assets: library.assets,
                             readOnlyMode: readOnlyMode,
+                            isLoadingMore: false,
                             onRefresh: library.refresh
                         )
                     }
+                    #endif
                 }
-                #else
-                LibraryAuthorizationContent(library: library, emptyTitle: "没有可显示的照片") {
-                    PhotoAssetGridView(
-                        assets: library.assets,
-                        readOnlyMode: readOnlyMode,
-                        onRefresh: library.refresh
-                    )
-                }
-                #endif
             }
             .navigationTitle("照片")
             .platformInlineNavigationTitle()
         }
+    }
+
+    private var localPhotosBanner: String? {
+        if library.isFilteringLocalAssets && library.assets.isEmpty {
+            return "正在读取已下载到本地的照片"
+        }
+        if library.hasMoreLocalAssets {
+            return "当前仅显示已探测到的本地照片，继续下滑会加载更多"
+        }
+        if library.isBuildingLocalAlbumStats {
+            return "照片已加载完成，后台仍在补充相册统计"
+        }
+        return nil
+    }
+
+    private var localPhotosBannerState: PhotoLibraryViewModel.LocalPhotosSummaryState? {
+        if library.isFilteringLocalAssets && library.assets.isEmpty {
+            return .loading
+        }
+        if library.hasMoreLocalAssets {
+            return .paginating
+        }
+        if library.isBuildingLocalAlbumStats {
+            return .buildingAlbums
+        }
+        return nil
     }
 }
 
@@ -58,16 +100,38 @@ struct AlbumsTabView: View {
     
     var body: some View {
         NavigationStack {
-            LibraryAuthorizationContent(library: library, emptyTitle: "没有找到相册") {
-                PlatformAlbumList(
-                    albums: library.albums,
-                    readOnlyMode: readOnlyMode,
-                    onRefresh: library.refresh
-                )
+            VStack(spacing: 0) {
+                if library.showsOnlyLocalAssets && library.isBuildingLocalAlbumStats {
+                    localAlbumStatsBanner
+                }
+
+                LibraryAuthorizationContent(library: library, emptyTitle: "没有找到相册") {
+                    PlatformAlbumList(
+                        albums: library.albums,
+                        readOnlyMode: readOnlyMode,
+                        showsOnlyLocalAssets: library.showsOnlyLocalAssets,
+                        onRefresh: library.refresh
+                    )
+                }
             }
             .navigationTitle("相册")
             .platformInlineNavigationTitle()
+            .task(id: library.showsOnlyLocalAssets) {
+                if library.showsOnlyLocalAssets {
+                    library.buildRemainingLocalAlbumStatsIfNeeded()
+                }
+            }
         }
+    }
+
+    private var localAlbumStatsBanner: some View {
+        LocalPhotosStatusBanner(
+            text: "正在补充剩余本地照片的相册统计",
+            state: .buildingAlbums,
+            localPhotosCount: library.localPhotosCount,
+            localAlbumsCount: library.localAlbumsCount,
+            emphasis: .compact
+        )
     }
 }
 
@@ -96,16 +160,37 @@ struct AlbumRowView: View {
 struct AlbumDetailView: View {
     let album: PhotoAlbum
     let readOnlyMode: Bool
+    let showsOnlyLocalAssets: Bool
     
-    @State private var assets: [PhotoAsset] = []
+    @StateObject private var pager = LocalAssetPagingViewModel()
+    @State private var allAssets: [PhotoAsset] = []
     
     var body: some View {
-        PhotoAssetGridView(assets: assets, readOnlyMode: readOnlyMode)
+        PhotoAssetGridView(
+            assets: displayedAssets,
+            readOnlyMode: readOnlyMode,
+            isLoadingMore: showsOnlyLocalAssets ? pager.hasMoreAssets : false,
+            onAssetAppear: assetAppearHandler
+        )
             .navigationTitle(album.title)
             .platformInlineNavigationTitle()
             .task(id: album.id) {
-                assets = PhotoLibraryViewModel.fetchImageAssets(in: album.collection)
+                let fetchedAssets = await PhotoLibraryViewModel.fetchImageAssetsOffMain(in: album.collection)
+                allAssets = fetchedAssets
+                if showsOnlyLocalAssets {
+                    pager.setSourceAssets(fetchedAssets)
+                } else {
+                    pager.reset()
+                }
             }
+    }
+
+    private var displayedAssets: [PhotoAsset] {
+        showsOnlyLocalAssets ? pager.assets : allAssets
+    }
+
+    private var assetAppearHandler: ((String?) -> Void)? {
+        showsOnlyLocalAssets ? { pager.loadMoreIfNeeded(currentAssetID: $0) } : nil
     }
 }
 
@@ -114,6 +199,7 @@ struct SearchTabView: View {
     let readOnlyMode: Bool
     
     @State private var query = ""
+    @StateObject private var pager = LocalAssetPagingViewModel()
     
     private var results: [PhotoAsset] {
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -121,53 +207,420 @@ struct SearchTabView: View {
             return []
         }
         
-        return library.assets.filter { asset in
+        return library.searchableAssets.filter { asset in
             PhotoSearchIndex.text(for: asset).localizedCaseInsensitiveContains(trimmedQuery)
         }
     }
     
     var body: some View {
         NavigationStack {
-            LibraryAuthorizationContent(library: library, emptyTitle: "没有可搜索的照片") {
-                Group {
-                    if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        ContentUnavailableView("搜索照片", systemImage: "magnifyingglass", description: Text("可以搜索日期、尺寸或照片标识符。"))
-                    } else if results.isEmpty {
-                        ContentUnavailableView("没有匹配照片", systemImage: "photo.on.rectangle.angled")
-                    } else {
-                        PhotoAssetGridView(
-                            assets: results,
-                            readOnlyMode: readOnlyMode,
-                            onRefresh: library.refresh
-                        )
-                    }
+            VStack(spacing: 0) {
+                if library.showsOnlyLocalAssets, let bannerText = searchBannerText {
+                    LocalPhotosStatusBanner(
+                        text: bannerText,
+                        state: searchBannerState,
+                        localPhotosCount: searchBannerPhotosCount,
+                        localAlbumsCount: searchBannerAlbumsCount,
+                        emphasis: .compact
+                    )
+                }
+
+                LibraryAuthorizationContent(library: library, emptyTitle: "没有可搜索的照片") {
+                    searchContent
                 }
             }
             .navigationTitle("搜索")
             .platformInlineNavigationTitle()
             .searchable(text: $query, prompt: "搜索照片")
+            .onChange(of: query) { _, _ in
+                refreshSearchPager()
+            }
+            .onChange(of: library.showsOnlyLocalAssets) { _, _ in
+                refreshSearchPager()
+            }
+            .onChange(of: library.searchableAssets.map(\.id)) { _, _ in
+                refreshSearchPager()
+            }
+            .task {
+                refreshSearchPager()
+            }
         }
+    }
+
+    private var displayedSearchAssets: [PhotoAsset] {
+        library.showsOnlyLocalAssets ? pager.assets : results
+    }
+
+    private var showsSearchLoading: Bool {
+        library.showsOnlyLocalAssets && pager.hasMoreAssets
+    }
+
+    @ViewBuilder
+    private var searchContent: some View {
+        if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            ContentUnavailableView("搜索照片", systemImage: "magnifyingglass", description: Text("可以搜索日期、尺寸或照片标识符。"))
+        } else if displayedSearchAssets.isEmpty && !showsSearchLoading {
+            ContentUnavailableView("没有匹配照片", systemImage: "photo.on.rectangle.angled")
+        } else {
+            PhotoAssetGridView(
+                assets: displayedSearchAssets,
+                readOnlyMode: readOnlyMode,
+                isLoadingMore: showsSearchLoading,
+                onAssetAppear: searchAssetAppearHandler,
+                onRefresh: library.refresh
+            )
+        }
+    }
+
+    private var searchAssetAppearHandler: ((String?) -> Void)? {
+        library.showsOnlyLocalAssets ? { pager.loadMoreIfNeeded(currentAssetID: $0) } : nil
+    }
+
+    private func refreshSearchPager() {
+        if library.showsOnlyLocalAssets {
+            pager.setSourceAssets(results)
+        } else {
+            pager.reset()
+        }
+    }
+
+    private var searchBannerText: String? {
+        guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return nil
+        }
+        if displayedSearchAssets.isEmpty && showsSearchLoading {
+            return "正在筛选符合搜索条件的本地照片"
+        }
+        if showsSearchLoading {
+            return "当前搜索结果还在补充，继续下滑会加载更多本地照片"
+        }
+        if library.isBuildingLocalAlbumStats {
+            return "搜索结果已加载完成，后台仍在补充相册统计"
+        }
+        return nil
+    }
+
+    private var searchBannerState: PhotoLibraryViewModel.LocalPhotosSummaryState? {
+        guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return nil
+        }
+        if displayedSearchAssets.isEmpty && showsSearchLoading {
+            return .loading
+        }
+        if showsSearchLoading {
+            return .paginating
+        }
+        if library.isBuildingLocalAlbumStats {
+            return .buildingAlbums
+        }
+        return nil
+    }
+
+    private var searchBannerPhotosCount: Int? {
+        guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return nil
+        }
+        return displayedSearchAssets.count
+    }
+
+    private var searchBannerAlbumsCount: Int? {
+        library.isBuildingLocalAlbumStats ? library.localAlbumsCount : nil
+    }
+}
+
+struct LocalPhotosStatusBanner: View {
+    enum Emphasis {
+        case compact
+        case card
+    }
+
+    let text: String
+    let state: PhotoLibraryViewModel.LocalPhotosSummaryState?
+    let localPhotosCount: Int?
+    let localAlbumsCount: Int?
+    let emphasis: Emphasis
+
+    var body: some View {
+        HStack(spacing: 12) {
+            statusPulse
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    if let localPhotosCount {
+                        countChip(title: "本地", value: localPhotosCount)
+                    }
+
+                    if showsAlbumCount, let localAlbumsCount {
+                        countChip(title: "相册", value: localAlbumsCount)
+                    }
+                }
+
+                Text(text)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.leading)
+                    .contentTransition(.opacity)
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(backgroundStyle, in: RoundedRectangle(cornerRadius: 14))
+        .padding(.horizontal, horizontalInset)
+        .padding(.top, topInset)
+        .padding(.bottom, bottomInset)
+        .animation(.snappy(duration: 0.3, extraBounce: 0.08), value: localPhotosCount)
+        .animation(.snappy(duration: 0.3, extraBounce: 0.08), value: localAlbumsCount)
+        .animation(.easeInOut(duration: 0.2), value: text)
+    }
+
+    private var showsAlbumCount: Bool {
+        switch state {
+        case .buildingAlbums, .complete:
+            return true
+        case .loading, .paginating, .none:
+            return localAlbumsCount != nil && localAlbumsCount != 0
+        }
+    }
+
+    private var statusPulse: some View {
+        Circle()
+            .fill(statusColor.gradient)
+            .frame(width: 10, height: 10)
+            .overlay {
+                Circle()
+                    .stroke(statusColor.opacity(0.22), lineWidth: 8)
+                    .scaleEffect(needsPulse ? 1.16 : 1)
+                    .opacity(needsPulse ? 1 : 0.35)
+            }
+            .animation(
+                needsPulse ? .easeInOut(duration: 1.1).repeatForever(autoreverses: true) : .easeOut(duration: 0.2),
+                value: needsPulse
+            )
+    }
+
+    @ViewBuilder
+    private func countChip(title: String, value: Int) -> some View {
+        HStack(spacing: 6) {
+            Text(title)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Text(formatted(value))
+                .font(.caption.weight(.semibold))
+                .monospacedDigit()
+                .contentTransition(.numericText(value: Double(value)))
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(.thinMaterial, in: Capsule())
+    }
+
+    private var statusColor: Color {
+        switch state {
+        case .complete:
+            return .green
+        case .loading, .paginating, .buildingAlbums, .none:
+            return .orange
+        }
+    }
+
+    private var needsPulse: Bool {
+        switch state {
+        case .complete:
+            return false
+        case .loading, .paginating, .buildingAlbums, .none:
+            return true
+        }
+    }
+
+    private var backgroundStyle: some ShapeStyle {
+        switch emphasis {
+        case .compact:
+            return AnyShapeStyle(Color.platformSecondaryBackground)
+        case .card:
+            return AnyShapeStyle(Color.platformSecondaryBackground)
+        }
+    }
+
+    private var horizontalInset: CGFloat {
+        switch emphasis {
+        case .compact, .card:
+            return 12
+        }
+    }
+
+    private var topInset: CGFloat {
+        switch emphasis {
+        case .compact:
+            return 8
+        case .card:
+            return 0
+        }
+    }
+
+    private var bottomInset: CGFloat {
+        switch emphasis {
+        case .compact:
+            return 6
+        case .card:
+            return 0
+        }
+    }
+
+    private func formatted(_ value: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        return formatter.string(from: NSNumber(value: value)) ?? "\(value)"
+    }
+}
+
+@MainActor
+final class LocalAssetPagingViewModel: ObservableObject {
+    private static let scanBatchSize = 48
+    private static let pageSize = 90
+    private static let prefetchThreshold = 24
+
+    @Published private(set) var assets: [PhotoAsset] = []
+    @Published private(set) var hasMoreAssets = false
+
+    private var sourceAssets: [PhotoAsset] = []
+    private var nextScanIndex = 0
+    private var isLoading = false
+    private var sessionID = UUID()
+
+    func setSourceAssets(_ assets: [PhotoAsset]) {
+        sessionID = UUID()
+        sourceAssets = assets
+        nextScanIndex = 0
+        self.assets = []
+        hasMoreAssets = !assets.isEmpty
+
+        guard !assets.isEmpty else {
+            return
+        }
+
+        Task {
+            await loadNextPage(for: sessionID)
+        }
+    }
+
+    func reset() {
+        sessionID = UUID()
+        sourceAssets = []
+        nextScanIndex = 0
+        assets = []
+        hasMoreAssets = false
+        isLoading = false
+    }
+
+    func loadMoreIfNeeded(currentAssetID: String?) {
+        guard !isLoading, hasMoreAssets else {
+            return
+        }
+
+        if assets.isEmpty {
+            Task {
+                await loadNextPage(for: sessionID)
+            }
+            return
+        }
+
+        guard let currentAssetID,
+              let currentIndex = assets.firstIndex(where: { $0.id == currentAssetID }) else {
+            return
+        }
+
+        let thresholdIndex = max(assets.count - Self.prefetchThreshold, 0)
+        guard currentIndex >= thresholdIndex else {
+            return
+        }
+
+        Task {
+            await loadNextPage(for: sessionID)
+        }
+    }
+
+    private func loadNextPage(for sessionID: UUID) async {
+        guard sessionID == self.sessionID, !isLoading else {
+            return
+        }
+
+        isLoading = true
+        defer { isLoading = false }
+
+        var matchedAssets: [PhotoAsset] = []
+
+        while matchedAssets.count < Self.pageSize, nextScanIndex < sourceAssets.count {
+            let batchEnd = min(nextScanIndex + Self.scanBatchSize, sourceAssets.count)
+            let assetBatch = Array(sourceAssets[nextScanIndex..<batchEnd])
+            nextScanIndex = batchEnd
+
+            let localAssetIDs = await PhotoLoader.locallyAvailableAssetIDs(from: assetBatch)
+            guard !Task.isCancelled, sessionID == self.sessionID else {
+                return
+            }
+
+            matchedAssets.append(contentsOf: assetBatch.filter { localAssetIDs.contains($0.id) })
+        }
+
+        if !matchedAssets.isEmpty {
+            assets.append(contentsOf: matchedAssets)
+        }
+
+        hasMoreAssets = nextScanIndex < sourceAssets.count
     }
 }
 
 struct SettingsTabView: View {
     @Binding var readOnlyMode: Bool
+    @Binding var allowsICloudDownload: Bool
+    @Binding var showsOnlyLocalPhotos: Bool
     #if os(iOS)
     let authorizationState: PhotoLibraryViewModel.AuthorizationState
+    let localPhotosSummary: String?
+    let localPhotosSummaryState: PhotoLibraryViewModel.LocalPhotosSummaryState?
+    let localPhotosCount: Int?
+    let localAlbumsCount: Int?
+    let localPhotosSummaryDestination: AppTab?
+    let onOpenLocalPhotosSummary: (() -> Void)?
     @Environment(\.openURL) private var openURL
+    @State private var showsICloudDownloadExplanation = false
     #else
-    init(readOnlyMode: Binding<Bool>) {
+    init(
+        readOnlyMode: Binding<Bool>,
+        allowsICloudDownload: Binding<Bool>,
+        showsOnlyLocalPhotos: Binding<Bool>
+    ) {
         self._readOnlyMode = readOnlyMode
+        self._allowsICloudDownload = allowsICloudDownload
+        self._showsOnlyLocalPhotos = showsOnlyLocalPhotos
     }
     #endif
     
     #if os(iOS)
     init(
         readOnlyMode: Binding<Bool>,
-        authorizationState: PhotoLibraryViewModel.AuthorizationState
+        authorizationState: PhotoLibraryViewModel.AuthorizationState,
+        localPhotosSummary: String?,
+        localPhotosSummaryState: PhotoLibraryViewModel.LocalPhotosSummaryState?,
+        localPhotosCount: Int?,
+        localAlbumsCount: Int?,
+        localPhotosSummaryDestination: AppTab?,
+        onOpenLocalPhotosSummary: (() -> Void)? = nil,
+        allowsICloudDownload: Binding<Bool>,
+        showsOnlyLocalPhotos: Binding<Bool>
     ) {
         self._readOnlyMode = readOnlyMode
         self.authorizationState = authorizationState
+        self.localPhotosSummary = localPhotosSummary
+        self.localPhotosSummaryState = localPhotosSummaryState
+        self.localPhotosCount = localPhotosCount
+        self.localAlbumsCount = localAlbumsCount
+        self.localPhotosSummaryDestination = localPhotosSummaryDestination
+        self.onOpenLocalPhotosSummary = onOpenLocalPhotosSummary
+        self._allowsICloudDownload = allowsICloudDownload
+        self._showsOnlyLocalPhotos = showsOnlyLocalPhotos
     }
     #endif
     
@@ -179,6 +632,34 @@ struct SettingsTabView: View {
                     Text("开启后，应用只读取照片和 Exif，不会修改照片或写入元数据。")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                }
+
+                Section(
+                    header: Text("iCloud 照片"),
+                    footer: Text("部分照片开启 iCloud 照片后只保存在云端。关闭联网下载时，应用不会主动联网；如果只想离线查看，可以打开“仅显示已下载到本地的照片”，先去系统相册下载好再回来。")
+                ) {
+                    Toggle("允许联网下载 iCloud 原图", isOn: iCloudDownloadBinding)
+                    Toggle("仅显示已下载到本地的照片", isOn: $showsOnlyLocalPhotos)
+
+                    #if os(iOS)
+                    if showsOnlyLocalPhotos, let localPhotosSummary {
+                        if let onOpenLocalPhotosSummary {
+            LocalPhotosSummaryButton(
+                summary: localPhotosSummary,
+                state: localPhotosSummaryState,
+                localPhotosCount: localPhotosCount,
+                                localAlbumsCount: localAlbumsCount,
+                                iconName: summaryDestinationIconName,
+                                accessibilityHint: summaryDestinationAccessibilityHint,
+                                action: onOpenLocalPhotosSummary
+                            )
+                        } else {
+                            Text(localPhotosSummary)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    #endif
                 }
                 
                 #if os(iOS)
@@ -206,12 +687,61 @@ struct SettingsTabView: View {
             }
             .navigationTitle("设置")
             .platformInlineNavigationTitle()
+            #if os(iOS)
+            .alert("允许联网下载 iCloud 原图？", isPresented: $showsICloudDownloadExplanation) {
+                Button("保持离线", role: .cancel) { }
+                Button("允许下载") {
+                    allowsICloudDownload = true
+                }
+            } message: {
+                Text("有些照片的原图和 Exif 只存在 iCloud，应用需要短暂联网把原图下载到本机后才能读取。你也可以继续保持离线，只查看已经在本地的照片。")
+            }
+            #endif
         }
     }
     
     #if os(iOS)
     private var showsSettingsShortcut: Bool {
         authorizationState != .unknown
+    }
+
+    private var iCloudDownloadBinding: Binding<Bool> {
+        Binding(
+            get: { allowsICloudDownload },
+            set: { newValue in
+                if newValue {
+                    showsICloudDownloadExplanation = true
+                } else {
+                    allowsICloudDownload = false
+                }
+            }
+        )
+    }
+
+    private var summaryDestinationIconName: String {
+        switch localPhotosSummaryDestination {
+        case .albums:
+            return "rectangle.stack"
+        case .photos:
+            return "photo.on.rectangle.angled"
+        case .search:
+            return "magnifyingglass"
+        case .settings, .picker, .none:
+            return "arrow.up.forward"
+        }
+    }
+
+    private var summaryDestinationAccessibilityHint: String {
+        switch localPhotosSummaryDestination {
+        case .albums:
+            return "打开相册页面查看本地照片统计"
+        case .photos:
+            return "打开图库页面继续加载本地照片"
+        case .search:
+            return "打开搜索页面查看本地照片"
+        case .settings, .picker, .none:
+            return "打开相关页面查看本地照片状态"
+        }
     }
     
     private var photoPermissionActionTitle: String {
@@ -246,6 +776,124 @@ struct SettingsTabView: View {
     #endif
 }
 
+private struct LocalPhotosSummaryButton: View {
+    let summary: String
+    let state: PhotoLibraryViewModel.LocalPhotosSummaryState?
+    let localPhotosCount: Int?
+    let localAlbumsCount: Int?
+    let iconName: String
+    let accessibilityHint: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                statusPulse
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        countChip(title: "本地", value: localPhotosCount)
+
+                        if showsAlbumCount {
+                            countChip(title: "相册", value: localAlbumsCount)
+                        }
+                    }
+
+                    Text(summary)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.leading)
+                        .contentTransition(.opacity)
+                }
+
+                Spacer(minLength: 8)
+
+                Image(systemName: iconName)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .symbolEffect(.bounce.byLayer, value: summary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Color.platformSecondaryBackground, in: RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint(accessibilityHint)
+        .animation(.snappy(duration: 0.3, extraBounce: 0.08), value: localPhotosCount)
+        .animation(.snappy(duration: 0.3, extraBounce: 0.08), value: localAlbumsCount)
+        .animation(.easeInOut(duration: 0.2), value: summary)
+    }
+
+    private var showsAlbumCount: Bool {
+        switch state {
+        case .buildingAlbums, .complete:
+            return true
+        case .loading, .paginating, .none:
+            return localAlbumsCount != nil && localAlbumsCount != 0
+        }
+    }
+
+    private var statusPulse: some View {
+        Circle()
+            .fill(statusColor.gradient)
+            .frame(width: 10, height: 10)
+            .overlay {
+                Circle()
+                    .stroke(statusColor.opacity(0.25), lineWidth: 8)
+                    .scaleEffect(needsPulse ? 1.18 : 1)
+                    .opacity(needsPulse ? 1 : 0.35)
+            }
+            .animation(
+                needsPulse ? .easeInOut(duration: 1.1).repeatForever(autoreverses: true) : .easeOut(duration: 0.2),
+                value: needsPulse
+            )
+    }
+
+    @ViewBuilder
+    private func countChip(title: String, value: Int?) -> some View {
+        HStack(spacing: 6) {
+            Text(title)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Text(formatted(value))
+                .font(.caption.weight(.semibold))
+                .monospacedDigit()
+                .contentTransition(.numericText(value: Double(value ?? 0)))
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(.thinMaterial, in: Capsule())
+    }
+
+    private var statusColor: Color {
+        switch state {
+        case .complete:
+            return .green
+        case .loading, .paginating, .buildingAlbums, .none:
+            return .orange
+        }
+    }
+
+    private var needsPulse: Bool {
+        switch state {
+        case .complete:
+            return false
+        case .loading, .paginating, .buildingAlbums, .none:
+            return true
+        }
+    }
+
+    private func formatted(_ value: Int?) -> String {
+        guard let value else {
+            return "0"
+        }
+
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        return formatter.string(from: NSNumber(value: value)) ?? "\(value)"
+    }
+}
+
 struct LibraryAuthorizationContent<Content: View>: View {
     @ObservedObject var library: PhotoLibraryViewModel
     let emptyTitle: String
@@ -253,7 +901,10 @@ struct LibraryAuthorizationContent<Content: View>: View {
     
     var body: some View {
         Group {
-            switch library.authorizationState {
+            if library.isFilteringLocalAssets && library.assets.isEmpty {
+                ProgressView("正在筛选已下载到本地的照片")
+            } else {
+                switch library.authorizationState {
             case .unknown:
                 ProgressView("正在读取照片")
             case .denied:
@@ -268,16 +919,27 @@ struct LibraryAuthorizationContent<Content: View>: View {
                 ContentUnavailableView(
                     emptyTitle,
                     systemImage: "photo",
-                    description: Text("当前权限范围内没有照片。")
+                    description: Text(emptyStateDescription)
                 )
             }
+            }
         }
+    }
+
+    private var emptyStateDescription: String {
+        if library.showsOnlyLocalAssets {
+            return "当前只显示已经下载到本地的照片。可以先去系统相册下载原图，或到设置里关闭这个筛选。"
+        }
+
+        return "当前权限范围内没有照片。"
     }
 }
 
 struct PhotoAssetGridView: View {
     let assets: [PhotoAsset]
     let readOnlyMode: Bool
+    let isLoadingMore: Bool
+    let onAssetAppear: ((String?) -> Void)?
     let onRefresh: (() async -> Void)?
     
     private let columns = [
@@ -286,9 +948,17 @@ struct PhotoAssetGridView: View {
         GridItem(.flexible(), spacing: 3)
     ]
     
-    init(assets: [PhotoAsset], readOnlyMode: Bool, onRefresh: (() async -> Void)? = nil) {
+    init(
+        assets: [PhotoAsset],
+        readOnlyMode: Bool,
+        isLoadingMore: Bool = false,
+        onAssetAppear: ((String?) -> Void)? = nil,
+        onRefresh: (() async -> Void)? = nil
+    ) {
         self.assets = assets
         self.readOnlyMode = readOnlyMode
+        self.isLoadingMore = isLoadingMore
+        self.onAssetAppear = onAssetAppear
         self.onRefresh = onRefresh
     }
     
@@ -307,6 +977,16 @@ struct PhotoAssetGridView: View {
                     }
                     .buttonStyle(.plain)
                     .id(asset.id)
+                    .onAppear {
+                        onAssetAppear?(asset.id)
+                    }
+                }
+
+                if isLoadingMore {
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .gridCellColumns(columns.count)
                 }
             }
             .padding(3)
@@ -434,10 +1114,12 @@ struct PhotoDetailPage: View {
     let visibleMetadataKeys: Set<String>?
     
     @Environment(\.openURL) private var openURL
+    @AppStorage("allowsICloudDownload") private var allowsICloudDownload = false
     @State private var detail = PhotoDetailState.loading
     @State private var mapCoordinate: CLLocationCoordinate2D?
     @State private var isMapChooserPresented = false
     @State private var isDownloadingOriginal = false
+    @State private var showsICloudDownloadExplanation = false
     
     init(
         asset: PhotoAsset,
@@ -495,6 +1177,17 @@ struct PhotoDetailPage: View {
             }
             Button("取消", role: .cancel) { }
         }
+        .alert("需要联网下载 iCloud 原图", isPresented: $showsICloudDownloadExplanation) {
+            Button("保持离线", role: .cancel) { }
+            Button("允许并下载") {
+                allowsICloudDownload = true
+                Task {
+                    await loadMetadata(allowNetwork: true)
+                }
+            }
+        } message: {
+            Text("这张照片的原图可能只保存在 iCloud。应用需要联网把原图下载到本机后才能读取完整 Exif，你也可以保持离线，或在设置里改成仅显示已下载到本地的照片。")
+        }
     }
     
     private var readOnlyBanner: some View {
@@ -516,8 +1209,12 @@ struct PhotoDetailPage: View {
             .frame(maxWidth: .infinity, minHeight: 170)
             
             Button {
-                Task {
-                    await loadMetadata(allowNetwork: true)
+                if allowsICloudDownload {
+                    Task {
+                        await loadMetadata(allowNetwork: true)
+                    }
+                } else {
+                    showsICloudDownloadExplanation = true
                 }
             } label: {
                 if isDownloadingOriginal {

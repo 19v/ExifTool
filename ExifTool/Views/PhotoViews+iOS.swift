@@ -49,18 +49,29 @@ extension ToolbarItemPlacement {
 struct PlatformAlbumList: View {
     let albums: [PhotoAlbum]
     let readOnlyMode: Bool
+    let showsOnlyLocalAssets: Bool
     let onRefresh: (() async -> Void)?
 
-    init(albums: [PhotoAlbum], readOnlyMode: Bool, onRefresh: (() async -> Void)? = nil) {
+    init(
+        albums: [PhotoAlbum],
+        readOnlyMode: Bool,
+        showsOnlyLocalAssets: Bool = false,
+        onRefresh: (() async -> Void)? = nil
+    ) {
         self.albums = albums
         self.readOnlyMode = readOnlyMode
+        self.showsOnlyLocalAssets = showsOnlyLocalAssets
         self.onRefresh = onRefresh
     }
 
     var body: some View {
         List(albums) { album in
             NavigationLink {
-                AlbumDetailView(album: album, readOnlyMode: readOnlyMode)
+                AlbumDetailView(
+                    album: album,
+                    readOnlyMode: readOnlyMode,
+                    showsOnlyLocalAssets: showsOnlyLocalAssets
+                )
             } label: {
                 AlbumRowView(album: album)
             }
@@ -148,9 +159,9 @@ private struct ManualPhotoPickerContent: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(.horizontal, 24)
             } else {
-                PhotoAssetGridView(assets: picker.assets, readOnlyMode: readOnlyMode) {
+                PhotoAssetGridView(assets: picker.assets, readOnlyMode: readOnlyMode, onRefresh: {
                     selectedItems = []
-                }
+                })
                 .safeAreaInset(edge: .bottom) {
                     HStack {
                         PhotosPicker(
