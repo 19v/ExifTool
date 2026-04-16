@@ -11,6 +11,7 @@ import Photos
 
 enum AppTab: Hashable {
     case photos
+    case picker
     case albums
     case settings
     case search

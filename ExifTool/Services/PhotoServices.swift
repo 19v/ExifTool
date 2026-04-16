@@ -47,6 +47,27 @@ enum PhotoFileImporter {
         urls.compactMap(importAsset)
     }
 
+    nonisolated static func importAsset(from data: Data, suggestedFileName: String? = nil, id: String = UUID().uuidString) -> PhotoAsset? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              CGImageSourceGetCount(source) > 0 else {
+            return nil
+        }
+
+        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+        let file = LocalPhotoFile(
+            id: id,
+            fileURL: URL(fileURLWithPath: "/picked/\(id)"),
+            fileName: suggestedFileName ?? "已选图片",
+            data: data,
+            creationDate: nil,
+            modificationDate: nil,
+            pixelWidth: properties?[kCGImagePropertyPixelWidth] as? Int ?? 0,
+            pixelHeight: properties?[kCGImagePropertyPixelHeight] as? Int ?? 0
+        )
+
+        return PhotoAsset(file: file)
+    }
+
     nonisolated private static func importAsset(from url: URL) -> PhotoAsset? {
         let fileURL = url.standardizedFileURL
         let resourceValues = try? fileURL.resourceValues(forKeys: [
