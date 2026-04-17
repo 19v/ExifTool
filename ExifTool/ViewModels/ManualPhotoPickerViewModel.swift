@@ -57,6 +57,16 @@ final class ManualPhotoPickerViewModel: ObservableObject {
         }
     }
 
+    func importSharedPhoto(from url: URL) -> PhotoAsset? {
+        guard let asset = PhotoFileImporter.importAsset(from: url) else {
+            importErrorMessage = "没有成功导入分享的图片。"
+            return nil
+        }
+
+        assets = [asset]
+        return asset
+    }
+
     func clearError() {
         importErrorMessage = nil
     }

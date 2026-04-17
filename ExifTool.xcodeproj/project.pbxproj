@@ -8,6 +8,7 @@
 
 /* Begin PBXFileReference section */
 		05C67FE12F8F69DD0020F602 /* ExifTool.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ExifTool.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		05C680022F91A0000020F602 /* ExifToolShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ExifToolShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -16,10 +17,22 @@
 			path = ExifTool;
 			sourceTree = "<group>";
 		};
+		05C680012F91A0000020F602 /* ShareExtension */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ShareExtension;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		05C67FDE2F8F69DD0020F602 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		05C680072F91A0000020F602 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -33,6 +46,7 @@
 			isa = PBXGroup;
 			children = (
 				05C67FE32F8F69DD0020F602 /* ExifTool */,
+				05C680012F91A0000020F602 /* ShareExtension */,
 				05C67FE22F8F69DD0020F602 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +55,7 @@
 			isa = PBXGroup;
 			children = (
 				05C67FE12F8F69DD0020F602 /* ExifTool.app */,
+				05C680022F91A0000020F602 /* ExifToolShareExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -70,6 +85,28 @@
 			productReference = 05C67FE12F8F69DD0020F602 /* ExifTool.app */;
 			productType = "com.apple.product-type.application";
 		};
+		05C680052F91A0000020F602 /* ExifToolShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 05C6800E2F91A0000020F602 /* Build configuration list for PBXNativeTarget "ExifToolShareExtension" */;
+			buildPhases = (
+				05C680062F91A0000020F602 /* Sources */,
+				05C680072F91A0000020F602 /* Frameworks */,
+				05C680082F91A0000020F602 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				05C680012F91A0000020F602 /* ShareExtension */,
+			);
+			name = ExifToolShareExtension;
+			packageProductDependencies = (
+			);
+			productName = ExifToolShareExtension;
+			productReference = 05C680022F91A0000020F602 /* ExifToolShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -81,6 +118,9 @@
 				LastUpgradeCheck = 2640;
 				TargetAttributes = {
 					05C67FE02F8F69DD0020F602 = {
+						CreatedOnToolsVersion = 26.4;
+					};
+					05C680052F91A0000020F602 = {
 						CreatedOnToolsVersion = 26.4;
 					};
 				};
@@ -100,6 +140,7 @@
 			projectRoot = "";
 			targets = (
 				05C67FE02F8F69DD0020F602 /* ExifTool */,
+				05C680052F91A0000020F602 /* ExifToolShareExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -112,10 +153,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		05C680082F91A0000020F602 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		05C67FDD2F8F69DD0020F602 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		05C680062F91A0000020F602 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -244,6 +299,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = ExifTool/ExifTool.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = ExifTool/ExifTool.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 578JV98PW6;
@@ -296,6 +353,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = ExifTool/ExifTool.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = ExifTool/ExifTool.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 578JV98PW6;
@@ -343,6 +402,69 @@
 			};
 			name = Release;
 		};
+		05C6800C2F91A0000020F602 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = ShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 578JV98PW6;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "ShareExtension-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.demo.ExifTool.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		05C6800D2F91A0000020F602 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = ShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 578JV98PW6;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "ShareExtension-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.demo.ExifTool.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -360,6 +482,15 @@
 			buildConfigurations = (
 				05C67FED2F8F69DF0020F602 /* Debug */,
 				05C67FEE2F8F69DF0020F602 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		05C6800E2F91A0000020F602 /* Build configuration list for PBXNativeTarget "ExifToolShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				05C6800C2F91A0000020F602 /* Debug */,
+				05C6800D2F91A0000020F602 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

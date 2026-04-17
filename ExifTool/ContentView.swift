@@ -21,6 +21,7 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
 #if os(iOS)
     @StateObject private var manualPicker = ManualPhotoPickerViewModel()
+    @State private var sharedPhotoAsset: PhotoAsset?
 #endif
 #if os(macOS)
     @StateObject private var macWorkspace = MacPhotoWorkspace()
@@ -48,6 +49,18 @@ struct ContentView: View {
 #if !os(macOS)
             .task {
                 await library.prepare(showingOnlyLocalAssets: showsOnlyLocalPhotos)
+            }
+            .onOpenURL { url in
+                openIncomingPhoto(from: url)
+            }
+            .sheet(item: $sharedPhotoAsset) { asset in
+                NavigationStack {
+                    PhotoDetailView(
+                        assets: manualPicker.assets.isEmpty ? [asset] : manualPicker.assets,
+                        initialAssetID: asset.id,
+                        readOnlyMode: readOnlyMode
+                    )
+                }
             }
             .onAppear {
                 syncSelectedTab()
@@ -229,6 +242,46 @@ struct ContentView: View {
         }
 
         selectedTab = destination
+    }
+
+    private func openIncomingPhoto(from url: URL) {
+        if url.isFileURL {
+            openDocumentPhoto(from: url)
+            return
+        }
+
+        openSharedPhoto(from: url)
+    }
+
+    private func openDocumentPhoto(from url: URL) {
+        let didAccessSecurityScopedResource = url.startAccessingSecurityScopedResource()
+        defer {
+            if didAccessSecurityScopedResource {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
+
+        guard let asset = manualPicker.importSharedPhoto(from: url) else {
+            manualPicker.importErrorMessage = "无法打开分享的照片，请重新从相册分享一次。"
+            selectedTab = .picker
+            return
+        }
+
+        selectedTab = .picker
+        sharedPhotoAsset = asset
+    }
+
+    private func openSharedPhoto(from url: URL) {
+        guard let fileName = SharedPhotoImport.fileName(from: url),
+              let fileURL = SharedPhotoImport.fileURL(forSharedFileName: fileName),
+              let asset = manualPicker.importSharedPhoto(from: fileURL) else {
+            manualPicker.importErrorMessage = "无法打开分享的照片，请重新从相册分享一次。"
+            selectedTab = .picker
+            return
+        }
+
+        selectedTab = .picker
+        sharedPhotoAsset = asset
     }
 #endif
 }

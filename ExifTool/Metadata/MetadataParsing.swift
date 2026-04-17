@@ -39,9 +39,8 @@ enum MetadataParser {
         }
         .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
 
-        sections.append(contentsOf: CameraMetadataSectionBuilder.sections(from: properties))
+        sections.append(contentsOf: CameraMetadataSectionBuilder.sections(from: properties, imageData: data))
         sections.append(contentsOf: WhiteBalanceMetadataFallbackBuilder.sections(from: properties, existingSections: sections))
-        sections.append(contentsOf: WhiteBalanceDebugSectionBuilder.sections(from: properties))
 
         return PhotoMetadata(sections: sections, coordinate: coordinate)
     }
@@ -211,113 +210,12 @@ enum WhiteBalanceMetadataFallbackBuilder {
         }
 
         if normalizedKey.contains("finetune") || normalizedKey.contains("shift") || normalizedKey.contains("wbrb") {
-            if let values = integerArray(from: rawValue), !values.isEmpty {
-                if values.count >= 4 {
-                    return "G1 \(signed(values[0])), R \(signed(values[1])), B \(signed(values[2])), G2 \(signed(values[3]))"
-                }
-
-                if values.count >= 2 {
-                    return "R \(signed(values[0])), B \(signed(values[1]))"
-                }
-
-                return "R \(signed(values[0]))"
+            if let formatted = FujifilmMakerNoteParser.formattedWhiteBalanceFineTune(from: rawValue) {
+                return formatted
             }
         }
 
         return MetadataParser.readableValue(rawValue)
-    }
-
-    private static func integerArray(from rawValue: Any) -> [Int]? {
-        switch rawValue {
-        case let number as NSNumber:
-            return [number.intValue]
-        case let array as [NSNumber]:
-            return array.map(\.intValue)
-        case let array as [Int]:
-            return array
-        case let array as [Any]:
-            let values = array.compactMap { value -> Int? in
-                switch value {
-                case let number as NSNumber:
-                    return number.intValue
-                case let int as Int:
-                    return int
-                default:
-                    return nil
-                }
-            }
-            return values.isEmpty ? nil : values
-        default:
-            return nil
-        }
-    }
-
-    private static func signed(_ value: Int) -> String {
-        value > 0 ? "+\(value)" : String(value)
-    }
-}
-
-enum WhiteBalanceDebugSectionBuilder {
-    private struct Candidate {
-        let key: String
-        let value: Any
-    }
-
-    static func sections(from properties: [String: Any]) -> [MetadataSection] {
-        let items = flatten(properties)
-            .filter { candidate in
-                let key = normalized(candidate.key)
-                return key.contains("whitebalance") || key.contains("wb")
-            }
-            .sorted { $0.key.localizedStandardCompare($1.key) == .orderedAscending }
-            .map { candidate in
-                MetadataItem(
-                    id: "wb-debug-\(candidate.key)",
-                    key: candidate.key,
-                    value: formattedValue(candidate.value)
-                )
-            }
-
-        guard !items.isEmpty else {
-            return []
-        }
-
-        return [MetadataSection(id: "white-balance-debug", title: "白平衡调试", items: items)]
-    }
-
-    private static func flatten(_ value: Any, parentKey: String = "") -> [Candidate] {
-        guard let dictionary = value as? [String: Any] else {
-            return parentKey.isEmpty ? [] : [Candidate(key: parentKey, value: value)]
-        }
-
-        return dictionary.flatMap { key, nestedValue -> [Candidate] in
-            let readableKey = key
-                .replacingOccurrences(of: "{Exif}", with: "")
-                .replacingOccurrences(of: "{TIFF}", with: "")
-                .replacingOccurrences(of: "{GPS}", with: "")
-                .replacingOccurrences(of: "{MakerFuji}", with: "")
-            let combinedKey = parentKey.isEmpty ? readableKey : "\(parentKey).\(readableKey)"
-            return flatten(nestedValue, parentKey: combinedKey)
-        }
-    }
-
-    private static func normalized(_ key: String) -> String {
-        key
-            .lowercased()
-            .replacingOccurrences(of: " ", with: "")
-            .replacingOccurrences(of: "_", with: "")
-            .replacingOccurrences(of: "-", with: "")
-            .replacingOccurrences(of: "{", with: "")
-            .replacingOccurrences(of: "}", with: "")
-            .replacingOccurrences(of: ".", with: "")
-    }
-
-    private static func formattedValue(_ value: Any) -> String {
-        if let array = integerArray(from: value), !array.isEmpty {
-            return array.map { signed($0) }.joined(separator: ", ")
-        }
-
-        return MetadataParser.readableValue(value)
     }
 
     private static func integerArray(from rawValue: Any) -> [Int]? {
@@ -374,6 +272,9 @@ enum MetadataKeyTranslator {
         "flashpixversion": "FlashPix 版本",
         "focallength": "焦距",
         "focallengthin35mmfilm": "等效焦距",
+        "flickerreduction": "闪烁抑制",
+        "fujimodel": "Fuji 型号",
+        "fujimodel2": "Fuji 型号 2",
         "gpsaltitude": "海拔",
         "gpsaltituderef": "海拔参考",
         "gpsdatestamp": "GPS 日期",
@@ -394,6 +295,7 @@ enum MetadataKeyTranslator {
         "imageheight": "图片高度",
         "imagelength": "图片高度",
         "imagewidth": "图片宽度",
+        "internalserialnumber": "内部序列号",
         "isoequivalent": "ISO",
         "isospeedratings": "ISO",
         "lensmake": "镜头厂商",
@@ -411,6 +313,8 @@ enum MetadataKeyTranslator {
         "pixelxdimension": "像素宽度",
         "pixelydimension": "像素高度",
         "profiledatetime": "色彩配置时间",
+        "quality": "图像质量",
+        "rollangle": "翻滚角",
         "saturation": "饱和度",
         "scene_capture_type": "场景类型",
         "scenecapturetype": "场景类型",
@@ -422,12 +326,17 @@ enum MetadataKeyTranslator {
         "subsectime": "亚秒时间",
         "subsectimedigitized": "数字化亚秒",
         "subsectimeoriginal": "拍摄亚秒",
+        "version": "版本",
+        "wbblue": "WB 蓝通道",
+        "wbgreen": "WB 绿通道",
+        "wbred": "WB 红通道",
         "whitebalance": "白平衡",
         "whitebalancefinetune": "白平衡微调",
         "whitebalanceshift": "白平衡偏移",
         "wbrblevels": "白平衡偏移",
         "wbgrblevels": "白平衡偏移",
         "whitebalancerblevels": "白平衡偏移",
+        "numfaceelements": "人脸元素数量",
         "xresolution": "水平分辨率",
         "ycbcrpositioning": "YCbCr 定位",
         "yresolution": "垂直分辨率"

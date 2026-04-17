@@ -8,6 +8,10 @@
 import CoreLocation
 import SwiftUI
 
+#if os(iOS)
+import UIKit
+#endif
+
 struct PhotoDetailPage: View {
     let asset: PhotoAsset
     let readOnlyMode: Bool
@@ -22,6 +26,9 @@ struct PhotoDetailPage: View {
     @State private var isMapChooserPresented = false
     @State private var isDownloadingOriginal = false
     @State private var showsICloudDownloadExplanation = false
+    @State private var activityShareItem: ActivityShareItem?
+    @State private var isPreparingPhotoShare = false
+    @State private var shareErrorMessage: String?
 
     init(
         asset: PhotoAsset,
@@ -67,12 +74,29 @@ struct PhotoDetailPage: View {
             } message: {
                 Text("这张照片的原图可能只保存在 iCloud。应用需要联网把原图下载到本机后才能读取完整 Exif，你也可以保持离线，或在设置里改成仅显示已下载到本地的照片。")
             }
+            .alert("无法分享", isPresented: shareErrorBinding) {
+                Button("好", role: .cancel) {
+                    shareErrorMessage = nil
+                }
+            } message: {
+                if let shareErrorMessage {
+                    Text(shareErrorMessage)
+                }
+            }
+            .platformActivityShareSheet(item: $activityShareItem)
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    shareMenu
+                }
+            }
     }
 
     private var legacyDetailLayout: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 PhotoPreview(asset: asset)
+
+                photosAppButton
 
                 readOnlyBanner
 
@@ -93,6 +117,34 @@ struct PhotoDetailPage: View {
                 }
             }
             .padding()
+        }
+    }
+
+    @ViewBuilder
+    private var photosAppButton: some View {
+        if let photosAppURL {
+            Button {
+                openURL(photosAppURL)
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "photo.on.rectangle.angled")
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("打开系统相册")
+                            .font(.headline)
+                        Text("切换到相册 App")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "arrow.up.forward.app")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(12)
+                .background(Color.platformSecondaryBackground, in: RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("切换到系统相册")
         }
     }
 
@@ -150,6 +202,88 @@ struct PhotoDetailPage: View {
         let newDetail = await PhotoLoader.metadata(for: asset, allowNetwork: allowNetwork)
         detail = newDetail
         isDownloadingOriginal = false
+    }
+
+    private var shareMenu: some View {
+        Menu {
+            Button {
+                sharePhoto()
+            } label: {
+                Label(isPreparingPhotoShare ? "正在准备照片" : "分享照片", systemImage: "photo")
+            }
+            .disabled(isPreparingPhotoShare)
+
+            Button {
+                shareParameters()
+            } label: {
+                Label("分享参数", systemImage: "list.bullet.rectangle")
+            }
+            .disabled(loadedMetadata == nil)
+        } label: {
+            if isPreparingPhotoShare {
+                ProgressView()
+            } else {
+                Image(systemName: "square.and.arrow.up")
+            }
+        }
+        .accessibilityLabel("分享")
+    }
+
+    private var loadedMetadata: PhotoMetadata? {
+        guard case .loaded(let metadata) = detail else {
+            return nil
+        }
+
+        return metadata
+    }
+
+    private var shareErrorBinding: Binding<Bool> {
+        Binding(
+            get: { shareErrorMessage != nil },
+            set: { isPresented in
+                if !isPresented {
+                    shareErrorMessage = nil
+                }
+            }
+        )
+    }
+
+    private func sharePhoto() {
+        isPreparingPhotoShare = true
+
+        Task {
+            do {
+                let url = try await PhotoLoader.shareablePhotoURL(for: asset, allowNetwork: allowsICloudDownload)
+                activityShareItem = ActivityShareItem(items: [url])
+            } catch {
+                shareErrorMessage = photoShareErrorMessage(for: error)
+            }
+
+            isPreparingPhotoShare = false
+        }
+    }
+
+    private func shareParameters() {
+        guard let metadata = loadedMetadata else {
+            shareErrorMessage = "Exif 还没有读取完成，稍后再试。"
+            return
+        }
+
+        let text = MetadataShareFormatter.text(
+            for: asset,
+            metadata: metadata,
+            showsChineseKeys: showsChineseKeys,
+            visibleMetadataKeys: visibleMetadataKeys
+        )
+        activityShareItem = ActivityShareItem(items: [text])
+    }
+
+    private func photoShareErrorMessage(for error: Error) -> String {
+        if !allowsICloudDownload {
+            return "这张照片的原图可能还在 iCloud。请先下载原图，或在设置里允许下载 iCloud 原图后再分享。"
+        }
+
+        return error.localizedDescription
     }
 
     private func metadataContent(_ metadata: PhotoMetadata) -> some View {
@@ -236,4 +370,95 @@ struct PhotoDetailPage: View {
             return 1
         }
     }
+
+    private var photosAppURL: URL? {
+        guard asset.photoLibraryAsset != nil else {
+            return nil
+        }
+
+        #if os(iOS)
+        return URL(string: "photos-redirect://")
+        #else
+        return nil
+        #endif
+    }
 }
+
+struct ActivityShareItem: Identifiable {
+    let id = UUID()
+    let items: [Any]
+}
+
+private enum MetadataShareFormatter {
+    static func text(
+        for asset: PhotoAsset,
+        metadata: PhotoMetadata,
+        showsChineseKeys: Bool,
+        visibleMetadataKeys: Set<String>?
+    ) -> String {
+        let sections = sections(from: metadata, visibleMetadataKeys: visibleMetadataKeys)
+        var lines = ["照片参数"]
+
+        if let displayName = asset.displayName {
+            lines.append("文件名: \(displayName)")
+        }
+        lines.append("尺寸: \(asset.pixelWidth)x\(asset.pixelHeight)")
+        if let creationDate = asset.creationDate {
+            lines.append("拍摄时间: \(creationDate.formatted(date: .numeric, time: .shortened))")
+        }
+        if let coordinate = metadata.coordinate {
+            lines.append("地理位置: \(LocationFormatter.coordinateText(coordinate))")
+        }
+
+        for section in sections {
+            lines.append("")
+            lines.append("[\(section.title)]")
+            for item in section.items {
+                let key = showsChineseKeys ? MetadataKeyTranslator.chineseName(for: item.key) ?? item.key : item.key
+                lines.append("\(key): \(item.value)")
+            }
+        }
+
+        return lines.joined(separator: "\n")
+    }
+
+    private static func sections(from metadata: PhotoMetadata, visibleMetadataKeys: Set<String>?) -> [MetadataSection] {
+        guard let visibleMetadataKeys else {
+            return metadata.sections
+        }
+
+        return metadata.sections.compactMap { section in
+            let items = section.items.filter { visibleMetadataKeys.contains($0.key) }
+            guard !items.isEmpty else {
+                return nil
+            }
+
+            return MetadataSection(id: section.id, title: section.title, items: items)
+        }
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func platformActivityShareSheet(item: Binding<ActivityShareItem?>) -> some View {
+        #if os(iOS)
+        sheet(item: item) { shareItem in
+            ActivityView(activityItems: shareItem.items)
+        }
+        #else
+        self
+        #endif
+    }
+}
+
+#if os(iOS)
+private struct ActivityView: UIViewControllerRepresentable {
+    let activityItems: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) { }
+}
+#endif

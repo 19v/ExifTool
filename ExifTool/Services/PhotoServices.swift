@@ -68,7 +68,7 @@ enum PhotoFileImporter {
         return PhotoAsset(file: file)
     }
 
-    nonisolated private static func importAsset(from url: URL) -> PhotoAsset? {
+    nonisolated static func importAsset(from url: URL) -> PhotoAsset? {
         let fileURL = url.standardizedFileURL
         let resourceValues = try? fileURL.resourceValues(forKeys: [
             .contentTypeKey,
@@ -128,6 +128,32 @@ enum PhotoLoader {
             return await metadata(for: photoLibraryAsset, allowNetwork: allowNetwork)
         case .file(let file):
             return .loaded(MetadataParser.parse(data: file.data, fallbackLocation: nil))
+        }
+    }
+
+    static func shareablePhotoURL(for asset: PhotoAsset, allowNetwork: Bool) async throws -> URL {
+        switch asset.source {
+        case .photoLibrary(let photoLibraryAsset):
+            guard let resource = imageResource(for: photoLibraryAsset) else {
+                throw PhotoLoaderError.missingPhotoResource
+            }
+
+            let data = try await resourceData(for: resource, allowNetwork: allowNetwork)
+            return try temporaryShareFileURL(
+                fileName: resource.originalFilename,
+                data: data,
+                uniformTypeIdentifier: resource.uniformTypeIdentifier
+            )
+        case .file(let file):
+            if FileManager.default.fileExists(atPath: file.fileURL.path) {
+                return file.fileURL
+            }
+
+            return try temporaryShareFileURL(
+                fileName: file.fileName,
+                data: file.data,
+                uniformTypeIdentifier: nil
+            )
         }
     }
 
@@ -294,6 +320,44 @@ enum PhotoLoader {
 
     private static func hasLocalOriginalData(for asset: PHAsset) async -> Bool {
         await imageManagerData(for: asset, allowNetwork: false) != nil
+    }
+
+    private static func temporaryShareFileURL(fileName: String, data: Data, uniformTypeIdentifier: String?) throws -> URL {
+        let directory = FileManager.default.temporaryDirectory.appending(path: "ExifTool-Share", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+
+        let safeFileName = sanitizedFileName(fileName, uniformTypeIdentifier: uniformTypeIdentifier)
+        let url = directory.appending(path: "\(UUID().uuidString)-\(safeFileName)")
+        try data.write(to: url, options: .atomic)
+        return url
+    }
+
+    private static func sanitizedFileName(_ fileName: String, uniformTypeIdentifier: String?) -> String {
+        let invalidCharacters = CharacterSet(charactersIn: "/\\:")
+        let sanitizedBaseName = fileName
+            .components(separatedBy: invalidCharacters)
+            .joined(separator: "-")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        var result = sanitizedBaseName.isEmpty ? "Photo" : sanitizedBaseName
+        if !result.contains("."),
+           let uniformTypeIdentifier,
+           let preferredExtension = UTType(uniformTypeIdentifier)?.preferredFilenameExtension {
+            result += ".\(preferredExtension)"
+        }
+
+        return result
+    }
+}
+
+enum PhotoLoaderError: LocalizedError {
+    case missingPhotoResource
+
+    var errorDescription: String? {
+        switch self {
+        case .missingPhotoResource:
+            return "没有找到可分享的照片资源。"
+        }
     }
 }
 
