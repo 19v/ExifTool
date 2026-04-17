@@ -130,6 +130,7 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				"zh-Hans",
 				Base,
 			);
 			mainGroup = 05C67FD82F8F69DD0020F602;
@@ -313,7 +314,7 @@
 				"GENERATE_INFOPLIST_FILE[sdk=iphonesimulator*]" = NO;
 				"INFOPLIST_FILE[sdk=iphoneos*]" = "iOS-Info.plist";
 				"INFOPLIST_FILE[sdk=iphonesimulator*]" = "iOS-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = ExifTool;
+				INFOPLIST_KEY_CFBundleDisplayName = "Exif Tool";
 				"INFOPLIST_KEY_CFBundleDocumentTypes[sdk=macosx*]" = "{\n    CFBundleTypeName = Image;\n    CFBundleTypeRole = Viewer;\n    LSHandlerRank = Default;\n    LSItemContentTypes =     (\n        \"public.image\"\n    );\n}";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "用于展示手机照片并读取本机 Exif 信息。";
 				INFOPLIST_KEY_PHPhotoLibraryPreventAutomaticLimitedAccessAlert = YES;
@@ -367,7 +368,7 @@
 				"GENERATE_INFOPLIST_FILE[sdk=iphonesimulator*]" = NO;
 				"INFOPLIST_FILE[sdk=iphoneos*]" = "iOS-Info.plist";
 				"INFOPLIST_FILE[sdk=iphonesimulator*]" = "iOS-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = ExifTool;
+				INFOPLIST_KEY_CFBundleDisplayName = "Exif Tool";
 				"INFOPLIST_KEY_CFBundleDocumentTypes[sdk=macosx*]" = "{\n    CFBundleTypeName = Image;\n    CFBundleTypeRole = Viewer;\n    LSHandlerRank = Default;\n    LSItemContentTypes =     (\n        \"public.image\"\n    );\n}";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "用于展示手机照片并读取本机 Exif 信息。";
 				INFOPLIST_KEY_PHPhotoLibraryPreventAutomaticLimitedAccessAlert = YES;
