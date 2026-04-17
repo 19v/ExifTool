@@ -12,12 +12,13 @@ struct PhotoDetailView: View {
     let initialAssetID: String
     let readOnlyMode: Bool
 
-    @State private var showsChineseKeys = false
+    @State private var showsChineseKeys: Bool
 
     init(assets: [PhotoAsset], initialAssetID: String, readOnlyMode: Bool) {
         self.assets = assets
         self.initialAssetID = initialAssetID
         self.readOnlyMode = readOnlyMode
+        _showsChineseKeys = State(initialValue: MetadataLanguagePreference.defaultShowsChineseKeys)
     }
 
     var body: some View {
@@ -26,7 +27,7 @@ struct PhotoDetailView: View {
                 PhotoDetailPage(
                     asset: currentAsset,
                     readOnlyMode: readOnlyMode,
-                    showsChineseKeys: showsChineseKeys
+                    showsChineseKeys: $showsChineseKeys
                 )
             } else {
                 ContentUnavailableView("没有可显示的照片", systemImage: "photo")
@@ -35,14 +36,6 @@ struct PhotoDetailView: View {
         .navigationTitle(navigationTitle)
         .platformInlineNavigationTitle()
         .platformTabBarHidden()
-        .toolbar {
-            ToolbarItem(placement: .platformLanguageToggle) {
-                Button(showsChineseKeys ? "EN" : "中文") {
-                    showsChineseKeys.toggle()
-                }
-                .accessibilityLabel(showsChineseKeys ? "切换为英文字段名" : "切换为中文字段名")
-            }
-        }
     }
 
     private var navigationTitle: String {
@@ -63,5 +56,15 @@ struct PhotoDetailView: View {
         }
 
         return assets.firstIndex(where: { $0.id == currentAsset.id })
+    }
+}
+
+enum MetadataLanguagePreference {
+    static var defaultShowsChineseKeys: Bool {
+        guard let preferredLanguage = Locale.preferredLanguages.first else {
+            return false
+        }
+
+        return Locale(identifier: preferredLanguage).language.languageCode?.identifier == "zh"
     }
 }

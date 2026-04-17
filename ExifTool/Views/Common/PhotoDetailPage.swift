@@ -15,12 +15,12 @@ import UIKit
 struct PhotoDetailPage: View {
     let asset: PhotoAsset
     let readOnlyMode: Bool
-    let showsChineseKeys: Bool
     let highlightedMetadataKeys: Set<String>
     let visibleMetadataKeys: Set<String>?
 
     @Environment(\.openURL) private var openURL
     @AppStorage("allowsICloudDownload") private var allowsICloudDownload = false
+    @Binding private var showsChineseKeys: Bool
     @State private var detail = PhotoDetailState.loading
     @State private var mapCoordinate: CLLocationCoordinate2D?
     @State private var isMapChooserPresented = false
@@ -33,13 +33,13 @@ struct PhotoDetailPage: View {
     init(
         asset: PhotoAsset,
         readOnlyMode: Bool,
-        showsChineseKeys: Bool,
+        showsChineseKeys: Binding<Bool>,
         highlightedMetadataKeys: Set<String> = [],
         visibleMetadataKeys: Set<String>? = nil
     ) {
         self.asset = asset
         self.readOnlyMode = readOnlyMode
-        self.showsChineseKeys = showsChineseKeys
+        _showsChineseKeys = showsChineseKeys
         self.highlightedMetadataKeys = highlightedMetadataKeys
         self.visibleMetadataKeys = visibleMetadataKeys
     }
@@ -86,7 +86,7 @@ struct PhotoDetailPage: View {
             .platformActivityShareSheet(item: $activityShareItem)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    shareMenu
+                    actionMenu
                 }
             }
     }
@@ -204,7 +204,7 @@ struct PhotoDetailPage: View {
         isDownloadingOriginal = false
     }
 
-    private var shareMenu: some View {
+    private var actionMenu: some View {
         Menu {
             Button {
                 sharePhoto()
@@ -219,14 +219,22 @@ struct PhotoDetailPage: View {
                 Label("分享参数", systemImage: "list.bullet.rectangle")
             }
             .disabled(loadedMetadata == nil)
+
+            Divider()
+
+            Button {
+                showsChineseKeys.toggle()
+            } label: {
+                Label(showsChineseKeys ? "显示英文字段名" : "显示中文字段名", systemImage: "character.book.closed")
+            }
         } label: {
             if isPreparingPhotoShare {
                 ProgressView()
             } else {
-                Image(systemName: "square.and.arrow.up")
+                Image(systemName: "ellipsis")
             }
         }
-        .accessibilityLabel("分享")
+        .accessibilityLabel("更多操作")
     }
 
     private var loadedMetadata: PhotoMetadata? {

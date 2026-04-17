@@ -20,8 +20,22 @@ struct MacPhotoCompareDetailView: View {
     @State private var primaryMetadata = PhotoDetailState.loading
     @State private var compareMetadata = PhotoDetailState.loading
     @State private var showsOnlyDifferences = false
+    @State private var showsChineseKeys: Bool
     @State private var isExportingComparison = false
     @State private var comparisonFeedback: MacPhotoComparisonFeedback?
+
+    init(
+        assets: [PhotoAsset],
+        primaryAsset: PhotoAsset,
+        compareAssetID: Binding<String?>,
+        readOnlyMode: Bool
+    ) {
+        self.assets = assets
+        self.primaryAsset = primaryAsset
+        _compareAssetID = compareAssetID
+        self.readOnlyMode = readOnlyMode
+        _showsChineseKeys = State(initialValue: MetadataLanguagePreference.defaultShowsChineseKeys)
+    }
 
     private var compareCandidates: [PhotoAsset] {
         assets.filter { $0.id != primaryAsset.id }
@@ -187,7 +201,7 @@ struct MacPhotoCompareDetailView: View {
             PhotoDetailPage(
                 asset: asset,
                 readOnlyMode: readOnlyMode,
-                showsChineseKeys: false,
+                showsChineseKeys: $showsChineseKeys,
                 highlightedMetadataKeys: differingMetadataKeys,
                 visibleMetadataKeys: showsOnlyDifferences ? differingMetadataKeys : nil
             )
