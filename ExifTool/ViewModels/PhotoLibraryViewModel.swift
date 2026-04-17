@@ -99,6 +99,67 @@ final class PhotoLibraryViewModel: ObservableObject {
     var localAlbumsCount: Int? {
         showsOnlyLocalAssets ? albums.count : nil
     }
+
+    var localPhotosSummarySnapshot: LocalPhotosStatusSnapshot? {
+        guard let text = localPhotosSummaryText else {
+            return nil
+        }
+
+        return LocalPhotosStatusSnapshot(
+            text: text,
+            state: localPhotosSummaryState,
+            localPhotosCount: localPhotosCount,
+            localAlbumsCount: localAlbumsCount
+        )
+    }
+
+    var localPhotosPickerBannerSnapshot: LocalPhotosStatusSnapshot? {
+        guard showsOnlyLocalAssets else {
+            return nil
+        }
+
+        if isFilteringLocalAssets && assets.isEmpty {
+            return LocalPhotosStatusSnapshot(
+                text: "正在读取已下载到本地的照片",
+                state: .loading,
+                localPhotosCount: localPhotosCount,
+                localAlbumsCount: nil
+            )
+        }
+
+        if hasMoreLocalAssets {
+            return LocalPhotosStatusSnapshot(
+                text: "当前仅显示已探测到的本地照片，继续下滑会加载更多",
+                state: .paginating,
+                localPhotosCount: localPhotosCount,
+                localAlbumsCount: nil
+            )
+        }
+
+        if isBuildingLocalAlbumStats {
+            return LocalPhotosStatusSnapshot(
+                text: "照片已加载完成，后台仍在补充相册统计",
+                state: .buildingAlbums,
+                localPhotosCount: localPhotosCount,
+                localAlbumsCount: nil
+            )
+        }
+
+        return nil
+    }
+
+    var localPhotosAlbumBannerSnapshot: LocalPhotosStatusSnapshot? {
+        guard showsOnlyLocalAssets, isBuildingLocalAlbumStats else {
+            return nil
+        }
+
+        return LocalPhotosStatusSnapshot(
+            text: "正在补充剩余本地照片的相册统计",
+            state: .buildingAlbums,
+            localPhotosCount: localPhotosCount,
+            localAlbumsCount: localAlbumsCount
+        )
+    }
     
     private var refreshTask: Task<Void, Never>?
     private var albumStatsTask: Task<Void, Never>?

@@ -1,5 +1,5 @@
 //
-//  PhotoViews+iOS.swift
+//  ManualPhotoPickerContent.swift
 //  ExifTool
 //
 //  Created by Haochen on 2026/4/12.
@@ -9,108 +9,8 @@
 
 internal import PhotosUI
 import SwiftUI
-import UIKit
 
-extension Color {
-    static var platformSecondaryBackground: Color {
-        Color(.secondarySystemBackground)
-    }
-}
-
-extension View {
-    @ViewBuilder
-    func platformInlineNavigationTitle() -> some View {
-        navigationBarTitleDisplayMode(.inline)
-    }
-
-    @ViewBuilder
-    func platformDetailPagingStyle() -> some View {
-        tabViewStyle(.page(indexDisplayMode: .automatic))
-    }
-
-    @ViewBuilder
-    func platformTabBarHidden() -> some View {
-        toolbar(.hidden, for: .tabBar)
-    }
-}
-
-extension Image {
-    init(platformImage: PlatformImage) {
-        self.init(uiImage: platformImage)
-    }
-}
-
-extension ToolbarItemPlacement {
-    static var platformLanguageToggle: ToolbarItemPlacement {
-        .topBarTrailing
-    }
-}
-
-struct PlatformAlbumList: View {
-    let albums: [PhotoAlbum]
-    let readOnlyMode: Bool
-    let showsOnlyLocalAssets: Bool
-    let onRefresh: (() async -> Void)?
-
-    init(
-        albums: [PhotoAlbum],
-        readOnlyMode: Bool,
-        showsOnlyLocalAssets: Bool = false,
-        onRefresh: (() async -> Void)? = nil
-    ) {
-        self.albums = albums
-        self.readOnlyMode = readOnlyMode
-        self.showsOnlyLocalAssets = showsOnlyLocalAssets
-        self.onRefresh = onRefresh
-    }
-
-    var body: some View {
-        List(albums) { album in
-            NavigationLink {
-                AlbumDetailView(
-                    album: album,
-                    readOnlyMode: readOnlyMode,
-                    showsOnlyLocalAssets: showsOnlyLocalAssets
-                )
-            } label: {
-                AlbumRowView(album: album)
-            }
-        }
-        .refreshable {
-            await onRefresh?()
-        }
-        .listStyle(.insetGrouped)
-    }
-}
-
-struct ManualPhotoPickerTabView: View {
-    @ObservedObject var picker: ManualPhotoPickerViewModel
-    let readOnlyMode: Bool
-
-    var body: some View {
-        NavigationStack {
-            ManualPhotoPickerContent(picker: picker, readOnlyMode: readOnlyMode)
-                .navigationTitle("选图")
-                .platformInlineNavigationTitle()
-        }
-    }
-}
-
-struct ManualPhotoPickerAccessView: View {
-    @ObservedObject var picker: ManualPhotoPickerViewModel
-    let readOnlyMode: Bool
-
-    var body: some View {
-        ManualPhotoPickerContent(
-            picker: picker,
-            readOnlyMode: readOnlyMode,
-            emptyTitle: "未授权系统照片库",
-            emptyDescription: "可以直接点加号手动选择图片，多选后照样查看 Exif。"
-        )
-    }
-}
-
-private struct ManualPhotoPickerContent: View {
+struct ManualPhotoPickerContent: View {
     @ObservedObject var picker: ManualPhotoPickerViewModel
     let readOnlyMode: Bool
     let emptyTitle: String
@@ -216,18 +116,6 @@ private struct ManualPhotoPickerContent: View {
                 }
             }
         )
-    }
-}
-
-struct PlatformSettingsImportSource: View {
-    var body: some View {
-        LabeledContent("导入", value: "系统照片库或手动选图")
-    }
-}
-
-struct PlatformPhotoGridScrollScrubber: View {
-    var body: some View {
-        EmptyView()
     }
 }
 

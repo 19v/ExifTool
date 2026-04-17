@@ -110,10 +110,7 @@ struct ContentView: View {
                     SettingsTabView(
                         readOnlyMode: $readOnlyMode,
                         authorizationState: library.authorizationState,
-                        localPhotosSummary: library.localPhotosSummaryText,
-                        localPhotosSummaryState: library.localPhotosSummaryState,
-                        localPhotosCount: library.localPhotosCount,
-                        localAlbumsCount: library.localAlbumsCount,
+                        localPhotosSummarySnapshot: library.localPhotosSummarySnapshot,
                         localPhotosSummaryDestination: localPhotosSummaryDestination,
                         onOpenLocalPhotosSummary: openLocalPhotosSummary,
                         allowsICloudDownload: $allowsICloudDownload,
@@ -133,10 +130,7 @@ struct ContentView: View {
                     SettingsTabView(
                         readOnlyMode: $readOnlyMode,
                         authorizationState: library.authorizationState,
-                        localPhotosSummary: library.localPhotosSummaryText,
-                        localPhotosSummaryState: library.localPhotosSummaryState,
-                        localPhotosCount: library.localPhotosCount,
-                        localAlbumsCount: library.localAlbumsCount,
+                        localPhotosSummarySnapshot: library.localPhotosSummarySnapshot,
                         localPhotosSummaryDestination: localPhotosSummaryDestination,
                         onOpenLocalPhotosSummary: openLocalPhotosSummary,
                         allowsICloudDownload: $allowsICloudDownload,

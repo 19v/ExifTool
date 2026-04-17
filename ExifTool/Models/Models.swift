@@ -112,16 +112,6 @@ struct PhotoAlbum: Identifiable, Hashable {
     }
 }
 
-struct PhotoMultiSelection: Identifiable, Hashable {
-    let id = UUID()
-    let assets: [PhotoAsset]
-
-    @MainActor
-    init(assets: [PHAsset]) {
-        self.assets = assets.map(PhotoAsset.init(asset:))
-    }
-}
-
 enum PhotoDetailState {
     case loading
     case loaded(PhotoMetadata)

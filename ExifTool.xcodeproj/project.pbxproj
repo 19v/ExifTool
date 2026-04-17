@@ -246,6 +246,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 578JV98PW6;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -253,8 +254,8 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				"GENERATE_INFOPLIST_FILE[sdk=iphoneos*]" = NO;
 				"GENERATE_INFOPLIST_FILE[sdk=iphonesimulator*]" = NO;
-				"INFOPLIST_FILE[sdk=iphoneos*]" = iOS-Info.plist;
-				"INFOPLIST_FILE[sdk=iphonesimulator*]" = iOS-Info.plist;
+				"INFOPLIST_FILE[sdk=iphoneos*]" = "iOS-Info.plist";
+				"INFOPLIST_FILE[sdk=iphonesimulator*]" = "iOS-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = ExifTool;
 				"INFOPLIST_KEY_CFBundleDocumentTypes[sdk=macosx*]" = "{\n    CFBundleTypeName = Image;\n    CFBundleTypeRole = Viewer;\n    LSHandlerRank = Default;\n    LSItemContentTypes =     (\n        \"public.image\"\n    );\n}";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "用于展示手机照片并读取本机 Exif 信息。";
@@ -297,6 +298,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 578JV98PW6;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -304,8 +306,8 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				"GENERATE_INFOPLIST_FILE[sdk=iphoneos*]" = NO;
 				"GENERATE_INFOPLIST_FILE[sdk=iphonesimulator*]" = NO;
-				"INFOPLIST_FILE[sdk=iphoneos*]" = iOS-Info.plist;
-				"INFOPLIST_FILE[sdk=iphonesimulator*]" = iOS-Info.plist;
+				"INFOPLIST_FILE[sdk=iphoneos*]" = "iOS-Info.plist";
+				"INFOPLIST_FILE[sdk=iphonesimulator*]" = "iOS-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = ExifTool;
 				"INFOPLIST_KEY_CFBundleDocumentTypes[sdk=macosx*]" = "{\n    CFBundleTypeName = Image;\n    CFBundleTypeRole = Viewer;\n    LSHandlerRank = Default;\n    LSItemContentTypes =     (\n        \"public.image\"\n    );\n}";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "用于展示手机照片并读取本机 Exif 信息。";

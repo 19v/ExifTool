@@ -61,18 +61,8 @@ final class MacPhotoWorkspace: ObservableObject {
         }
     }
 
-    init() {
-        let persistedSortMode = UserDefaults.standard.string(forKey: DefaultsKey.sortMode)
-            .flatMap(SortMode.init(rawValue:))
-            ?? .fileName
-        sortMode = persistedSortMode
-    }
-
-    init(initialFileURLs: [URL]) {
-        let persistedSortMode = UserDefaults.standard.string(forKey: DefaultsKey.sortMode)
-            .flatMap(SortMode.init(rawValue:))
-            ?? .fileName
-        sortMode = persistedSortMode
+    init(initialFileURLs: [URL] = []) {
+        sortMode = Self.persistedSortMode
 
         if !initialFileURLs.isEmpty {
             _ = importFiles(from: initialFileURLs)
@@ -239,6 +229,12 @@ final class MacPhotoWorkspace: ObservableObject {
 
     var currentFilePath: String? {
         currentFileURL?.path()
+    }
+
+    private static var persistedSortMode: SortMode {
+        UserDefaults.standard.string(forKey: DefaultsKey.sortMode)
+            .flatMap(SortMode.init(rawValue:))
+            ?? .fileName
     }
 
     private func compareDates(
