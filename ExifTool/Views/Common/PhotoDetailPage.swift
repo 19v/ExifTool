@@ -29,6 +29,7 @@ struct PhotoDetailPage: View {
     @State private var activityShareItem: ActivityShareItem?
     @State private var isPreparingPhotoShare = false
     @State private var shareErrorMessage: String?
+    @State private var selectedMetadataSectionID: String?
 
     init(
         asset: PhotoAsset,
@@ -47,6 +48,7 @@ struct PhotoDetailPage: View {
     var body: some View {
         legacyDetailLayout
             .task(id: asset.id) {
+                selectedMetadataSectionID = nil
                 await loadMetadata(allowNetwork: false)
             }
             .confirmationDialog("选择地图", isPresented: $isMapChooserPresented, titleVisibility: .visible) {
@@ -96,8 +98,6 @@ struct PhotoDetailPage: View {
             VStack(alignment: .leading, spacing: 18) {
                 PhotoPreview(asset: asset)
 
-                photosAppButton
-
                 readOnlyBanner
 
                 switch detail {
@@ -117,34 +117,6 @@ struct PhotoDetailPage: View {
                 }
             }
             .padding()
-        }
-    }
-
-    @ViewBuilder
-    private var photosAppButton: some View {
-        if let photosAppURL {
-            Button {
-                openURL(photosAppURL)
-            } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: "photo.on.rectangle.angled")
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("打开系统相册")
-                            .font(.headline)
-                        Text("切换到相册 App")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Image(systemName: "arrow.up.forward.app")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                }
-                .padding(12)
-                .background(Color.platformSecondaryBackground, in: RoundedRectangle(cornerRadius: 8))
-            }
-            .buttonStyle(.plain)
-            .accessibilityHint("切换到系统相册")
         }
     }
 
@@ -207,6 +179,14 @@ struct PhotoDetailPage: View {
     private var actionMenu: some View {
         Menu {
             Button {
+                showsChineseKeys.toggle()
+            } label: {
+                Label(showsChineseKeys ? "显示英文字段名" : "显示中文字段名", systemImage: "character.book.closed")
+            }
+
+            Divider()
+
+            Button {
                 sharePhoto()
             } label: {
                 Label(isPreparingPhotoShare ? "正在准备照片" : "分享照片", systemImage: "photo")
@@ -220,12 +200,14 @@ struct PhotoDetailPage: View {
             }
             .disabled(loadedMetadata == nil)
 
-            Divider()
+            if let photosAppURL {
+                Divider()
 
-            Button {
-                showsChineseKeys.toggle()
-            } label: {
-                Label(showsChineseKeys ? "显示英文字段名" : "显示中文字段名", systemImage: "character.book.closed")
+                Button {
+                    openURL(photosAppURL)
+                } label: {
+                    Label("打开系统相册", systemImage: "photo.on.rectangle.angled")
+                }
             }
         } label: {
             if isPreparingPhotoShare {
@@ -296,47 +278,115 @@ struct PhotoDetailPage: View {
 
     private func metadataContent(_ metadata: PhotoMetadata) -> some View {
         let filteredSections = filteredMetadataSections(from: metadata)
+        let selectedSection = selectedMetadataSection(from: filteredSections)
+        let sectionSelectionSignature = filteredSections.map(\.id).joined(separator: "|")
 
         return VStack(alignment: .leading, spacing: 18) {
-            if let coordinate = metadata.coordinate {
-                Button {
-                    mapCoordinate = coordinate
-                    isMapChooserPresented = true
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "map")
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text("地理位置")
-                                .font(.headline)
-                            Text(LocationFormatter.coordinateText(coordinate))
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Image(systemName: "arrow.up.forward")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(12)
-                    .background(Color.platformSecondaryBackground, in: RoundedRectangle(cornerRadius: 8))
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("选择地图应用打开这个位置")
+            if !filteredSections.isEmpty {
+                metadataSectionSegments(sections: filteredSections, selectedSectionID: selectedSection?.id)
             }
 
             if filteredSections.isEmpty {
                 ContentUnavailableView("没有 Exif 信息", systemImage: "info.circle")
                     .frame(maxWidth: .infinity, minHeight: 160)
-            } else {
-                ForEach(filteredSections) { section in
-                    MetadataSectionView(
-                        section: section,
-                        showsChineseKeys: showsChineseKeys,
-                        highlightedMetadataKeys: highlightedMetadataKeys
-                    )
+            } else if let selectedSection {
+                if let coordinate = metadata.coordinate, isGPSMetadataSection(selectedSection) {
+                    locationButton(coordinate)
                 }
+
+                MetadataSectionView(
+                    section: selectedSection,
+                    showsChineseKeys: showsChineseKeys,
+                    highlightedMetadataKeys: highlightedMetadataKeys
+                )
             }
         }
+        .onAppear {
+            updateSelectedMetadataSection(for: filteredSections)
+        }
+        .onChange(of: sectionSelectionSignature) {
+            updateSelectedMetadataSection(for: filteredSections)
+        }
+    }
+
+    private func locationButton(_ coordinate: CLLocationCoordinate2D) -> some View {
+        Button {
+            mapCoordinate = coordinate
+            isMapChooserPresented = true
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "map")
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("地理位置")
+                        .font(.headline)
+                    Text(LocationFormatter.coordinateText(coordinate))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: "arrow.up.forward")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(12)
+            .background(Color.platformSecondaryBackground, in: RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("选择地图应用打开这个位置")
+    }
+
+    private func metadataSectionSegments(sections: [MetadataSection], selectedSectionID: String?) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(sections) { section in
+                    metadataSectionSegment(section, isSelected: section.id == selectedSectionID)
+                }
+            }
+            .padding(.vertical, 1)
+        }
+        .accessibilityLabel("参数分类")
+    }
+
+    private func metadataSectionSegment(_ section: MetadataSection, isSelected: Bool) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selectedMetadataSectionID = section.id
+            }
+        } label: {
+            Text(section.title)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .foregroundStyle(isSelected ? Color.white : Color.primary)
+                .background(
+                    isSelected ? Color.accentColor : Color.platformSecondaryBackground,
+                    in: RoundedRectangle(cornerRadius: 8)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private func isGPSMetadataSection(_ section: MetadataSection) -> Bool {
+        section.title.caseInsensitiveCompare("GPS") == .orderedSame
+    }
+
+    private func selectedMetadataSection(from sections: [MetadataSection]) -> MetadataSection? {
+        guard let selectedMetadataSectionID,
+              let selectedSection = sections.first(where: { $0.id == selectedMetadataSectionID }) else {
+            return sections.first
+        }
+
+        return selectedSection
+    }
+
+    private func updateSelectedMetadataSection(for sections: [MetadataSection]) {
+        guard selectedMetadataSection(from: sections)?.id != selectedMetadataSectionID else {
+            return
+        }
+
+        selectedMetadataSectionID = sections.first?.id
     }
 
     private func filteredMetadataSections(from metadata: PhotoMetadata) -> [MetadataSection] {
