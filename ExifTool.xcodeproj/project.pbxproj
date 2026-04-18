@@ -298,7 +298,7 @@
 		05C67FED2F8F69DF0020F602 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = icon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = ExifTool/ExifTool.entitlements;
 				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = ExifTool/ExifTool.entitlements;
@@ -316,6 +316,7 @@
 				"INFOPLIST_FILE[sdk=iphonesimulator*]" = "iOS-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Exif Tool";
 				"INFOPLIST_KEY_CFBundleDocumentTypes[sdk=macosx*]" = "{\n    CFBundleTypeName = Image;\n    CFBundleTypeRole = Viewer;\n    LSHandlerRank = Default;\n    LSItemContentTypes =     (\n        \"public.image\"\n    );\n}";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "用于展示手机照片并读取本机 Exif 信息。";
 				INFOPLIST_KEY_PHPhotoLibraryPreventAutomaticLimitedAccessAlert = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -352,7 +353,7 @@
 		05C67FEE2F8F69DF0020F602 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = icon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = ExifTool/ExifTool.entitlements;
 				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = ExifTool/ExifTool.entitlements;
@@ -370,6 +371,7 @@
 				"INFOPLIST_FILE[sdk=iphonesimulator*]" = "iOS-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Exif Tool";
 				"INFOPLIST_KEY_CFBundleDocumentTypes[sdk=macosx*]" = "{\n    CFBundleTypeName = Image;\n    CFBundleTypeRole = Viewer;\n    LSHandlerRank = Default;\n    LSItemContentTypes =     (\n        \"public.image\"\n    );\n}";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "用于展示手机照片并读取本机 Exif 信息。";
 				INFOPLIST_KEY_PHPhotoLibraryPreventAutomaticLimitedAccessAlert = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -457,8 +459,8 @@
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;

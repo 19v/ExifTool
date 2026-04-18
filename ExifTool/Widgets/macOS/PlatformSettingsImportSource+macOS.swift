@@ -11,7 +11,9 @@ import SwiftUI
 
 struct PlatformSettingsImportSource: View {
     var body: some View {
-        LabeledContent("导入", value: "拖拽图片文件")
+        LabeledContent("导入") {
+            Text("拖拽图片文件")
+        }
     }
 }
 

@@ -98,7 +98,7 @@ struct PhotoAlbum: Identifiable, Hashable {
 
     init(collection: PHAssetCollection, assetCount: Int) {
         self.id = collection.localIdentifier
-        self.title = collection.localizedTitle ?? "未命名相册"
+        self.title = collection.localizedTitle ?? AppLocalization.string("album.untitled")
         self.assetCount = assetCount
         self.collection = collection
     }

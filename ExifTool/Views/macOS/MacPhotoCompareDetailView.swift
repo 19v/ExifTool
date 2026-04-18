@@ -274,7 +274,7 @@ struct MacPhotoCompareDetailView: View {
         }
 
         let panel = NSSavePanel()
-        panel.title = "导出对比结果"
+        panel.title = AppLocalization.string("mac.comparison.exportPanelTitle")
         panel.nameFieldStringValue = comparisonFileName
         panel.canCreateDirectories = true
         panel.allowedContentTypes = [.plainText]

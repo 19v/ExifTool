@@ -22,10 +22,6 @@ struct MetadataKeyLabel: View {
     }
 
     private var displayKey: String {
-        if showsChinese, let chineseKey = MetadataKeyTranslator.chineseName(for: englishKey) {
-            return chineseKey
-        }
-
-        return englishKey
+        MetadataDisplayLocalizer.keyTitle(englishKey, showsChinese: showsChinese)
     }
 }

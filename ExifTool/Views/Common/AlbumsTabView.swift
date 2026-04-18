@@ -50,7 +50,7 @@ struct AlbumRowView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(album.title)
                     .font(.body)
-                Text("\(album.assetCount) 张照片")
+                Text(AppLocalization.string("album.photoCount", album.assetCount))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

@@ -57,7 +57,7 @@ enum PhotoFileImporter {
         let file = LocalPhotoFile(
             id: id,
             fileURL: URL(fileURLWithPath: "/picked/\(id)"),
-            fileName: suggestedFileName ?? "已选图片",
+            fileName: suggestedFileName ?? AppLocalization.string("photoFileImporter.pickedImage"),
             data: data,
             creationDate: nil,
             modificationDate: nil,
@@ -231,7 +231,7 @@ enum PhotoLoader {
                 }
 
                 if !allowNetwork {
-                    return .needsDownload("这张照片的原图可能只保存在 iCloud。默认离线模式不会自动下载，点击下方按钮后仅下载当前照片。")
+                    return .needsDownload(AppLocalization.string("photoLoader.needsDownload"))
                 }
 
                 return .failed(error.localizedDescription)
@@ -243,10 +243,10 @@ enum PhotoLoader {
         }
 
         if !allowNetwork {
-            return .needsDownload("这张照片的原图可能只保存在 iCloud。默认离线模式不会自动下载，点击下方按钮后仅下载当前照片。")
+            return .needsDownload(AppLocalization.string("photoLoader.needsDownload"))
         }
 
-        return .failed("没有找到可读取的本机照片资源。")
+        return .failed(AppLocalization.string("photoLoader.missingReadableResource"))
     }
 
     private static func thumbnail(from data: Data, maxPixelLength: CGFloat) -> PlatformImage? {
@@ -356,7 +356,7 @@ enum PhotoLoaderError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missingPhotoResource:
-            return "没有找到可分享的照片资源。"
+            return AppLocalization.string("photoLoader.missingShareableResource")
         }
     }
 }

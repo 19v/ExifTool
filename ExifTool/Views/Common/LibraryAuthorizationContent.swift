@@ -9,7 +9,7 @@ import SwiftUI
 
 struct LibraryAuthorizationContent<Content: View>: View {
     @ObservedObject var library: PhotoLibraryViewModel
-    let emptyTitle: String
+    let emptyTitle: LocalizedStringKey
     @ViewBuilder let content: Content
 
     var body: some View {
@@ -41,9 +41,9 @@ struct LibraryAuthorizationContent<Content: View>: View {
 
     private var emptyStateDescription: String {
         if library.showsOnlyLocalAssets {
-            return "当前只显示已经下载到本地的照片。可以先去系统相册下载原图，或到设置里关闭这个筛选。"
+            return AppLocalization.string("library.empty.localOnly")
         }
 
-        return "当前权限范围内没有照片。"
+        return AppLocalization.string("library.empty.noPhotos")
     }
 }

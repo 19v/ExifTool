@@ -13,16 +13,16 @@ import SwiftUI
 struct ManualPhotoPickerContent: View {
     @ObservedObject var picker: ManualPhotoPickerViewModel
     let readOnlyMode: Bool
-    let emptyTitle: String
-    let emptyDescription: String
+    let emptyTitle: LocalizedStringKey
+    let emptyDescription: LocalizedStringKey
 
     @State private var selectedItems: [PhotosPickerItem] = []
 
     init(
         picker: ManualPhotoPickerViewModel,
         readOnlyMode: Bool,
-        emptyTitle: String = "选择图片",
-        emptyDescription: String = "支持多选。选中的图片只在当前会话中使用，不会修改系统照片库。"
+        emptyTitle: LocalizedStringKey = "选择图片",
+        emptyDescription: LocalizedStringKey = "支持多选。选中的图片只在当前会话中使用，不会修改系统照片库。"
     ) {
         self.picker = picker
         self.readOnlyMode = readOnlyMode
@@ -103,7 +103,7 @@ struct ManualPhotoPickerContent: View {
                 picker.clearError()
             }
         } message: {
-            Text(picker.importErrorMessage ?? "没有成功导入图片。")
+            Text(picker.importErrorMessage ?? AppLocalization.string("manualPicker.importFailure"))
         }
     }
 

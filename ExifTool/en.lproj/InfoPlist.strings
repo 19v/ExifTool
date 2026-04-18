@@ -1,2 +1,3 @@
 "CFBundleDisplayName" = "Exif Tool";
 "CFBundleName" = "Exif Tool";
+"NSPhotoLibraryUsageDescription" = "Used to show your photos and read local Exif information.";

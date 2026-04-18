@@ -14,7 +14,7 @@ struct MetadataSectionView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(section.title)
+            Text(MetadataDisplayLocalizer.sectionTitle(section, showsChinese: showsChineseKeys))
                 .font(.headline)
 
             VStack(spacing: 0) {

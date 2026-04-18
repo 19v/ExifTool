@@ -36,11 +36,11 @@ enum MacPhotoComparisonFeedback: Equatable {
     var message: String {
         switch self {
         case .copied:
-            return "对比结果已复制到剪贴板"
+            return AppLocalization.string("mac.comparison.copied")
         case .exported(let url):
-            return "已导出到 \(url.lastPathComponent)"
+            return AppLocalization.string("mac.comparison.exported", url.lastPathComponent)
         case .exportFailed:
-            return "导出失败，请稍后重试"
+            return AppLocalization.string("mac.comparison.exportFailed")
         }
     }
 

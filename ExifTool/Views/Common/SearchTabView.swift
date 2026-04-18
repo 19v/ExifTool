@@ -100,7 +100,7 @@ struct SearchTabView: View {
 
         if displayedSearchAssets.isEmpty && showsSearchLoading {
             return LocalPhotosStatusSnapshot(
-                text: "正在筛选符合搜索条件的本地照片",
+                text: AppLocalization.string("search.localPhotos.loading"),
                 state: .loading,
                 localPhotosCount: displayedSearchAssets.count,
                 localAlbumsCount: nil
@@ -109,7 +109,7 @@ struct SearchTabView: View {
 
         if showsSearchLoading {
             return LocalPhotosStatusSnapshot(
-                text: "当前搜索结果还在补充，继续下滑会加载更多本地照片",
+                text: AppLocalization.string("search.localPhotos.more"),
                 state: .paginating,
                 localPhotosCount: displayedSearchAssets.count,
                 localAlbumsCount: nil
@@ -118,7 +118,7 @@ struct SearchTabView: View {
 
         if library.isBuildingLocalAlbumStats {
             return LocalPhotosStatusSnapshot(
-                text: "搜索结果已加载完成，后台仍在补充相册统计",
+                text: AppLocalization.string("search.localPhotos.buildingAlbums"),
                 state: .buildingAlbums,
                 localPhotosCount: displayedSearchAssets.count,
                 localAlbumsCount: library.localAlbumsCount

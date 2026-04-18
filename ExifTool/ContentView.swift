@@ -262,7 +262,7 @@ struct ContentView: View {
         }
 
         guard let asset = manualPicker.importSharedPhoto(from: url) else {
-            manualPicker.importErrorMessage = "无法打开分享的照片，请重新从相册分享一次。"
+            manualPicker.importErrorMessage = AppLocalization.string("sharedPhoto.openFailure")
             selectedTab = .picker
             return
         }
@@ -275,7 +275,7 @@ struct ContentView: View {
         guard let fileName = SharedPhotoImport.fileName(from: url),
               let fileURL = SharedPhotoImport.fileURL(forSharedFileName: fileName),
               let asset = manualPicker.importSharedPhoto(from: fileURL) else {
-            manualPicker.importErrorMessage = "无法打开分享的照片，请重新从相册分享一次。"
+            manualPicker.importErrorMessage = AppLocalization.string("sharedPhoto.openFailure")
             selectedTab = .picker
             return
         }

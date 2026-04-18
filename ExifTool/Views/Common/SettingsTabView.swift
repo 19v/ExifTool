@@ -161,43 +161,43 @@ struct SettingsTabView: View {
     private var summaryDestinationAccessibilityHint: String {
         switch localPhotosSummaryDestination {
         case .albums:
-            return "打开相册页面查看本地照片统计"
+            return AppLocalization.string("settings.localPhotosSummaryHint.albums")
         case .photos:
-            return "打开图库页面继续加载本地照片"
+            return AppLocalization.string("settings.localPhotosSummaryHint.photos")
         case .search:
-            return "打开搜索页面查看本地照片"
+            return AppLocalization.string("settings.localPhotosSummaryHint.search")
         case .settings, .picker, .none:
-            return "打开相关页面查看本地照片状态"
+            return AppLocalization.string("settings.localPhotosSummaryHint.default")
         }
     }
 
     private var photoPermissionActionTitle: String {
         switch authorizationState {
         case .authorized:
-            return "前往系统设置管理全部图库权限"
+            return AppLocalization.string("settings.photoPermissionAction.authorized")
         case .limited:
-            return "前往系统设置管理部分图片权限"
+            return AppLocalization.string("settings.photoPermissionAction.limited")
         case .denied:
-            return "前往系统设置重新开启相册权限"
+            return AppLocalization.string("settings.photoPermissionAction.denied")
         case .empty:
-            return "前往系统设置检查相册权限"
+            return AppLocalization.string("settings.photoPermissionAction.empty")
         case .unknown:
-            return "前往系统设置"
+            return AppLocalization.string("settings.photoPermissionAction.unknown")
         }
     }
 
     private var photoPermissionDescription: String {
         switch authorizationState {
         case .authorized:
-            return "当前已允许访问整个图库。如果想改成部分图片，或直接关闭权限，可以前往系统设置调整。"
+            return AppLocalization.string("settings.photoPermissionDescription.authorized")
         case .limited:
-            return "当前只允许访问部分图片。如果想扩大到整个图库、重新挑选照片，或直接关闭权限，可以前往系统设置调整。"
+            return AppLocalization.string("settings.photoPermissionDescription.limited")
         case .denied:
-            return "当前未允许访问系统照片库。如果想重新开启权限，可以前往系统设置调整。"
+            return AppLocalization.string("settings.photoPermissionDescription.denied")
         case .empty:
-            return "当前权限下没有可用照片。如果想检查是否改成了部分图片权限，或直接关闭权限，可以前往系统设置调整。"
+            return AppLocalization.string("settings.photoPermissionDescription.empty")
         case .unknown:
-            return "可以前往系统设置查看当前的相册权限。"
+            return AppLocalization.string("settings.photoPermissionDescription.unknown")
         }
     }
     #else

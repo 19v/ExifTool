@@ -35,8 +35,8 @@ final class ManualPhotoPickerViewModel: ObservableObject {
                 }
 
                 let suggestedFileName = item.supportedContentTypes.first?.preferredFilenameExtension.map {
-                    "已选图片 \(index + 1).\($0)"
-                } ?? "已选图片 \(index + 1)"
+                    "\(AppLocalization.string("photoFileImporter.pickedImage")) \(index + 1).\($0)"
+                } ?? "\(AppLocalization.string("photoFileImporter.pickedImage")) \(index + 1)"
 
                 if let asset = PhotoFileImporter.importAsset(
                     from: data,
@@ -46,20 +46,20 @@ final class ManualPhotoPickerViewModel: ObservableObject {
                     importedAssets.append(asset)
                 }
             } catch {
-                importErrorMessage = "有部分图片读取失败，请重试。"
+                importErrorMessage = AppLocalization.string("manualPicker.partialFailure")
             }
         }
 
         if !importedAssets.isEmpty {
             assets = importedAssets
         } else if importErrorMessage == nil {
-            importErrorMessage = "没有成功导入可读取的图片。"
+            importErrorMessage = AppLocalization.string("manualPicker.noReadableImages")
         }
     }
 
     func importSharedPhoto(from url: URL) -> PhotoAsset? {
         guard let asset = PhotoFileImporter.importAsset(from: url) else {
-            importErrorMessage = "没有成功导入分享的图片。"
+            importErrorMessage = AppLocalization.string("manualPicker.noSharedImage")
             return nil
         }
 

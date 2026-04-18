@@ -19,11 +19,11 @@ struct LocalPhotosStatusContent: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
                     if let localPhotosCount = snapshot.localPhotosCount {
-                        countChip(title: "本地", value: localPhotosCount)
+                        countChip(title: AppLocalization.string("localPhotos.count.local"), value: localPhotosCount)
                     }
 
                     if showsAlbumCount, let localAlbumsCount = snapshot.localAlbumsCount {
-                        countChip(title: "相册", value: localAlbumsCount)
+                        countChip(title: AppLocalization.string("localPhotos.count.albums"), value: localAlbumsCount)
                     }
                 }
 

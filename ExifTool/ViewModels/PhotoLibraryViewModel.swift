@@ -64,15 +64,15 @@ final class PhotoLibraryViewModel: ObservableObject {
         let albumCount = formatter.string(from: NSNumber(value: albums.count)) ?? "\(albums.count)"
 
         if isFilteringLocalAssets && assets.isEmpty {
-            return "正在读取已下载到本地的照片"
+            return AppLocalization.string("localPhotos.loading")
         }
         if hasMoreLocalAssets {
-            return "已发现 \(localPhotoCount) 张本地照片，继续下滑可加载更多。"
+            return AppLocalization.string("localPhotos.summary.more", localPhotoCount)
         }
         if isBuildingLocalAlbumStats {
-            return "已发现 \(localPhotoCount) 张本地照片，正在补充相册统计。"
+            return AppLocalization.string("localPhotos.summary.buildingAlbums", localPhotoCount)
         }
-        return "已发现 \(localPhotoCount) 张本地照片，当前共有 \(albumCount) 个相册。"
+        return AppLocalization.string("localPhotos.summary.complete", localPhotoCount, albumCount)
     }
 
     var localPhotosSummaryState: LocalPhotosSummaryState? {
@@ -120,7 +120,7 @@ final class PhotoLibraryViewModel: ObservableObject {
 
         if isFilteringLocalAssets && assets.isEmpty {
             return LocalPhotosStatusSnapshot(
-                text: "正在读取已下载到本地的照片",
+                text: AppLocalization.string("localPhotos.loading"),
                 state: .loading,
                 localPhotosCount: localPhotosCount,
                 localAlbumsCount: nil
@@ -129,7 +129,7 @@ final class PhotoLibraryViewModel: ObservableObject {
 
         if hasMoreLocalAssets {
             return LocalPhotosStatusSnapshot(
-                text: "当前仅显示已探测到的本地照片，继续下滑会加载更多",
+                text: AppLocalization.string("localPhotos.banner.more"),
                 state: .paginating,
                 localPhotosCount: localPhotosCount,
                 localAlbumsCount: nil
@@ -138,7 +138,7 @@ final class PhotoLibraryViewModel: ObservableObject {
 
         if isBuildingLocalAlbumStats {
             return LocalPhotosStatusSnapshot(
-                text: "照片已加载完成，后台仍在补充相册统计",
+                text: AppLocalization.string("localPhotos.banner.buildingAlbums"),
                 state: .buildingAlbums,
                 localPhotosCount: localPhotosCount,
                 localAlbumsCount: nil
@@ -154,7 +154,7 @@ final class PhotoLibraryViewModel: ObservableObject {
         }
 
         return LocalPhotosStatusSnapshot(
-            text: "正在补充剩余本地照片的相册统计",
+            text: AppLocalization.string("localPhotos.albumBanner.buildingAlbums"),
             state: .buildingAlbums,
             localPhotosCount: localPhotosCount,
             localAlbumsCount: localAlbumsCount

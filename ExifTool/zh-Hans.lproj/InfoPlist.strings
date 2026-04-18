@@ -1,2 +1,3 @@
 "CFBundleDisplayName" = "照片信息查看器";
 "CFBundleName" = "照片信息查看器";
+"NSPhotoLibraryUsageDescription" = "用于展示手机照片并读取本机 Exif 信息。";

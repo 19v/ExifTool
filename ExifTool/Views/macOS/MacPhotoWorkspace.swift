@@ -44,11 +44,11 @@ final class MacPhotoWorkspace: ObservableObject {
         var title: String {
             switch self {
             case .fileName:
-                return "按文件名"
+                return AppLocalization.string("mac.sort.fileName")
             case .creationDateNewest:
-                return "按拍摄时间(新到旧)"
+                return AppLocalization.string("mac.sort.creationDateNewest")
             case .creationDateOldest:
-                return "按拍摄时间(旧到新)"
+                return AppLocalization.string("mac.sort.creationDateOldest")
             }
         }
     }
@@ -99,7 +99,7 @@ final class MacPhotoWorkspace: ObservableObject {
     }
 
     var windowTitle: String {
-        currentAsset?.displayName ?? "照片"
+        currentAsset?.displayName ?? AppLocalization.string("mac.window.defaultTitle")
     }
 
     var recentFiles: [URL] {
@@ -127,9 +127,9 @@ final class MacPhotoWorkspace: ObservableObject {
 
     func pickFiles() {
         let panel = NSOpenPanel()
-        panel.title = "选择照片"
-        panel.message = "选择一张或多张图片来查看 Exif。"
-        panel.prompt = "打开"
+        panel.title = AppLocalization.string("mac.openPanel.title")
+        panel.message = AppLocalization.string("mac.openPanel.message")
+        panel.prompt = AppLocalization.string("mac.openPanel.prompt")
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
         panel.allowedContentTypes = [.image]

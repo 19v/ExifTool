@@ -40,10 +40,10 @@ struct PhotoDetailView: View {
 
     private var navigationTitle: String {
         guard let currentIndex else {
-            return "照片信息"
+            return AppLocalization.string("photoDetail.title")
         }
 
-        return "照片信息 \(currentIndex + 1)/\(assets.count)"
+        return AppLocalization.string("photoDetail.title.indexed", currentIndex + 1, assets.count)
     }
 
     private var currentAsset: PhotoAsset? {

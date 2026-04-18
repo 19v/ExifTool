@@ -6,6 +6,7 @@
 //
 
 import CoreLocation
+import ImageIO
 import SwiftUI
 
 #if os(iOS)
@@ -255,7 +256,7 @@ struct PhotoDetailPage: View {
 
     private func shareParameters() {
         guard let metadata = loadedMetadata else {
-            shareErrorMessage = "Exif 还没有读取完成，稍后再试。"
+            shareErrorMessage = AppLocalization.string("photoDetail.shareParametersNotReady")
             return
         }
 
@@ -270,7 +271,7 @@ struct PhotoDetailPage: View {
 
     private func photoShareErrorMessage(for error: Error) -> String {
         if !allowsICloudDownload {
-            return "这张照片的原图可能还在 iCloud。请先下载原图，或在设置里允许下载 iCloud 原图后再分享。"
+            return AppLocalization.string("photoDetail.shareNeedsDownload")
         }
 
         return error.localizedDescription
@@ -353,7 +354,7 @@ struct PhotoDetailPage: View {
                 selectedMetadataSectionID = section.id
             }
         } label: {
-            Text(section.title)
+            Text(MetadataDisplayLocalizer.sectionTitle(section, showsChinese: showsChineseKeys))
                 .font(.subheadline.weight(.semibold))
                 .lineLimit(1)
                 .padding(.vertical, 8)
@@ -369,6 +370,7 @@ struct PhotoDetailPage: View {
     }
 
     private func isGPSMetadataSection(_ section: MetadataSection) -> Bool {
+        section.id.caseInsensitiveCompare(String(kCGImagePropertyGPSDictionary)) == .orderedSame ||
         section.title.caseInsensitiveCompare("GPS") == .orderedSame
     }
 
@@ -455,24 +457,24 @@ private enum MetadataShareFormatter {
         visibleMetadataKeys: Set<String>?
     ) -> String {
         let sections = sections(from: metadata, visibleMetadataKeys: visibleMetadataKeys)
-        var lines = ["照片参数"]
+        var lines = [AppLocalization.string("metadataShare.title")]
 
         if let displayName = asset.displayName {
-            lines.append("文件名: \(displayName)")
+            lines.append("\(AppLocalization.string("metadataShare.fileName")): \(displayName)")
         }
-        lines.append("尺寸: \(asset.pixelWidth)x\(asset.pixelHeight)")
+        lines.append("\(AppLocalization.string("metadataShare.dimensions")): \(asset.pixelWidth)x\(asset.pixelHeight)")
         if let creationDate = asset.creationDate {
-            lines.append("拍摄时间: \(creationDate.formatted(date: .numeric, time: .shortened))")
+            lines.append("\(AppLocalization.string("metadataShare.dateTaken")): \(creationDate.formatted(date: .numeric, time: .shortened))")
         }
         if let coordinate = metadata.coordinate {
-            lines.append("地理位置: \(LocationFormatter.coordinateText(coordinate))")
+            lines.append("\(AppLocalization.string("metadataShare.location")): \(LocationFormatter.coordinateText(coordinate))")
         }
 
         for section in sections {
             lines.append("")
-            lines.append("[\(section.title)]")
+            lines.append("[\(MetadataDisplayLocalizer.sectionTitle(section, showsChinese: showsChineseKeys))]")
             for item in section.items {
-                let key = showsChineseKeys ? MetadataKeyTranslator.chineseName(for: item.key) ?? item.key : item.key
+                let key = MetadataDisplayLocalizer.keyTitle(item.key, showsChinese: showsChineseKeys)
                 lines.append("\(key): \(item.value)")
             }
         }

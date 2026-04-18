@@ -536,10 +536,10 @@ nonisolated enum NikonMakerNoteParser {
         }
 
         if let label = cropHiSpeed[mode] {
-            return "裁切模式: \(label)"
+            return "\(AppLocalization.string("metadata.value.cropMode")): \(label)"
         }
 
-        return "裁切模式: \(values.map(String.init).joined(separator: ", "))"
+        return "\(AppLocalization.string("metadata.value.cropMode")): \(values.map(String.init).joined(separator: ", "))"
     }
 
     private static func fallbackWhiteBalanceFineTuneValue(_ rawValue: Any) -> String? {
