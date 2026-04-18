@@ -209,7 +209,11 @@ final class PhotoLibraryViewModel: ObservableObject {
             authorizationState = .authorized
         case .limited:
             accessScope = .limited
-            authorizationState = .limited
+            if authorizationState == .unknown {
+                authorizationState = Self.fetchImageAssetCount() == 0 ? .empty : .limited
+            } else if authorizationState != .empty {
+                authorizationState = .limited
+            }
         case .denied, .restricted:
             accessScope = .denied
             authorizationState = .denied
@@ -286,6 +290,17 @@ final class PhotoLibraryViewModel: ObservableObject {
         }
         
         return fetchedAssets
+    }
+
+    nonisolated static func fetchImageAssetCount(in collection: PHAssetCollection? = nil) -> Int {
+        let options = PHFetchOptions()
+        options.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.image.rawValue)
+
+        if let collection {
+            return PHAsset.fetchAssets(in: collection, options: options).count
+        } else {
+            return PHAsset.fetchAssets(with: options).count
+        }
     }
 
     nonisolated static func fetchImageAssetsOffMain(in collection: PHAssetCollection? = nil) async -> [PhotoAsset] {

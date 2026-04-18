@@ -5,11 +5,16 @@ import SwiftUI
 
 struct ManualPhotoPickerTabView: View {
     let readOnlyMode: Bool
+    let authorizationState: PhotoLibraryViewModel.AuthorizationState
+    let onRequestPhotoPermission: (() -> Void)?
 
+    @AppStorage("hasShownInitialPhotoLibraryAuthorizationCTA")
+    private var hasShownInitialPhotoLibraryAuthorizationCTA = false
     @State private var selectedItems: [PhotosPickerItem] = []
     @State private var selectedAssetForDetail: PhotoAsset?
     @State private var isImporting = false
     @State private var importErrorMessage: String?
+    @State private var showsInitialAuthorizationCTAThisSession = false
 
     var body: some View {
         NavigationStack {
@@ -55,10 +60,36 @@ struct ManualPhotoPickerTabView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
+
+                if shouldShowInitialAuthorizationCTA {
+                    Button(AppLocalization.string("授权访问图库")) {
+                        onRequestPhotoPermission?()
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.blue)
+                    .padding(.top, 14)
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, 24)
+        .onAppear {
+            guard authorizationState == .unknown else {
+                showsInitialAuthorizationCTAThisSession = false
+                return
+            }
+
+            if !hasShownInitialPhotoLibraryAuthorizationCTA {
+                showsInitialAuthorizationCTAThisSession = true
+                hasShownInitialPhotoLibraryAuthorizationCTA = true
+            }
+        }
+        .onChange(of: authorizationState) { _, newValue in
+            if newValue != .unknown {
+                showsInitialAuthorizationCTAThisSession = false
+            }
+        }
     }
 
     private func pickerButton() -> some View {
@@ -85,6 +116,10 @@ struct ManualPhotoPickerTabView: View {
                 }
             }
         )
+    }
+
+    private var shouldShowInitialAuthorizationCTA: Bool {
+        authorizationState == .unknown && showsInitialAuthorizationCTAThisSession
     }
 
     private func importSelectedItems() async {

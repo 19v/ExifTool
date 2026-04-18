@@ -13,6 +13,12 @@ import UIKit
 #endif
 
 struct ContentView: View {
+    private enum LibraryNavigationMode {
+        case pickerOnly
+        case limitedLibrary
+        case fullLibrary
+    }
+
     @StateObject private var library = PhotoLibraryViewModel()
     @State private var selectedTab = AppTab.picker
     @AppStorage("readOnlyMode") private var readOnlyMode = true
@@ -119,32 +125,42 @@ struct ContentView: View {
                 Tab("设置", systemImage: "gearshape", value: AppTab.settings) {
                     SettingsTabView(
                         readOnlyMode: $readOnlyMode,
+                        accessScope: library.accessScope,
                         authorizationState: library.authorizationState,
                         localPhotosSummarySnapshot: library.localPhotosSummarySnapshot,
                         localPhotosSummaryDestination: localPhotosSummaryDestination,
                         onOpenLocalPhotosSummary: openLocalPhotosSummary,
                         onRequestPhotoPermission: requestLibraryAccess,
+                        onPresentLimitedLibraryPicker: presentLimitedLibraryPicker,
                         allowsICloudDownload: $allowsICloudDownload,
                         showsOnlyLocalPhotos: $showsOnlyLocalPhotos
                     )
                 }
                 
-                Tab("搜索", systemImage: "magnifyingglass", value: AppTab.search, role: .search) {
-                    SearchTabView(library: library, readOnlyMode: readOnlyMode)
+                if showsSearchTab {
+                    Tab("搜索", systemImage: "magnifyingglass", value: AppTab.search, role: .search) {
+                        SearchTabView(library: library, readOnlyMode: readOnlyMode)
+                    }
                 }
             } else {
                 Tab("选图", systemImage: "plus.square.on.square", value: AppTab.picker) {
-                    ManualPhotoPickerTabView(readOnlyMode: readOnlyMode)
+                    ManualPhotoPickerTabView(
+                        readOnlyMode: readOnlyMode,
+                        authorizationState: library.authorizationState,
+                        onRequestPhotoPermission: requestLibraryAccess
+                    )
                 }
 
                 Tab("设置", systemImage: "gearshape", value: AppTab.settings) {
                     SettingsTabView(
                         readOnlyMode: $readOnlyMode,
+                        accessScope: library.accessScope,
                         authorizationState: library.authorizationState,
                         localPhotosSummarySnapshot: library.localPhotosSummarySnapshot,
                         localPhotosSummaryDestination: localPhotosSummaryDestination,
                         onOpenLocalPhotosSummary: openLocalPhotosSummary,
                         onRequestPhotoPermission: requestLibraryAccess,
+                        onPresentLimitedLibraryPicker: presentLimitedLibraryPicker,
                         allowsICloudDownload: $allowsICloudDownload,
                         showsOnlyLocalPhotos: $showsOnlyLocalPhotos
                     )
@@ -156,16 +172,26 @@ struct ContentView: View {
     
 #if os(iOS)
     private var showsLibraryTabs: Bool {
-        switch library.accessScope {
-        case .full, .limited:
-            return true
-        case .unknown, .denied:
-            return false
-        }
+        navigationMode != .pickerOnly
     }
     
     private var showsAlbumsTab: Bool {
-        library.accessScope == .full
+        navigationMode == .fullLibrary
+    }
+
+    private var showsSearchTab: Bool {
+        navigationMode != .pickerOnly
+    }
+
+    private var navigationMode: LibraryNavigationMode {
+        switch library.accessScope {
+        case .full:
+            return .fullLibrary
+        case .limited:
+            return library.authorizationState == .empty ? .pickerOnly : .limitedLibrary
+        case .unknown, .denied:
+            return .pickerOnly
+        }
     }
     
     private func syncSelectedTab() {
@@ -198,7 +224,11 @@ struct ContentView: View {
             return
         }
         
-        PHPhotoLibrary.shared().presentLimitedLibraryPicker(from: topViewController(for: rootViewController))
+        PHPhotoLibrary.shared().presentLimitedLibraryPicker(from: topViewController(for: rootViewController)) { _ in
+            Task {
+                await library.refresh()
+            }
+        }
     }
     
     private func topViewController(for rootViewController: UIViewController) -> UIViewController {

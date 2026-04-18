@@ -16,11 +16,13 @@ struct SettingsTabView: View {
     @Binding var allowsICloudDownload: Bool
     @Binding var showsOnlyLocalPhotos: Bool
     #if os(iOS)
+    let accessScope: PhotoLibraryViewModel.AccessScope
     let authorizationState: PhotoLibraryViewModel.AuthorizationState
     let localPhotosSummarySnapshot: LocalPhotosStatusSnapshot?
     let localPhotosSummaryDestination: AppTab?
     let onOpenLocalPhotosSummary: (() -> Void)?
     let onRequestPhotoPermission: (() -> Void)?
+    let onPresentLimitedLibraryPicker: (() -> Void)?
     @Environment(\.openURL) private var openURL
     @State private var showsICloudDownloadExplanation = false
     #else
@@ -38,20 +40,24 @@ struct SettingsTabView: View {
     #if os(iOS)
     init(
         readOnlyMode: Binding<Bool>,
+        accessScope: PhotoLibraryViewModel.AccessScope,
         authorizationState: PhotoLibraryViewModel.AuthorizationState,
         localPhotosSummarySnapshot: LocalPhotosStatusSnapshot?,
         localPhotosSummaryDestination: AppTab?,
         onOpenLocalPhotosSummary: (() -> Void)? = nil,
         onRequestPhotoPermission: (() -> Void)? = nil,
+        onPresentLimitedLibraryPicker: (() -> Void)? = nil,
         allowsICloudDownload: Binding<Bool>,
         showsOnlyLocalPhotos: Binding<Bool>
     ) {
         self._readOnlyMode = readOnlyMode
+        self.accessScope = accessScope
         self.authorizationState = authorizationState
         self.localPhotosSummarySnapshot = localPhotosSummarySnapshot
         self.localPhotosSummaryDestination = localPhotosSummaryDestination
         self.onOpenLocalPhotosSummary = onOpenLocalPhotosSummary
         self.onRequestPhotoPermission = onRequestPhotoPermission
+        self.onPresentLimitedLibraryPicker = onPresentLimitedLibraryPicker
         self._allowsICloudDownload = allowsICloudDownload
         self._showsOnlyLocalPhotos = showsOnlyLocalPhotos
     }
@@ -99,6 +105,12 @@ struct SettingsTabView: View {
                 ) {
                     Button(photoPermissionActionTitle) {
                         handlePhotoPermissionAction()
+                    }
+
+                    if shouldShowLimitedEmptyReselectionAction {
+                        Button("重新选择可访问照片") {
+                            onPresentLimitedLibraryPicker?()
+                        }
                     }
                 }
                 #endif
@@ -202,6 +214,10 @@ struct SettingsTabView: View {
         }
 
         openAppSettings()
+    }
+
+    private var shouldShowLimitedEmptyReselectionAction: Bool {
+        accessScope == .limited
     }
 
     private func openAppSettings() {
