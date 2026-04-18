@@ -27,15 +27,13 @@ struct PhotoDetailView: View {
                 PhotoDetailPage(
                     asset: currentAsset,
                     readOnlyMode: readOnlyMode,
-                    showsChineseKeys: $showsChineseKeys
+                    showsChineseKeys: $showsChineseKeys,
+                    navigationTitle: navigationTitle
                 )
             } else {
                 ContentUnavailableView("没有可显示的照片", systemImage: "photo")
             }
         }
-        .navigationTitle(navigationTitle)
-        .platformInlineNavigationTitle()
-        .platformTabBarHidden()
     }
 
     private var navigationTitle: String {

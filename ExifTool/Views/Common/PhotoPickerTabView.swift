@@ -10,31 +10,25 @@ import SwiftUI
 struct PhotoPickerTabView: View {
     @ObservedObject var library: PhotoLibraryViewModel
     let readOnlyMode: Bool
-    let onPhotoDetailVisibilityChanged: ((Bool) -> Void)?
     let onPresentLimitedLibraryPicker: (() -> Void)?
-    @State private var isShowingPhotoDetail = false
 
     #if os(iOS)
     init(
         library: PhotoLibraryViewModel,
         readOnlyMode: Bool,
-        onPhotoDetailVisibilityChanged: ((Bool) -> Void)? = nil,
         onPresentLimitedLibraryPicker: (() -> Void)? = nil
     ) {
         self.library = library
         self.readOnlyMode = readOnlyMode
-        self.onPhotoDetailVisibilityChanged = onPhotoDetailVisibilityChanged
         self.onPresentLimitedLibraryPicker = onPresentLimitedLibraryPicker
     }
     #else
     init(
         library: PhotoLibraryViewModel,
-        readOnlyMode: Bool,
-        onPhotoDetailVisibilityChanged: ((Bool) -> Void)? = nil
+        readOnlyMode: Bool
     ) {
         self.library = library
         self.readOnlyMode = readOnlyMode
-        self.onPhotoDetailVisibilityChanged = onPhotoDetailVisibilityChanged
         self.onPresentLimitedLibraryPicker = nil
     }
     #endif
@@ -49,8 +43,6 @@ struct PhotoPickerTabView: View {
                         showsReadOnlyOverlay: false,
                         isLoadingMore: library.showsOnlyLocalAssets && library.hasMoreLocalAssets,
                         onAssetAppear: library.loadMoreLocalAssetsIfNeeded,
-                        onAssetOpen: handlePhotoDetailOpened,
-                        onAssetClose: handlePhotoDetailClosed,
                         onRefresh: library.refresh
                     )
                 }
@@ -58,7 +50,7 @@ struct PhotoPickerTabView: View {
             .navigationTitle("照片")
             #if os(iOS)
             .toolbar {
-                if library.accessScope == .limited && !isShowingPhotoDetail {
+                if library.accessScope == .limited {
                     ToolbarItem(placement: .topBarTrailing) {
                         Menu {
                             Button(action: handleLimitedLibrarySelection) {
@@ -73,7 +65,7 @@ struct PhotoPickerTabView: View {
             }
             #endif
             .safeAreaInset(edge: .bottom) {
-                if !isShowingPhotoDetail, let snapshot = library.localPhotosPickerBannerSnapshot {
+                if let snapshot = library.localPhotosPickerBannerSnapshot {
                     LocalPhotosStatusBanner(
                         snapshot: snapshot,
                         emphasis: .floating
@@ -81,16 +73,6 @@ struct PhotoPickerTabView: View {
                 }
             }
         }
-    }
-
-    private func handlePhotoDetailOpened() {
-        isShowingPhotoDetail = true
-        onPhotoDetailVisibilityChanged?(true)
-    }
-
-    private func handlePhotoDetailClosed() {
-        isShowingPhotoDetail = false
-        onPhotoDetailVisibilityChanged?(false)
     }
 
     private func handleLimitedLibrarySelection() {

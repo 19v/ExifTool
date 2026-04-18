@@ -13,8 +13,6 @@ struct PhotoAssetGridView: View {
     let showsReadOnlyOverlay: Bool
     let isLoadingMore: Bool
     let onAssetAppear: ((String?) -> Void)?
-    let onAssetOpen: (() -> Void)?
-    let onAssetClose: (() -> Void)?
     let onRefresh: (() async -> Void)?
 
     private let columns = [
@@ -29,8 +27,6 @@ struct PhotoAssetGridView: View {
         showsReadOnlyOverlay: Bool = true,
         isLoadingMore: Bool = false,
         onAssetAppear: ((String?) -> Void)? = nil,
-        onAssetOpen: (() -> Void)? = nil,
-        onAssetClose: (() -> Void)? = nil,
         onRefresh: (() async -> Void)? = nil
     ) {
         self.assets = assets
@@ -38,8 +34,6 @@ struct PhotoAssetGridView: View {
         self.showsReadOnlyOverlay = showsReadOnlyOverlay
         self.isLoadingMore = isLoadingMore
         self.onAssetAppear = onAssetAppear
-        self.onAssetOpen = onAssetOpen
-        self.onAssetClose = onAssetClose
         self.onRefresh = onRefresh
     }
 
@@ -86,21 +80,9 @@ struct PhotoAssetGridView: View {
                 initialAssetID: asset.id,
                 readOnlyMode: readOnlyMode
             )
-            .toolbar(.hidden, for: .tabBar)
-            .onAppear {
-                onAssetOpen?()
-            }
-            .onDisappear {
-                onAssetClose?()
-            }
         } label: {
             PhotoThumbnail(asset: asset)
         }
-        .simultaneousGesture(
-            TapGesture().onEnded {
-                onAssetOpen?()
-            }
-        )
         .buttonStyle(.plain)
     }
 }

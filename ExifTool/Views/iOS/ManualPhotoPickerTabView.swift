@@ -15,17 +15,17 @@ struct ManualPhotoPickerTabView: View {
         NavigationStack {
             emptyState
                 .navigationTitle("选图")
-                .navigationDestination(item: $selectedAssetForDetail) { asset in
-                    PhotoDetailView(
-                        assets: [asset],
-                        initialAssetID: asset.id,
-                        readOnlyMode: readOnlyMode
-                    )
-                    .toolbar(.hidden, for: .tabBar)
-                    .onDisappear {
-                        selectedAssetForDetail = nil
-                    }
-                }
+        }
+        .sheet(item: $selectedAssetForDetail) { asset in
+            NavigationStack {
+                PhotoDetailView(
+                    assets: [asset],
+                    initialAssetID: asset.id,
+                    readOnlyMode: readOnlyMode
+                )
+            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
         .overlay {
             if isImporting {

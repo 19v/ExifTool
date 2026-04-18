@@ -16,6 +16,7 @@ import UIKit
 struct PhotoDetailPage: View {
     let asset: PhotoAsset
     let readOnlyMode: Bool
+    let navigationTitle: String
     let highlightedMetadataKeys: Set<String>
     let visibleMetadataKeys: Set<String>?
 
@@ -36,11 +37,13 @@ struct PhotoDetailPage: View {
         asset: PhotoAsset,
         readOnlyMode: Bool,
         showsChineseKeys: Binding<Bool>,
+        navigationTitle: String,
         highlightedMetadataKeys: Set<String> = [],
         visibleMetadataKeys: Set<String>? = nil
     ) {
         self.asset = asset
         self.readOnlyMode = readOnlyMode
+        self.navigationTitle = navigationTitle
         _showsChineseKeys = showsChineseKeys
         self.highlightedMetadataKeys = highlightedMetadataKeys
         self.visibleMetadataKeys = visibleMetadataKeys
@@ -87,6 +90,8 @@ struct PhotoDetailPage: View {
                 }
             }
             .platformActivityShareSheet(item: $activityShareItem)
+            .navigationTitle(navigationTitle)
+            .platformInlineNavigationTitle()
             .toolbar(.hidden, for: .tabBar)
             .toolbar {
                 #if os(iOS)
