@@ -471,6 +471,7 @@
       }
     },
     "manualPicker.importFailure" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -487,6 +488,7 @@
       }
     },
     "manualPicker.noReadableImages" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -502,23 +504,8 @@
         }
       }
     },
-    "manualPicker.noSharedImage" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No shared image was imported."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "没有成功导入分享的图片。"
-          }
-        }
-      }
-    },
     "manualPicker.partialFailure" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1047,22 +1034,6 @@
         }
       }
     },
-    "sharedPhoto.openFailure" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not open the shared photo. Please share it from Photos again."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "无法打开分享的照片，请重新从相册分享一次。"
-          }
-        }
-      }
-    },
     "上一张" : {
       "localizations" : {
         "en" : {
@@ -1522,9 +1493,6 @@
           }
         }
       }
-    },
-    "可以直接点加号手动选择一张图片查看 Exif。" : {
-
     },
     "可以直接点加号手动选择图片，多选后照样查看 Exif。" : {
       "extractionState" : "stale",
@@ -2256,9 +2224,6 @@
         }
       }
     },
-    "授权全部图库" : {
-
-    },
     "授权访问图库" : {
 
     },
@@ -2473,6 +2438,7 @@
       }
     },
     "未授权系统照片库" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3191,6 +3157,7 @@
       }
     },
     "重新选择" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {

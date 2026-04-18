@@ -18,15 +18,10 @@ struct ContentView: View {
     @AppStorage("readOnlyMode") private var readOnlyMode = true
     @AppStorage("allowsICloudDownload") private var allowsICloudDownload = false
     @AppStorage("showsOnlyLocalPhotos") private var showsOnlyLocalPhotos = false
-    @AppStorage("hasCompletedInitialLaunch") private var hasCompletedInitialLaunch = false
-    @AppStorage("hasViewedPhoto") private var hasViewedPhoto = false
     @Environment(\.scenePhase) private var scenePhase
 #if os(iOS)
-    @StateObject private var manualPicker = ManualPhotoPickerViewModel()
     @State private var sharedPhotoAsset: PhotoAsset?
-    @State private var showsInitialLibraryAccessPrompt = false
     @State private var isRequestingLibraryAccess = false
-    @State private var isShowingPhotoDetail = false
 #endif
 #if os(macOS)
     @StateObject private var macWorkspace = MacPhotoWorkspace()
@@ -61,17 +56,13 @@ struct ContentView: View {
             .sheet(item: $sharedPhotoAsset) { asset in
                 NavigationStack {
                     PhotoDetailView(
-                        assets: manualPicker.assets.isEmpty ? [asset] : manualPicker.assets,
+                        assets: [asset],
                         initialAssetID: asset.id,
                         readOnlyMode: readOnlyMode
                     )
-                    .onAppear {
-                        markPhotoViewed()
-                    }
                 }
             }
             .onAppear {
-                initializeInitialLibraryAccessPrompt()
                 syncSelectedTab()
             }
             .onChange(of: library.accessScope) { _, _ in
@@ -114,10 +105,7 @@ struct ContentView: View {
                 Tab("图库", systemImage: "photo.on.rectangle.angled", value: AppTab.photos) {
                     PhotoPickerTabView(
                         library: library,
-                        manualPicker: manualPicker,
                         readOnlyMode: readOnlyMode,
-                        onPhotoViewed: markPhotoViewed,
-                        onPhotoDetailVisibilityChanged: handlePhotoDetailVisibilityChanged,
                         onPresentLimitedLibraryPicker: presentLimitedLibraryPicker
                     )
                 }
@@ -146,16 +134,9 @@ struct ContentView: View {
                 }
             } else {
                 Tab("选图", systemImage: "plus.square.on.square", value: AppTab.picker) {
-                    ManualPhotoPickerTabView(
-                        picker: manualPicker,
-                        readOnlyMode: readOnlyMode,
-                        onPhotoViewed: markPhotoViewed,
-                        onPhotoDetailVisibilityChanged: handlePhotoDetailVisibilityChanged,
-                        showsLibraryAccessPrompt: showsInitialLibraryAccessButton,
-                        onRequestLibraryAccess: requestLibraryAccess
-                    )
+                    ManualPhotoPickerTabView(readOnlyMode: readOnlyMode)
                 }
-                
+
                 Tab("设置", systemImage: "gearshape", value: AppTab.settings) {
                     SettingsTabView(
                         readOnlyMode: $readOnlyMode,
@@ -186,10 +167,6 @@ struct ContentView: View {
     private var showsAlbumsTab: Bool {
         library.accessScope == .full
     }
-
-    private var showsInitialLibraryAccessButton: Bool {
-        showsInitialLibraryAccessPrompt && !hasViewedPhoto && library.accessScope == .unknown
-    }
     
     private func syncSelectedTab() {
         if showsLibraryTabs {
@@ -199,15 +176,6 @@ struct ContentView: View {
         } else if selectedTab != .picker && selectedTab != .settings {
             selectedTab = .picker
         }
-    }
-
-    private func initializeInitialLibraryAccessPrompt() {
-        guard !hasCompletedInitialLaunch else {
-            return
-        }
-
-        showsInitialLibraryAccessPrompt = true
-        hasCompletedInitialLaunch = true
     }
 
     private func requestLibraryAccess() {
@@ -222,15 +190,6 @@ struct ContentView: View {
         }
     }
 
-    private func markPhotoViewed() {
-        hasViewedPhoto = true
-        showsInitialLibraryAccessPrompt = false
-    }
-
-    private func handlePhotoDetailVisibilityChanged(_ isVisible: Bool) {
-        isShowingPhotoDetail = isVisible
-    }
-    
     private func presentLimitedLibraryPicker() {
         guard let windowScene = UIApplication.shared.connectedScenes
             .compactMap({ $0 as? UIWindowScene })
@@ -293,27 +252,29 @@ struct ContentView: View {
             }
         }
 
-        guard let asset = manualPicker.importSharedPhoto(from: url) else {
-            manualPicker.importErrorMessage = AppLocalization.string("sharedPhoto.openFailure")
-            selectedTab = .picker
+        guard let asset = PhotoFileImporter.importAsset(from: url) else {
+            selectedTab = fallbackTabAfterSharedPhotoDismissal
             return
         }
 
-        selectedTab = .picker
+        selectedTab = fallbackTabAfterSharedPhotoDismissal
         sharedPhotoAsset = asset
     }
 
     private func openSharedPhoto(from url: URL) {
         guard let fileName = SharedPhotoImport.fileName(from: url),
               let fileURL = SharedPhotoImport.fileURL(forSharedFileName: fileName),
-              let asset = manualPicker.importSharedPhoto(from: fileURL) else {
-            manualPicker.importErrorMessage = AppLocalization.string("sharedPhoto.openFailure")
-            selectedTab = .picker
+              let asset = PhotoFileImporter.importAsset(from: fileURL) else {
+            selectedTab = fallbackTabAfterSharedPhotoDismissal
             return
         }
 
-        selectedTab = .picker
+        selectedTab = fallbackTabAfterSharedPhotoDismissal
         sharedPhotoAsset = asset
+    }
+
+    private var fallbackTabAfterSharedPhotoDismissal: AppTab {
+        showsLibraryTabs ? .photos : .picker
     }
 #endif
 }

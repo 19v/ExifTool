@@ -60,11 +60,11 @@ struct SettingsTabView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("安全") {
+                Section(
+                    header: Text("安全"),
+                    footer: Text("开启后，应用只读取照片和 Exif，不会修改照片或写入元数据。")
+                ) {
                     Toggle("只读模式", isOn: $readOnlyMode)
-                    Text("开启后，应用只读取照片和 Exif，不会修改照片或写入元数据。")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
                 }
 
                 Section(
@@ -93,14 +93,13 @@ struct SettingsTabView: View {
                 }
 
                 #if os(iOS)
-                Section("相册权限") {
+                Section(
+                    header: Text("相册权限"),
+                    footer: Text(photoPermissionDescription)
+                ) {
                     Button(photoPermissionActionTitle) {
                         handlePhotoPermissionAction()
                     }
-
-                    Text(photoPermissionDescription)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
                 }
                 #endif
 
