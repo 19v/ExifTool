@@ -176,14 +176,21 @@ final class PhotoLibraryViewModel: ObservableObject {
     
     func refresh() async {
         let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-        
-        switch status {
-        case .notDetermined:
-            let newStatus = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
-            loadAssets(for: newStatus)
-        default:
-            loadAssets(for: status)
+        loadAssets(for: status)
+    }
+
+    func requestAccess(showingOnlyLocalAssets: Bool) async {
+        showsOnlyLocalAssets = showingOnlyLocalAssets
+
+        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        let newStatus: PHAuthorizationStatus
+        if status == .notDetermined {
+            newStatus = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
+        } else {
+            newStatus = status
         }
+
+        loadAssets(for: newStatus)
     }
 
     func setShowsOnlyLocalAssets(_ enabled: Bool) async {

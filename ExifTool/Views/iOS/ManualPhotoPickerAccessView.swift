@@ -18,7 +18,7 @@ struct ManualPhotoPickerAccessView: View {
             picker: picker,
             readOnlyMode: readOnlyMode,
             emptyTitle: "未授权系统照片库",
-            emptyDescription: "可以直接点加号手动选择图片，多选后照样查看 Exif。"
+            emptyDescription: "可以直接点加号手动选择一张图片查看 Exif。"
         )
     }
 }

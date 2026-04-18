@@ -11,7 +11,7 @@ import SwiftUI
 
 extension ToolbarItemPlacement {
     static var platformLanguageToggle: ToolbarItemPlacement {
-        .topBarTrailing
+        .bottomBar
     }
 }
 

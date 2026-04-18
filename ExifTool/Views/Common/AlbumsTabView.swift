@@ -22,7 +22,6 @@ struct AlbumsTabView: View {
                 )
             }
             .navigationTitle("相册")
-            .platformInlineNavigationTitle()
             .task(id: library.showsOnlyLocalAssets) {
                 if library.showsOnlyLocalAssets {
                     library.buildRemainingLocalAlbumStatsIfNeeded()
@@ -71,6 +70,7 @@ struct AlbumDetailView: View {
         PhotoAssetGridView(
             assets: displayedAssets,
             readOnlyMode: readOnlyMode,
+            showsReadOnlyOverlay: false,
             isLoadingMore: showsOnlyLocalAssets ? pager.hasMoreAssets : false,
             onAssetAppear: assetAppearHandler
         )

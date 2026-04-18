@@ -10,8 +10,11 @@ import SwiftUI
 struct PhotoAssetGridView: View {
     let assets: [PhotoAsset]
     let readOnlyMode: Bool
+    let showsReadOnlyOverlay: Bool
     let isLoadingMore: Bool
     let onAssetAppear: ((String?) -> Void)?
+    let onAssetOpen: (() -> Void)?
+    let onAssetClose: (() -> Void)?
     let onRefresh: (() async -> Void)?
 
     private let columns = [
@@ -23,14 +26,20 @@ struct PhotoAssetGridView: View {
     init(
         assets: [PhotoAsset],
         readOnlyMode: Bool,
+        showsReadOnlyOverlay: Bool = true,
         isLoadingMore: Bool = false,
         onAssetAppear: ((String?) -> Void)? = nil,
+        onAssetOpen: (() -> Void)? = nil,
+        onAssetClose: (() -> Void)? = nil,
         onRefresh: (() async -> Void)? = nil
     ) {
         self.assets = assets
         self.readOnlyMode = readOnlyMode
+        self.showsReadOnlyOverlay = showsReadOnlyOverlay
         self.isLoadingMore = isLoadingMore
         self.onAssetAppear = onAssetAppear
+        self.onAssetOpen = onAssetOpen
+        self.onAssetClose = onAssetClose
         self.onRefresh = onRefresh
     }
 
@@ -58,7 +67,7 @@ struct PhotoAssetGridView: View {
             await onRefresh?()
         }
         .overlay(alignment: .bottom) {
-            if readOnlyMode {
+            if showsReadOnlyOverlay && readOnlyMode {
                 Text("只读模式已开启")
                     .font(.footnote.weight(.medium))
                     .padding(.horizontal, 12)
@@ -77,9 +86,21 @@ struct PhotoAssetGridView: View {
                 initialAssetID: asset.id,
                 readOnlyMode: readOnlyMode
             )
+            .toolbar(.hidden, for: .tabBar)
+            .onAppear {
+                onAssetOpen?()
+            }
+            .onDisappear {
+                onAssetClose?()
+            }
         } label: {
             PhotoThumbnail(asset: asset)
         }
+        .simultaneousGesture(
+            TapGesture().onEnded {
+                onAssetOpen?()
+            }
+        )
         .buttonStyle(.plain)
     }
 }

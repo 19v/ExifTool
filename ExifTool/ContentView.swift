@@ -18,10 +18,15 @@ struct ContentView: View {
     @AppStorage("readOnlyMode") private var readOnlyMode = true
     @AppStorage("allowsICloudDownload") private var allowsICloudDownload = false
     @AppStorage("showsOnlyLocalPhotos") private var showsOnlyLocalPhotos = false
+    @AppStorage("hasCompletedInitialLaunch") private var hasCompletedInitialLaunch = false
+    @AppStorage("hasViewedPhoto") private var hasViewedPhoto = false
     @Environment(\.scenePhase) private var scenePhase
 #if os(iOS)
     @StateObject private var manualPicker = ManualPhotoPickerViewModel()
     @State private var sharedPhotoAsset: PhotoAsset?
+    @State private var showsInitialLibraryAccessPrompt = false
+    @State private var isRequestingLibraryAccess = false
+    @State private var isShowingPhotoDetail = false
 #endif
 #if os(macOS)
     @StateObject private var macWorkspace = MacPhotoWorkspace()
@@ -60,9 +65,13 @@ struct ContentView: View {
                         initialAssetID: asset.id,
                         readOnlyMode: readOnlyMode
                     )
+                    .onAppear {
+                        markPhotoViewed()
+                    }
                 }
             }
             .onAppear {
+                initializeInitialLibraryAccessPrompt()
                 syncSelectedTab()
             }
             .onChange(of: library.accessScope) { _, _ in
@@ -80,11 +89,6 @@ struct ContentView: View {
                 
                 Task {
                     await library.refresh()
-                }
-            }
-            .safeAreaInset(edge: .bottom) {
-                if showsLimitedLibraryButton {
-                    limitedLibraryButton
                 }
             }
 #endif
@@ -111,12 +115,17 @@ struct ContentView: View {
                     PhotoPickerTabView(
                         library: library,
                         manualPicker: manualPicker,
-                        readOnlyMode: readOnlyMode
+                        readOnlyMode: readOnlyMode,
+                        onPhotoViewed: markPhotoViewed,
+                        onPhotoDetailVisibilityChanged: handlePhotoDetailVisibilityChanged,
+                        onPresentLimitedLibraryPicker: presentLimitedLibraryPicker
                     )
                 }
                 
-                Tab("相册", systemImage: "rectangle.stack", value: AppTab.albums) {
-                    AlbumsTabView(library: library, readOnlyMode: readOnlyMode)
+                if showsAlbumsTab {
+                    Tab("相册", systemImage: "rectangle.stack", value: AppTab.albums) {
+                        AlbumsTabView(library: library, readOnlyMode: readOnlyMode)
+                    }
                 }
                 
                 Tab("设置", systemImage: "gearshape", value: AppTab.settings) {
@@ -126,6 +135,7 @@ struct ContentView: View {
                         localPhotosSummarySnapshot: library.localPhotosSummarySnapshot,
                         localPhotosSummaryDestination: localPhotosSummaryDestination,
                         onOpenLocalPhotosSummary: openLocalPhotosSummary,
+                        onRequestPhotoPermission: requestLibraryAccess,
                         allowsICloudDownload: $allowsICloudDownload,
                         showsOnlyLocalPhotos: $showsOnlyLocalPhotos
                     )
@@ -136,7 +146,14 @@ struct ContentView: View {
                 }
             } else {
                 Tab("选图", systemImage: "plus.square.on.square", value: AppTab.picker) {
-                    ManualPhotoPickerTabView(picker: manualPicker, readOnlyMode: readOnlyMode)
+                    ManualPhotoPickerTabView(
+                        picker: manualPicker,
+                        readOnlyMode: readOnlyMode,
+                        onPhotoViewed: markPhotoViewed,
+                        onPhotoDetailVisibilityChanged: handlePhotoDetailVisibilityChanged,
+                        showsLibraryAccessPrompt: showsInitialLibraryAccessButton,
+                        onRequestLibraryAccess: requestLibraryAccess
+                    )
                 }
                 
                 Tab("设置", systemImage: "gearshape", value: AppTab.settings) {
@@ -146,6 +163,7 @@ struct ContentView: View {
                         localPhotosSummarySnapshot: library.localPhotosSummarySnapshot,
                         localPhotosSummaryDestination: localPhotosSummaryDestination,
                         onOpenLocalPhotosSummary: openLocalPhotosSummary,
+                        onRequestPhotoPermission: requestLibraryAccess,
                         allowsICloudDownload: $allowsICloudDownload,
                         showsOnlyLocalPhotos: $showsOnlyLocalPhotos
                     )
@@ -165,38 +183,52 @@ struct ContentView: View {
         }
     }
     
-    private var showsLimitedLibraryButton: Bool {
-        library.accessScope == .limited
+    private var showsAlbumsTab: Bool {
+        library.accessScope == .full
     }
-    
-    private var limitedLibraryButton: some View {
-        HStack {
-            Spacer()
-            
-            Button("重新选择照片") {
-                presentLimitedLibraryPicker()
-            }
-            .font(.subheadline.weight(.semibold))
-            .padding(.horizontal, 18)
-            .padding(.vertical, 12)
-            .background(.regularMaterial, in: Capsule())
-            .shadow(color: .black.opacity(0.12), radius: 12, y: 4)
-            
-            Spacer()
-        }
-        .padding(.horizontal, 16)
-        .padding(.top, 8)
-        .padding(.bottom, 58)
+
+    private var showsInitialLibraryAccessButton: Bool {
+        showsInitialLibraryAccessPrompt && !hasViewedPhoto && library.accessScope == .unknown
     }
     
     private func syncSelectedTab() {
         if showsLibraryTabs {
-            if selectedTab == .picker {
+            if selectedTab == .picker || (selectedTab == .albums && !showsAlbumsTab) {
                 selectedTab = .photos
             }
         } else if selectedTab != .picker && selectedTab != .settings {
             selectedTab = .picker
         }
+    }
+
+    private func initializeInitialLibraryAccessPrompt() {
+        guard !hasCompletedInitialLaunch else {
+            return
+        }
+
+        showsInitialLibraryAccessPrompt = true
+        hasCompletedInitialLaunch = true
+    }
+
+    private func requestLibraryAccess() {
+        guard !isRequestingLibraryAccess else {
+            return
+        }
+
+        isRequestingLibraryAccess = true
+        Task {
+            await library.requestAccess(showingOnlyLocalAssets: showsOnlyLocalPhotos)
+            isRequestingLibraryAccess = false
+        }
+    }
+
+    private func markPhotoViewed() {
+        hasViewedPhoto = true
+        showsInitialLibraryAccessPrompt = false
+    }
+
+    private func handlePhotoDetailVisibilityChanged(_ isVisible: Bool) {
+        isShowingPhotoDetail = isVisible
     }
     
     private func presentLimitedLibraryPicker() {
@@ -225,7 +257,7 @@ struct ContentView: View {
             return nil
         }
 
-        if library.isBuildingLocalAlbumStats {
+        if library.isBuildingLocalAlbumStats && showsAlbumsTab {
             return .albums
         }
 

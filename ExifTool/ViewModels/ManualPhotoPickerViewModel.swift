@@ -17,9 +17,10 @@ final class ManualPhotoPickerViewModel: ObservableObject {
     @Published private(set) var isImporting = false
     @Published var importErrorMessage: String?
 
-    func importPhotos(from items: [PhotosPickerItem]) async {
+    @discardableResult
+    func importPhotos(from items: [PhotosPickerItem]) async -> [PhotoAsset] {
         guard !items.isEmpty else {
-            return
+            return []
         }
 
         isImporting = true
@@ -55,6 +56,8 @@ final class ManualPhotoPickerViewModel: ObservableObject {
         } else if importErrorMessage == nil {
             importErrorMessage = AppLocalization.string("manualPicker.noReadableImages")
         }
+
+        return importedAssets
     }
 
     func importSharedPhoto(from url: URL) -> PhotoAsset? {
@@ -65,6 +68,10 @@ final class ManualPhotoPickerViewModel: ObservableObject {
 
         assets = [asset]
         return asset
+    }
+
+    func clearAssets() {
+        assets = []
     }
 
     func clearError() {

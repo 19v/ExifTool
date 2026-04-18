@@ -20,6 +20,7 @@ struct SettingsTabView: View {
     let localPhotosSummarySnapshot: LocalPhotosStatusSnapshot?
     let localPhotosSummaryDestination: AppTab?
     let onOpenLocalPhotosSummary: (() -> Void)?
+    let onRequestPhotoPermission: (() -> Void)?
     @Environment(\.openURL) private var openURL
     @State private var showsICloudDownloadExplanation = false
     #else
@@ -41,6 +42,7 @@ struct SettingsTabView: View {
         localPhotosSummarySnapshot: LocalPhotosStatusSnapshot?,
         localPhotosSummaryDestination: AppTab?,
         onOpenLocalPhotosSummary: (() -> Void)? = nil,
+        onRequestPhotoPermission: (() -> Void)? = nil,
         allowsICloudDownload: Binding<Bool>,
         showsOnlyLocalPhotos: Binding<Bool>
     ) {
@@ -49,6 +51,7 @@ struct SettingsTabView: View {
         self.localPhotosSummarySnapshot = localPhotosSummarySnapshot
         self.localPhotosSummaryDestination = localPhotosSummaryDestination
         self.onOpenLocalPhotosSummary = onOpenLocalPhotosSummary
+        self.onRequestPhotoPermission = onRequestPhotoPermission
         self._allowsICloudDownload = allowsICloudDownload
         self._showsOnlyLocalPhotos = showsOnlyLocalPhotos
     }
@@ -90,30 +93,26 @@ struct SettingsTabView: View {
                 }
 
                 #if os(iOS)
-                if showsSettingsShortcut {
-                    Section("相册权限") {
-                        Button(photoPermissionActionTitle) {
-                            guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else {
-                                return
-                            }
-
-                            openURL(settingsURL)
-                        }
-
-                        Text(photoPermissionDescription)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                Section("相册权限") {
+                    Button(photoPermissionActionTitle) {
+                        handlePhotoPermissionAction()
                     }
+
+                    Text(photoPermissionDescription)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
                 #endif
 
-                Section("应用") {
-                    LabeledContent("名称", value: "ExifTool")
-                    PlatformSettingsImportSource()
+                #if os(iOS)
+                Section {
+                    Button("打开 App 系统设置") {
+                        openAppSettings()
+                    }
                 }
+                #endif
             }
             .navigationTitle("设置")
-            .platformInlineNavigationTitle()
             #if os(iOS)
             .alert("允许联网下载 iCloud 原图？", isPresented: $showsICloudDownloadExplanation) {
                 Button("保持离线", role: .cancel) { }
@@ -128,10 +127,6 @@ struct SettingsTabView: View {
     }
 
     #if os(iOS)
-    private var showsSettingsShortcut: Bool {
-        authorizationState != .unknown
-    }
-
     private var iCloudDownloadBinding: Binding<Bool> {
         Binding(
             get: { allowsICloudDownload },
@@ -182,7 +177,7 @@ struct SettingsTabView: View {
         case .empty:
             return AppLocalization.string("settings.photoPermissionAction.empty")
         case .unknown:
-            return AppLocalization.string("settings.photoPermissionAction.unknown")
+            return AppLocalization.string("授权访问图库")
         }
     }
 
@@ -199,6 +194,23 @@ struct SettingsTabView: View {
         case .unknown:
             return AppLocalization.string("settings.photoPermissionDescription.unknown")
         }
+    }
+
+    private func handlePhotoPermissionAction() {
+        if authorizationState == .unknown {
+            onRequestPhotoPermission?()
+            return
+        }
+
+        openAppSettings()
+    }
+
+    private func openAppSettings() {
+        guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else {
+            return
+        }
+
+        openURL(settingsURL)
     }
     #else
     private var iCloudDownloadBinding: Binding<Bool> {

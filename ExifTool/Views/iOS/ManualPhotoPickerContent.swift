@@ -15,19 +15,33 @@ struct ManualPhotoPickerContent: View {
     let readOnlyMode: Bool
     let emptyTitle: LocalizedStringKey
     let emptyDescription: LocalizedStringKey
+    let onPhotoViewed: (() -> Void)?
+    let onPhotoDetailVisibilityChanged: ((Bool) -> Void)?
+    let showsLibraryAccessPrompt: Bool
+    let onRequestLibraryAccess: (() -> Void)?
 
     @State private var selectedItems: [PhotosPickerItem] = []
+    @State private var selectedAssetForDetail: PhotoAsset?
+    @State private var isShowingPhotoDetail = false
 
     init(
         picker: ManualPhotoPickerViewModel,
         readOnlyMode: Bool,
         emptyTitle: LocalizedStringKey = "选择图片",
-        emptyDescription: LocalizedStringKey = "支持多选。选中的图片只在当前会话中使用，不会修改系统照片库。"
+        emptyDescription: LocalizedStringKey = "选中的图片只在当前会话中使用，不会修改系统照片库。",
+        onPhotoViewed: (() -> Void)? = nil,
+        onPhotoDetailVisibilityChanged: ((Bool) -> Void)? = nil,
+        showsLibraryAccessPrompt: Bool = false,
+        onRequestLibraryAccess: (() -> Void)? = nil
     ) {
         self.picker = picker
         self.readOnlyMode = readOnlyMode
         self.emptyTitle = emptyTitle
         self.emptyDescription = emptyDescription
+        self.onPhotoViewed = onPhotoViewed
+        self.onPhotoDetailVisibilityChanged = onPhotoDetailVisibilityChanged
+        self.showsLibraryAccessPrompt = showsLibraryAccessPrompt
+        self.onRequestLibraryAccess = onRequestLibraryAccess
     }
 
     var body: some View {
@@ -36,7 +50,7 @@ struct ManualPhotoPickerContent: View {
                 VStack(spacing: 18) {
                     PhotosPicker(
                         selection: $selectedItems,
-                        maxSelectionCount: nil,
+                        maxSelectionCount: 1,
                         matching: .images
                     ) {
                         Image(systemName: "plus")
@@ -54,33 +68,51 @@ struct ManualPhotoPickerContent: View {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
+
+                        if showsLibraryAccessPrompt, let onRequestLibraryAccess {
+                            Button("授权全部图库") {
+                                onRequestLibraryAccess()
+                            }
+                            .buttonStyle(.plain)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.blue)
+                            .padding(.top, 12)
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(.horizontal, 24)
             } else {
-                PhotoAssetGridView(assets: picker.assets, readOnlyMode: readOnlyMode, onRefresh: {
-                    selectedItems = []
-                })
-                .safeAreaInset(edge: .bottom) {
-                    HStack {
-                        PhotosPicker(
-                            selection: $selectedItems,
-                            maxSelectionCount: nil,
-                            matching: .images
-                        ) {
-                            Label("重新选择", systemImage: "plus")
-                        }
-                        .buttonStyle(.borderedProminent)
-
-                        if picker.isImporting {
-                            ProgressView()
-                        }
+                PhotoAssetGridView(
+                    assets: picker.assets,
+                    readOnlyMode: readOnlyMode,
+                    onAssetOpen: handlePhotoDetailOpened,
+                    onAssetClose: handlePhotoDetailClosed,
+                    onRefresh: {
+                        selectedItems = []
                     }
-                    .padding(.horizontal)
-                    .padding(.top, 8)
-                    .padding(.bottom, 12)
-                    .background(.bar)
+                )
+                .safeAreaInset(edge: .bottom) {
+                    if !isShowingPhotoDetail {
+                        HStack {
+                            PhotosPicker(
+                                selection: $selectedItems,
+                                maxSelectionCount: 1,
+                                matching: .images
+                            ) {
+                                Label("重新选择", systemImage: "plus")
+                            }
+                            .buttonStyle(.borderedProminent)
+
+                            if picker.isImporting {
+                                ProgressView()
+                            }
+                        }
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                        .padding(.bottom, 12)
+                        .background(.bar)
+                    }
                 }
             }
         }
@@ -95,8 +127,27 @@ struct ManualPhotoPickerContent: View {
             }
 
             picker.clearError()
-            await picker.importPhotos(from: selectedItems)
+            let importedAssets = await picker.importPhotos(from: selectedItems)
             selectedItems = []
+
+            if let importedAsset = importedAssets.first {
+                selectedAssetForDetail = importedAsset
+                picker.clearAssets()
+            }
+        }
+        .navigationDestination(item: $selectedAssetForDetail) { asset in
+            PhotoDetailView(
+                assets: [asset],
+                initialAssetID: asset.id,
+                readOnlyMode: readOnlyMode
+            )
+            .toolbar(.hidden, for: .tabBar)
+            .onAppear {
+                handlePhotoDetailOpened()
+            }
+            .onDisappear {
+                handlePhotoDetailClosed()
+            }
         }
         .alert("导入失败", isPresented: errorBinding) {
             Button("知道了") {
@@ -116,6 +167,17 @@ struct ManualPhotoPickerContent: View {
                 }
             }
         )
+    }
+
+    private func handlePhotoDetailOpened() {
+        isShowingPhotoDetail = true
+        onPhotoDetailVisibilityChanged?(true)
+        onPhotoViewed?()
+    }
+
+    private func handlePhotoDetailClosed() {
+        isShowingPhotoDetail = false
+        onPhotoDetailVisibilityChanged?(false)
     }
 }
 

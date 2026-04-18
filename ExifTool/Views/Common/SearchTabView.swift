@@ -31,7 +31,6 @@ struct SearchTabView: View {
                 searchContent
             }
             .navigationTitle("搜索")
-            .platformInlineNavigationTitle()
             .searchable(text: $query, prompt: "搜索照片")
             .onChange(of: query) { _, _ in
                 refreshSearchPager()
@@ -74,6 +73,7 @@ struct SearchTabView: View {
             PhotoAssetGridView(
                 assets: displayedSearchAssets,
                 readOnlyMode: readOnlyMode,
+                showsReadOnlyOverlay: false,
                 isLoadingMore: showsSearchLoading,
                 onAssetAppear: searchAssetAppearHandler,
                 onRefresh: library.refresh

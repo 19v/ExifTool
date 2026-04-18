@@ -87,9 +87,30 @@ struct PhotoDetailPage: View {
                 }
             }
             .platformActivityShareSheet(item: $activityShareItem)
+            .toolbar(.hidden, for: .tabBar)
             .toolbar {
+                #if os(iOS)
+                ToolbarItemGroup(placement: .platformLanguageToggle) {
+                    languageToggleButton
+                    Spacer()
+                    if let photosAppURL {
+                        openPhotosButton(url: photosAppURL)
+                    }
+                }
+                #else
+                ToolbarItem(placement: .platformLanguageToggle) {
+                    languageToggleButton
+                }
+
+                if let photosAppURL {
+                    ToolbarItem(placement: .automatic) {
+                        openPhotosButton(url: photosAppURL)
+                    }
+                }
+                #endif
+
                 ToolbarItem(placement: .primaryAction) {
-                    actionMenu
+                    shareButton
                 }
             }
     }
@@ -177,16 +198,8 @@ struct PhotoDetailPage: View {
         isDownloadingOriginal = false
     }
 
-    private var actionMenu: some View {
+    private var shareButton: some View {
         Menu {
-            Button {
-                showsChineseKeys.toggle()
-            } label: {
-                Label(showsChineseKeys ? "显示英文字段名" : "显示中文字段名", systemImage: "character.book.closed")
-            }
-
-            Divider()
-
             Button {
                 sharePhoto()
             } label: {
@@ -200,24 +213,32 @@ struct PhotoDetailPage: View {
                 Label("分享参数", systemImage: "list.bullet.rectangle")
             }
             .disabled(loadedMetadata == nil)
-
-            if let photosAppURL {
-                Divider()
-
-                Button {
-                    openURL(photosAppURL)
-                } label: {
-                    Label("打开系统相册", systemImage: "photo.on.rectangle.angled")
-                }
-            }
         } label: {
             if isPreparingPhotoShare {
                 ProgressView()
             } else {
-                Image(systemName: "ellipsis")
+                Image(systemName: "square.and.arrow.up")
             }
         }
-        .accessibilityLabel("更多操作")
+        .accessibilityLabel("分享")
+    }
+
+    private var languageToggleButton: some View {
+        Button {
+            showsChineseKeys.toggle()
+        } label: {
+            Label(showsChineseKeys ? "English" : "中文", systemImage: "translate")
+        }
+        .accessibilityLabel(showsChineseKeys ? "显示英文字段名" : "显示中文字段名")
+    }
+
+    private func openPhotosButton(url: URL) -> some View {
+        Button {
+            openURL(url)
+        } label: {
+            Image(systemName: "photo.on.rectangle.angled")
+        }
+        .accessibilityLabel("打开系统相册")
     }
 
     private var loadedMetadata: PhotoMetadata? {
@@ -441,10 +462,6 @@ struct PhotoDetailPage: View {
     }
 
     private var photosAppURL: URL? {
-        guard asset.photoLibraryAsset != nil else {
-            return nil
-        }
-
         #if os(iOS)
         return URL(string: "photos-redirect://")
         #else
