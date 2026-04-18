@@ -249,7 +249,7 @@ enum WhiteBalanceMetadataFallbackBuilder {
 }
 
 enum MetadataKeyTranslator {
-    private static let names: [String: String] = [
+    nonisolated private static let names: [String: String] = [
         "aperturevalue": "光圈值",
         "artist": "作者",
         "brightnessvalue": "亮度值",
@@ -275,6 +275,76 @@ enum MetadataKeyTranslator {
         "flickerreduction": "闪烁抑制",
         "fujimodel": "Fuji 型号",
         "fujimodel2": "Fuji 型号 2",
+        "filmmode": "胶片风格",
+        "filmsimulation": "胶片风格",
+        "filmsimulationmode": "胶片风格",
+        "dynamicrange": "动态范围",
+        "dynamicrangesetting": "动态范围设置",
+        "drangepriority": "动态范围优先",
+        "drangepriorityauto": "动态范围优先自动",
+        "drangepriorityfixed": "动态范围优先固定",
+        "autodynamicrange": "自动动态范围",
+        "developmentdynamicrange": "冲洗动态范围",
+        "prioritysettings": "对焦优先级",
+        "focussettings": "对焦设置",
+        "afcsettings": "AF-C 设置",
+        "afspriority": "AF-S 优先级",
+        "afcpriority": "AF-C 优先级",
+        "focusmode2": "对焦模式 2",
+        "preaf": "预对焦",
+        "afareamode": "AF 区域模式",
+        "afareapointsize": "AF 区域点大小",
+        "afareazonesize": "AF 区域大小",
+        "afcsetting": "AF-C 设置",
+        "afctrackingsensitivity": "AF-C 跟踪灵敏度",
+        "afcspeedtrackingsensitivity": "AF-C 速度跟踪灵敏度",
+        "afczoneareaswitching": "AF-C 区域切换",
+        "drivemode": "驱动模式",
+        "drivespeed": "驱动速度",
+        "colortemperature": "色温",
+        "noisereduction": "降噪",
+        "highisonoisereduction": "高 ISO 降噪",
+        "clarity": "清晰度",
+        "fujiflashmode": "闪光模式",
+        "flashexposurecomp": "闪光曝光补偿",
+        "macro": "微距",
+        "focusmode": "对焦模式",
+        "afmode": "AF 模式",
+        "focuspixel": "对焦像素",
+        "slowsync": "慢速同步",
+        "exrauto": "EXR 自动",
+        "exrmode": "EXR 模式",
+        "multipleexposure": "多重曝光",
+        "shadowtone": "阴影",
+        "highlighttone": "高光",
+        "lensmodulationoptimizer": "镜头像差校正",
+        "graineffectroughness": "颗粒效果粗糙度",
+        "colorchromeeffect": "Color Chrome 效果",
+        "bwadjustment": "黑白暖冷",
+        "bwmagentagreen": "黑白洋红/绿色",
+        "graineffectsize": "颗粒效果尺寸",
+        "cropmode": "裁切模式",
+        "colorchromefxblue": "Color Chrome FX Blue",
+        "autobracketing": "包围曝光",
+        "sequencenumber": "序列号",
+        "compositeimagemode": "合成图像模式",
+        "advancedfilter": "高级滤镜",
+        "colormode": "色彩模式",
+        "blurwarning": "模糊警告",
+        "focuswarning": "对焦警告",
+        "exposurewarning": "曝光警告",
+        "minfocallength": "最小焦距",
+        "maxfocallength": "最大焦距",
+        "maxapertureatminfocal": "最小焦距最大光圈",
+        "maxapertureatmaxfocal": "最大焦距最大光圈",
+        "imagestabilization": "防抖",
+        "scenerecognition": "场景识别",
+        "imagegeneration": "图像生成",
+        "imagecount": "快门次数",
+        "drivesettings": "驱动设置",
+        "picturemode": "拍摄模式",
+        "shuttertype": "快门模式",
+        "whitebalancebracketing": "白平衡包围",
         "gpsaltitude": "海拔",
         "gpsaltituderef": "海拔参考",
         "gpsdatestamp": "GPS 日期",
@@ -342,7 +412,7 @@ enum MetadataKeyTranslator {
         "yresolution": "垂直分辨率"
     ]
 
-    private static let englishNamesByChineseName: [String: String] = [
+    nonisolated private static let englishNamesByChineseName: [String: String] = [
         "AF-C 设置": "AF-C Settings",
         "AF 模式": "AF Mode",
         "Color Chrome 效果": "Color Chrome Effect",
@@ -488,15 +558,15 @@ enum MetadataKeyTranslator {
         "亚秒时间": "Subsecond Time"
     ]
 
-    static func chineseName(for key: String) -> String? {
+    nonisolated static func chineseName(for key: String) -> String? {
         names[normalized(key)]
     }
 
-    static func englishName(for key: String) -> String? {
+    nonisolated static func englishName(for key: String) -> String? {
         englishNamesByChineseName[key]
     }
 
-    private static func normalized(_ key: String) -> String {
+    nonisolated private static func normalized(_ key: String) -> String {
         key
             .lowercased()
             .replacingOccurrences(of: " ", with: "")

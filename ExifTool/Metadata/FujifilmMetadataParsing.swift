@@ -10,14 +10,12 @@ import ImageIO
 
 enum CameraMetadataSectionBuilder {
     static func sections(from properties: [String: Any], imageData: Data? = nil) -> [MetadataSection] {
-        [
-            FujifilmMetadataExtractor.section(from: properties, imageData: imageData),
-            NikonMetadataExtractor.section(from: properties)
-        ].compactMap { $0 }
+        FujifilmMetadataExtractor.sections(from: properties, imageData: imageData) +
+        [NikonMetadataExtractor.section(from: properties)].compactMap { $0 }
     }
 }
 
-enum FujifilmMetadataExtractor {
+nonisolated enum FujifilmMetadataExtractor {
     private struct Field {
         let title: String
         let aliases: [String]
@@ -28,15 +26,52 @@ enum FujifilmMetadataExtractor {
         let value: Any
     }
 
+    private enum Group: CaseIterable, Hashable {
+        case whiteBalance
+        case rendering
+        case focusDrive
+        case camera
+
+        var id: String {
+            switch self {
+            case .whiteBalance:
+                return "fujifilm-group-white-balance"
+            case .rendering:
+                return "fujifilm-group-rendering"
+            case .focusDrive:
+                return "fujifilm-group-focus-drive"
+            case .camera:
+                return "fujifilm-group-camera"
+            }
+        }
+
+        var title: String {
+            switch self {
+            case .whiteBalance:
+                return "富士白平衡"
+            case .rendering:
+                return "富士色彩/动态范围"
+            case .focusDrive:
+                return "富士 AF/驱动"
+            case .camera:
+                return "富士机身/处理"
+            }
+        }
+    }
+
     private static let fields: [Field] = [
         Field(title: "版本", aliases: ["Version"]),
         Field(title: "内部序列号", aliases: ["InternalSerialNumber"]),
         Field(title: "图像质量", aliases: ["Quality"]),
         Field(title: "胶片风格", aliases: ["FilmMode", "FilmSimulation", "FilmSimulationMode"]),
-        Field(title: "动态范围", aliases: ["DynamicRange", "DynamicRangeSetting", "DRangePriority", "DRPriority"]),
+        Field(title: "动态范围", aliases: ["DynamicRange", "DynamicRangeSetting"]),
         Field(title: "自动动态范围", aliases: ["AutoDynamicRange"]),
+        Field(title: "动态范围优先", aliases: ["DRangePriority", "DRPriority", "DRangePriorityAuto", "DRangePriorityFixed"]),
         Field(title: "白平衡", aliases: ["WhiteBalance", "WhiteBalanceMode"]),
         Field(title: "白平衡微调", aliases: ["WhiteBalanceFineTune", "WhiteBalanceShift", "WBShift", "WB_RBLevels", "WBRBLevels", "WBGRBLevels", "WhiteBalanceRBLevels"]),
+        Field(title: "WB 红通道", aliases: ["WBRed", "WB_Red"]),
+        Field(title: "WB 绿通道", aliases: ["WBGreen", "WB_Green"]),
+        Field(title: "WB 蓝通道", aliases: ["WBBlue", "WB_Blue"]),
         Field(title: "色温", aliases: ["ColorTemperature"]),
         Field(title: "饱和度", aliases: ["Saturation"]),
         Field(title: "对比度", aliases: ["Contrast"]),
@@ -51,11 +86,13 @@ enum FujifilmMetadataExtractor {
         Field(title: "颗粒效果尺寸", aliases: ["GrainEffectSize"]),
         Field(title: "清晰度", aliases: ["Clarity"]),
         Field(title: "镜头像差校正", aliases: ["LensModulationOptimizer", "PeripheralLighting", "ChromaticAberrationCorrection", "DistortionCorrection"]),
-        Field(title: "拍摄模式", aliases: ["ShootingMode", "ExposureMode", "DriveMode", "ShutterType", "MultipleExposure", "CompositeImageMode", "SceneRecognition"]),
-        Field(title: "对焦优先级", aliases: ["AFSPriority", "AF-SPriority", "AFCPriority", "AF-CPriority"]),
+        Field(title: "拍摄模式", aliases: ["ShootingMode", "ExposureMode", "PictureMode", "MultipleExposure", "CompositeImageMode", "SceneRecognition"]),
+        Field(title: "快门模式", aliases: ["ShutterType"]),
+        Field(title: "对焦优先级", aliases: ["PrioritySettings", "AFSPriority", "AF-SPriority", "AFCPriority", "AF-CPriority"]),
         Field(title: "对焦模式", aliases: ["FocusMode", "AFMode", "FocusPixel", "Macro"]),
-        Field(title: "对焦设置", aliases: ["FocusMode2", "PreAF", "AFAreaMode", "AFAreaPointSize", "AFAreaZoneSize"]),
-        Field(title: "AF-C 设置", aliases: ["AFCSetting", "AF-CSetting", "AFCTrackingSensitivity", "AF-CTrackingSensitivity", "AFCSpeedTrackingSensitivity", "AF-CSpeedTrackingSensitivity", "AFCZoneAreaSwitching", "AF-CZoneAreaSwitching"]),
+        Field(title: "对焦设置", aliases: ["FocusSettings", "FocusMode2", "PreAF", "AFAreaMode", "AFAreaPointSize", "AFAreaZoneSize"]),
+        Field(title: "AF-C 设置", aliases: ["AFCSettings", "AFCSetting", "AF-CSetting", "AFCTrackingSensitivity", "AF-CTrackingSensitivity", "AFCSpeedTrackingSensitivity", "AF-CSpeedTrackingSensitivity", "AFCZoneAreaSwitching", "AF-CZoneAreaSwitching"]),
+        Field(title: "连拍", aliases: ["DriveSettings", "DriveMode", "DriveSpeed", "SequenceNumber"]),
         Field(title: "闪光模式", aliases: ["FujiFlashMode"]),
         Field(title: "闪光曝光补偿", aliases: ["FlashExposureComp"]),
         Field(title: "慢速同步", aliases: ["SlowSync"]),
@@ -63,9 +100,9 @@ enum FujifilmMetadataExtractor {
         Field(title: "EXR 模式", aliases: ["EXRMode", "EXRAuto"]),
         Field(title: "包围曝光", aliases: ["AutoBracketing", "WhiteBalanceBracketing"]),
         Field(title: "胶片颗粒/色彩效果", aliases: ["MonochromaticColor"]),
-        Field(title: "机内处理", aliases: ["DevelopmentDynamicRange", "ImageGeneration", "RawDevelopmentProcess", "DRangePriority", "DRangePriorityAuto", "DRangePriorityFixed"]),
+        Field(title: "冲洗动态范围", aliases: ["DevelopmentDynamicRange"]),
+        Field(title: "图像生成", aliases: ["ImageGeneration", "RawDevelopmentProcess"]),
         Field(title: "裁切模式", aliases: ["CropMode"]),
-        Field(title: "连拍", aliases: ["SequenceNumber", "DriveMode", "DriveSpeed"]),
         Field(title: "曝光计数", aliases: ["ExposureCount"]),
         Field(title: "镜头规格", aliases: ["MinFocalLength", "MaxFocalLength", "MaxApertureAtMinFocal", "MaxApertureAtMaxFocal"]),
         Field(title: "快门次数", aliases: ["ShutterCount", "ImageCount", "MechanicalShutterCount"]),
@@ -75,18 +112,15 @@ enum FujifilmMetadataExtractor {
         Field(title: "闪烁抑制", aliases: ["FlickerReduction"]),
         Field(title: "Fuji 型号", aliases: ["FujiModel"]),
         Field(title: "Fuji 型号 2", aliases: ["FujiModel2"]),
-        Field(title: "WB 红通道", aliases: ["WBRed"]),
-        Field(title: "WB 绿通道", aliases: ["WBGreen"]),
-        Field(title: "WB 蓝通道", aliases: ["WBBlue"]),
         Field(title: "翻滚角", aliases: ["RollAngle"]),
         Field(title: "评分", aliases: ["Rating"]),
         Field(title: "人脸检测", aliases: ["FacesDetected"]),
         Field(title: "人脸元素数量", aliases: ["NumFaceElements"])
     ]
 
-    static func section(from properties: [String: Any], imageData: Data? = nil) -> MetadataSection? {
+    static func sections(from properties: [String: Any], imageData: Data? = nil) -> [MetadataSection] {
         guard isFujifilm(properties) else {
-            return nil
+            return []
         }
 
         let parsedMakerNoteData = makerNoteData(from: properties) ?? imageData.flatMap(jpegMakerNoteData)
@@ -144,10 +178,41 @@ enum FujifilmMetadataExtractor {
         }
 
         guard !items.isEmpty else {
-            return nil
+            return []
         }
 
-        return MetadataSection(id: "fujifilm-parameters", title: "Fujifilm 参数", items: items)
+        return [groupedSection(from: items)]
+    }
+
+    private static func groupedSection(from items: [MetadataItem]) -> MetadataSection {
+        var groupedItems = Dictionary(uniqueKeysWithValues: Group.allCases.map { ($0, [MetadataItem]()) })
+
+        for item in items {
+            groupedItems[group(for: item.key), default: []].append(item)
+        }
+
+        let itemGroups = Group.allCases.compactMap { group -> MetadataItemGroup? in
+            guard let items = groupedItems[group], !items.isEmpty else {
+                return nil
+            }
+
+            return MetadataItemGroup(id: group.id, title: group.title, items: items)
+        }
+
+        return MetadataSection(id: "fujifilm-parameters", title: "Fujifilm 参数", items: items, itemGroups: itemGroups)
+    }
+
+    private static func group(for key: String) -> Group {
+        switch key {
+        case "白平衡", "白平衡微调", "白平衡偏移", "色温", "WB 红通道", "WB 绿通道", "WB 蓝通道":
+            return .whiteBalance
+        case "图像质量", "胶片风格", "动态范围", "自动动态范围", "动态范围优先", "冲洗动态范围", "高光", "阴影", "Color Chrome 效果", "Color Chrome FX Blue", "高级滤镜", "饱和度", "对比度", "锐度", "降噪", "颗粒效果粗糙度", "颗粒效果尺寸", "清晰度", "胶片颗粒/色彩效果", "色彩模式":
+            return .rendering
+        case "拍摄模式", "快门模式", "对焦优先级", "对焦模式", "AF 模式", "对焦像素", "对焦设置", "AF-C 设置", "连拍", "包围曝光", "闪光模式", "闪光曝光补偿", "慢速同步", "防抖":
+            return .focusDrive
+        default:
+            return .camera
+        }
     }
 
     private static func isFujifilm(_ properties: [String: Any]) -> Bool {
@@ -566,20 +631,32 @@ nonisolated enum FujifilmMakerNoteParser {
         switch true {
         case matchesFujiKey(normalizedKey, aliases: ["filmmode", "filmsimulation", "filmsimulationmode"]):
             return mappedFallbackValue(rawValue, mapping: filmMode)
-        case matchesFujiKey(normalizedKey, aliases: ["whitebalance", "whitebalancemode"]):
-            return mappedFallbackValue(rawValue, mapping: whiteBalance)
         case matchesFujiKey(normalizedKey, aliases: ["whitebalancefinetune", "whitebalanceshift", "wbshift", "wbrblevels", "wbgrblevels"]):
             return formattedWhiteBalanceFineTune(from: rawValue) ?? MetadataParser.readableValue(rawValue)
+        case normalizedKey == "whitebalance" || normalizedKey.hasSuffix("whitebalance") || matchesFujiKey(normalizedKey, aliases: ["whitebalancemode"]):
+            return mappedFallbackValue(rawValue, mapping: whiteBalance)
         case matchesFujiKey(normalizedKey, aliases: ["colortemperature"]):
             return fallbackColorTemperatureValue(rawValue) ?? MetadataParser.readableValue(rawValue)
-        case matchesFujiKey(normalizedKey, aliases: ["dynamicrange"]):
-            return mappedFallbackValue(rawValue, mapping: dynamicRange)
         case matchesFujiKey(normalizedKey, aliases: ["dynamicrangesetting"]):
             return mappedFallbackValue(rawValue, mapping: dynamicRangeSetting)
+        case matchesFujiKey(normalizedKey, aliases: ["dynamicrange"]):
+            return mappedFallbackValue(rawValue, mapping: dynamicRange)
         case matchesFujiKey(normalizedKey, aliases: ["drangepriority"]):
             return mappedFallbackValue(rawValue, mapping: dRangePriority)
         case matchesFujiKey(normalizedKey, aliases: ["drangepriorityauto", "drangepriorityfixed"]):
             return mappedFallbackValue(rawValue, mapping: dRangePriorityStrength)
+        case matchesFujiKey(normalizedKey, aliases: ["prioritysettings"]):
+            return firstFallbackInteger(from: rawValue).flatMap { prioritySettingsDescription($0) } ?? MetadataParser.readableValue(rawValue)
+        case matchesFujiKey(normalizedKey, aliases: ["focussettings"]):
+            return firstFallbackInteger(from: rawValue).flatMap { focusSettingsDescription($0) } ?? MetadataParser.readableValue(rawValue)
+        case matchesFujiKey(normalizedKey, aliases: ["afcsettings"]):
+            return firstFallbackInteger(from: rawValue).flatMap { afcSettingsDescription($0) } ?? MetadataParser.readableValue(rawValue)
+        case matchesFujiKey(normalizedKey, aliases: ["drivesettings"]):
+            return firstFallbackInteger(from: rawValue).flatMap { driveSettingsDescription($0) } ?? MetadataParser.readableValue(rawValue)
+        case matchesFujiKey(normalizedKey, aliases: ["afmode"]):
+            return mappedFallbackValue(rawValue, mapping: afMode)
+        case matchesFujiKey(normalizedKey, aliases: ["focusmode"]):
+            return mappedFallbackValue(rawValue, mapping: focusMode)
         case matchesFujiKey(normalizedKey, aliases: ["advancedfilter"]):
             return mappedFallbackValue(rawValue, mapping: advancedFilter)
         case matchesFujiKey(normalizedKey, aliases: ["autobracketing"]):
@@ -602,6 +679,8 @@ nonisolated enum FujifilmMakerNoteParser {
             return mappedFallbackValue(rawValue, mapping: highISONoiseReduction)
         case matchesFujiKey(normalizedKey, aliases: ["shuttertype"]):
             return mappedFallbackValue(rawValue, mapping: shutterType)
+        case matchesFujiKey(normalizedKey, aliases: ["drivemode"]):
+            return mappedFallbackValue(rawValue, mapping: driveMode)
         case matchesFujiKey(normalizedKey, aliases: ["picturemode"]):
             return mappedFallbackValue(rawValue, mapping: pictureMode)
         case matchesFujiKey(normalizedKey, aliases: ["multipleexposure"]):
@@ -894,7 +973,7 @@ nonisolated enum FujifilmMakerNoteParser {
             value = mappedValue(values.first, mapping: colorChromeFXBlue)
         case 0x1050:
             displayName = name
-            title = "拍摄模式"
+            title = "快门模式"
             value = mappedValue(values.first, mapping: shutterType)
         case 0x1100:
             displayName = name
@@ -950,7 +1029,7 @@ nonisolated enum FujifilmMakerNoteParser {
             value = mappedValue(values.first, mapping: dynamicRangeSetting)
         case 0x1403:
             displayName = name
-            title = "机内处理"
+            title = "冲洗动态范围"
             value = values.first.map { "\($0)%" }
         case 0x1404:
             displayName = "最小焦距"
@@ -986,7 +1065,7 @@ nonisolated enum FujifilmMakerNoteParser {
             value = values.first.map(String.init)
         case 0x1436:
             displayName = name
-            title = "机内处理"
+            title = "图像生成"
             value = mappedValue(values.first, mapping: imageGeneration)
         case 0x1438:
             displayName = "快门次数"
@@ -994,15 +1073,15 @@ nonisolated enum FujifilmMakerNoteParser {
             value = values.first.map { "\($0 & 0x7fff)" }
         case 0x1443:
             displayName = name
-            title = "机内处理"
+            title = "动态范围优先"
             value = mappedValue(values.first, mapping: dRangePriority).map { "动态范围优先: \($0)" }
         case 0x1444:
             displayName = name
-            title = "机内处理"
+            title = "动态范围优先"
             value = mappedValue(values.first, mapping: dRangePriorityStrength)
         case 0x1445:
             displayName = name
-            title = "机内处理"
+            title = "动态范围优先"
             value = mappedValue(values.first, mapping: dRangePriorityStrength)
         case 0x1446:
             displayName = "闪烁抑制"
@@ -1055,10 +1134,13 @@ nonisolated enum FujifilmMakerNoteParser {
 
     private static func summarizedFields(from tags: [ParsedTag]) -> [String: String] {
         var fields: [String: String] = [:]
+        let tagCountsByTitle = Dictionary(grouping: tags, by: { $0.title ?? $0.name })
+            .mapValues(\.count)
 
         for tag in tags {
             let title = tag.title ?? tag.name
-            let component = tag.name == title ? tag.value : "\(tag.name): \(tag.value)"
+            let displayName = MetadataKeyTranslator.chineseName(for: tag.name) ?? tag.name
+            let component = tagCountsByTitle[title] == 1 || displayName == title ? tag.value : "\(displayName): \(tag.value)"
 
             if let existing = fields[title] {
                 fields[title] = "\(existing)\n\(component)"

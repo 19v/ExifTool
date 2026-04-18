@@ -395,13 +395,22 @@ struct PhotoDetailPage: View {
         let sections: [MetadataSection]
 
         if let visibleMetadataKeys {
-            sections = metadata.sections.compactMap { section in
+            sections = metadata.sections.compactMap { section -> MetadataSection? in
                 let items = section.items.filter { visibleMetadataKeys.contains($0.key) }
-                guard !items.isEmpty else {
+                let itemGroups = section.itemGroups.compactMap { group -> MetadataItemGroup? in
+                    let groupItems = group.items.filter { visibleMetadataKeys.contains($0.key) }
+                    guard !groupItems.isEmpty else {
+                        return nil
+                    }
+
+                    return MetadataItemGroup(id: group.id, title: group.title, items: groupItems)
+                }
+
+                guard !items.isEmpty || !itemGroups.isEmpty else {
                     return nil
                 }
 
-                return MetadataSection(id: section.id, title: section.title, items: items)
+                return MetadataSection(id: section.id, title: section.title, items: items, itemGroups: itemGroups)
             }
         } else {
             sections = metadata.sections
@@ -473,13 +482,29 @@ private enum MetadataShareFormatter {
         for section in sections {
             lines.append("")
             lines.append("[\(MetadataDisplayLocalizer.sectionTitle(section, showsChinese: showsChineseKeys))]")
-            for item in section.items {
-                let key = MetadataDisplayLocalizer.keyTitle(item.key, showsChinese: showsChineseKeys)
-                lines.append("\(key): \(item.value)")
+            if section.itemGroups.isEmpty {
+                appendItems(section.items, to: &lines, showsChineseKeys: showsChineseKeys)
+            } else {
+                for group in section.itemGroups {
+                    lines.append("")
+                    lines.append(MetadataDisplayLocalizer.sectionTitle(
+                        MetadataSection(id: group.id, title: group.title, items: group.items),
+                        showsChinese: showsChineseKeys
+                    ))
+                    appendItems(group.items, to: &lines, showsChineseKeys: showsChineseKeys)
+                }
             }
         }
 
         return lines.joined(separator: "\n")
+    }
+
+    private static func appendItems(_ items: [MetadataItem], to lines: inout [String], showsChineseKeys: Bool) {
+        for item in items {
+            let key = MetadataDisplayLocalizer.keyTitle(item.key, showsChinese: showsChineseKeys)
+            let value = MetadataDisplayLocalizer.valueText(item.value, showsChinese: showsChineseKeys)
+            lines.append("\(key): \(value)")
+        }
     }
 
     private static func sections(from metadata: PhotoMetadata, visibleMetadataKeys: Set<String>?) -> [MetadataSection] {
@@ -487,13 +512,22 @@ private enum MetadataShareFormatter {
             return metadata.sections
         }
 
-        return metadata.sections.compactMap { section in
+        return metadata.sections.compactMap { section -> MetadataSection? in
             let items = section.items.filter { visibleMetadataKeys.contains($0.key) }
-            guard !items.isEmpty else {
+            let itemGroups = section.itemGroups.compactMap { group -> MetadataItemGroup? in
+                let groupItems = group.items.filter { visibleMetadataKeys.contains($0.key) }
+                guard !groupItems.isEmpty else {
+                    return nil
+                }
+
+                return MetadataItemGroup(id: group.id, title: group.title, items: groupItems)
+            }
+
+            guard !items.isEmpty || !itemGroups.isEmpty else {
                 return nil
             }
 
-            return MetadataSection(id: section.id, title: section.title, items: items)
+            return MetadataSection(id: section.id, title: section.title, items: items, itemGroups: itemGroups)
         }
     }
 }

@@ -17,25 +17,44 @@ struct MetadataSectionView: View {
             Text(MetadataDisplayLocalizer.sectionTitle(section, showsChinese: showsChineseKeys))
                 .font(.headline)
 
-            VStack(spacing: 0) {
-                ForEach(section.items) { item in
-                    HStack(alignment: .top, spacing: 12) {
-                        MetadataKeyLabel(englishKey: item.key, showsChinese: showsChineseKeys)
-                        Text(item.value)
-                            .font(.subheadline)
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .padding(.vertical, 9)
-                    .padding(.horizontal, 12)
-                    .background(highlightedMetadataKeys.contains(item.key) ? Color.accentColor.opacity(0.12) : Color.clear)
+            if section.itemGroups.isEmpty {
+                metadataRows(section.items)
+            } else {
+                ForEach(section.itemGroups) { group in
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(MetadataDisplayLocalizer.sectionTitle(
+                            MetadataSection(id: group.id, title: group.title, items: group.items),
+                            showsChinese: showsChineseKeys
+                        ))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
 
-                    if item.id != section.items.last?.id {
-                        Divider()
+                        metadataRows(group.items)
                     }
                 }
             }
-            .background(Color.platformSecondaryBackground, in: RoundedRectangle(cornerRadius: 8))
         }
+    }
+
+    private func metadataRows(_ items: [MetadataItem]) -> some View {
+        VStack(spacing: 0) {
+            ForEach(items) { item in
+                HStack(alignment: .top, spacing: 12) {
+                    MetadataKeyLabel(englishKey: item.key, showsChinese: showsChineseKeys)
+                    Text(MetadataDisplayLocalizer.valueText(item.value, showsChinese: showsChineseKeys))
+                        .font(.subheadline)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .padding(.vertical, 9)
+                .padding(.horizontal, 12)
+                .background(highlightedMetadataKeys.contains(item.key) ? Color.accentColor.opacity(0.12) : Color.clear)
+
+                if item.id != items.last?.id {
+                    Divider()
+                }
+            }
+        }
+        .background(Color.platformSecondaryBackground, in: RoundedRectangle(cornerRadius: 8))
     }
 }
