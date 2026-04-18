@@ -92,7 +92,9 @@ struct PhotoDetailPage: View {
             .platformActivityShareSheet(item: $activityShareItem)
             .navigationTitle(navigationTitle)
             .platformInlineNavigationTitle()
+            #if os(iOS)
             .toolbar(.hidden, for: .tabBar)
+            #endif
             .toolbar {
                 #if os(iOS)
                 ToolbarItemGroup(placement: .platformLanguageToggle) {

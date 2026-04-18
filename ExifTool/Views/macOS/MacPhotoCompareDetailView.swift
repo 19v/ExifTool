@@ -202,6 +202,7 @@ struct MacPhotoCompareDetailView: View {
                 asset: asset,
                 readOnlyMode: readOnlyMode,
                 showsChineseKeys: $showsChineseKeys,
+                navigationTitle: asset.displayName ?? title,
                 highlightedMetadataKeys: differingMetadataKeys,
                 visibleMetadataKeys: showsOnlyDifferences ? differingMetadataKeys : nil
             )

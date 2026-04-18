@@ -1,6 +1,26 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%@ -> %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ -> %2$@"
+          }
+        }
+      }
+    },
+    "%lld × %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld × %2$lld"
+          }
+        }
+      }
+    },
     "album.photoCount" : {
       "localizations" : {
         "en" : {
@@ -1200,6 +1220,12 @@
     "关闭" : {
 
     },
+    "关闭对比" : {
+
+    },
+    "关闭对比模式" : {
+
+    },
     "最近打开" : {
       "localizations" : {
         "en" : {
@@ -1399,6 +1425,9 @@
           }
         }
       }
+    },
+    "只看不同" : {
+
     },
     "只读模式" : {
       "localizations" : {
@@ -1659,6 +1688,9 @@
         }
       }
     },
+    "对比" : {
+
+    },
     "对比查看" : {
       "localizations" : {
         "en" : {
@@ -1690,6 +1722,9 @@
           }
         }
       }
+    },
+    "对比照片" : {
+
     },
     "对比结果已复制到剪贴板" : {
       "extractionState" : "stale",
@@ -1805,6 +1840,12 @@
           }
         }
       }
+    },
+    "左右对比两张照片" : {
+
+    },
+    "已标出 %lld 个不同字段" : {
+
     },
     "应用" : {
       "extractionState" : "stale",
@@ -2228,6 +2269,9 @@
       }
     },
     "授权访问图库" : {
+
+    },
+    "排序" : {
 
     },
     "搜索" : {
