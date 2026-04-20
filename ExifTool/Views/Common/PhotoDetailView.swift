@@ -9,15 +9,15 @@ import SwiftUI
 
 struct PhotoDetailView: View {
     let assets: [PhotoAsset]
-    let initialAssetID: String
     let readOnlyMode: Bool
 
+    @State private var currentAssetID: String
     @State private var showsChineseKeys: Bool
 
     init(assets: [PhotoAsset], initialAssetID: String, readOnlyMode: Bool) {
         self.assets = assets
-        self.initialAssetID = initialAssetID
         self.readOnlyMode = readOnlyMode
+        _currentAssetID = State(initialValue: initialAssetID)
         _showsChineseKeys = State(initialValue: MetadataLanguagePreference.defaultShowsChineseKeys)
     }
 
@@ -28,11 +28,18 @@ struct PhotoDetailView: View {
                     asset: currentAsset,
                     readOnlyMode: readOnlyMode,
                     showsChineseKeys: $showsChineseKeys,
-                    navigationTitle: navigationTitle
+                    navigationTitle: navigationTitle,
+                    photoNavigation: photoNavigation
                 )
             } else {
                 ContentUnavailableView("没有可显示的照片", systemImage: "photo")
             }
+        }
+        .onAppear {
+            ensureCurrentAssetExists()
+        }
+        .onChange(of: assets.map(\.id)) {
+            ensureCurrentAssetExists()
         }
     }
 
@@ -45,7 +52,7 @@ struct PhotoDetailView: View {
     }
 
     private var currentAsset: PhotoAsset? {
-        assets.first(where: { $0.id == initialAssetID }) ?? assets.first
+        assets.first(where: { $0.id == currentAssetID }) ?? assets.first
     }
 
     private var currentIndex: Int? {
@@ -54,6 +61,43 @@ struct PhotoDetailView: View {
         }
 
         return assets.firstIndex(where: { $0.id == currentAsset.id })
+    }
+
+    private var photoNavigation: PhotoNavigationConfiguration? {
+        guard assets.count > 1, let currentIndex else {
+            return nil
+        }
+
+        return PhotoNavigationConfiguration(
+            canSelectPrevious: currentIndex > 0,
+            canSelectNext: currentIndex < assets.count - 1,
+            selectPrevious: selectPreviousAsset,
+            selectNext: selectNextAsset
+        )
+    }
+
+    private func selectPreviousAsset() {
+        guard let currentIndex, currentIndex > 0 else {
+            return
+        }
+
+        currentAssetID = assets[currentIndex - 1].id
+    }
+
+    private func selectNextAsset() {
+        guard let currentIndex, currentIndex < assets.count - 1 else {
+            return
+        }
+
+        currentAssetID = assets[currentIndex + 1].id
+    }
+
+    private func ensureCurrentAssetExists() {
+        guard currentAsset == nil, let firstAsset = assets.first else {
+            return
+        }
+
+        currentAssetID = firstAsset.id
     }
 }
 

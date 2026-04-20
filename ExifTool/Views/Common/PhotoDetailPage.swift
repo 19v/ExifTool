@@ -17,6 +17,7 @@ struct PhotoDetailPage: View {
     let asset: PhotoAsset
     let readOnlyMode: Bool
     let navigationTitle: String
+    let photoNavigation: PhotoNavigationConfiguration?
     let highlightedMetadataKeys: Set<String>
     let visibleMetadataKeys: Set<String>?
 
@@ -38,12 +39,14 @@ struct PhotoDetailPage: View {
         readOnlyMode: Bool,
         showsChineseKeys: Binding<Bool>,
         navigationTitle: String,
+        photoNavigation: PhotoNavigationConfiguration? = nil,
         highlightedMetadataKeys: Set<String> = [],
         visibleMetadataKeys: Set<String>? = nil
     ) {
         self.asset = asset
         self.readOnlyMode = readOnlyMode
         self.navigationTitle = navigationTitle
+        self.photoNavigation = photoNavigation
         _showsChineseKeys = showsChineseKeys
         self.highlightedMetadataKeys = highlightedMetadataKeys
         self.visibleMetadataKeys = visibleMetadataKeys
@@ -99,6 +102,8 @@ struct PhotoDetailPage: View {
                 #if os(iOS)
                 ToolbarItemGroup(placement: .platformLanguageToggle) {
                     languageToggleButton
+                    Spacer()
+                    photoNavigationButtons
                     Spacer()
                     if let photosAppURL {
                         openPhotosButton(url: photosAppURL)
@@ -228,6 +233,27 @@ struct PhotoDetailPage: View {
             }
         }
         .accessibilityLabel("分享")
+    }
+
+    @ViewBuilder
+    private var photoNavigationButtons: some View {
+        if let photoNavigation {
+            Button {
+                photoNavigation.selectPrevious()
+            } label: {
+                Image(systemName: "chevron.left")
+            }
+            .disabled(!photoNavigation.canSelectPrevious)
+            .accessibilityLabel("上一张照片")
+
+            Button {
+                photoNavigation.selectNext()
+            } label: {
+                Image(systemName: "chevron.right")
+            }
+            .disabled(!photoNavigation.canSelectNext)
+            .accessibilityLabel("下一张照片")
+        }
     }
 
     private var languageToggleButton: some View {
@@ -475,6 +501,13 @@ struct PhotoDetailPage: View {
         return nil
         #endif
     }
+}
+
+struct PhotoNavigationConfiguration {
+    let canSelectPrevious: Bool
+    let canSelectNext: Bool
+    let selectPrevious: () -> Void
+    let selectNext: () -> Void
 }
 
 struct ActivityShareItem: Identifiable {
