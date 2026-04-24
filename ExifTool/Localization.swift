@@ -156,6 +156,61 @@ enum MetadataDisplayLocalizer {
         "Program AE": "程序自动曝光",
         "Aperture-priority AE": "光圈优先 AE",
         "Shutter speed priority AE": "快门优先 AE",
+        "Superior Auto": "增强自动",
+        "iAuto": "智能自动",
+        "iAuto+": "智能自动+",
+        "Shade": "阴影",
+        "Tungsten": "钨丝灯",
+        "Color Temperature/Color Filter": "色温/色彩滤镜",
+        "Low": "低",
+        "Mid": "中",
+        "High": "高",
+        "Advanced": "高级",
+        "Advanced Auto": "高级自动",
+        "Auto+": "自动+",
+        "Sweep Panorama": "扫描全景",
+        "Handheld Night Shot": "手持夜景",
+        "Anti Motion Blur": "动作防抖",
+        "Backlight Correction HDR": "逆光校正 HDR",
+        "Background Defocus": "背景虚化",
+        "Soft Skin": "柔肤",
+        "Toy Camera": "玩具相机",
+        "Pop Color": "流行色彩",
+        "Posterization": "色调分离",
+        "Posterization B/W": "黑白色调分离",
+        "Retro Photo": "复古照片",
+        "Soft High Key": "柔和亮调",
+        "Partial Color (red)": "局部彩色（红）",
+        "Partial Color (green)": "局部彩色（绿）",
+        "Partial Color (blue)": "局部彩色（蓝）",
+        "Partial Color (yellow)": "局部彩色（黄）",
+        "High Contrast Monochrome": "高对比度单色",
+        "Rich-tone Monochrome": "丰富色调单色",
+        "Water Color": "水彩",
+        "Illustration": "插图",
+        "Multi-segment": "多重测光",
+        "Center-weighted average": "中央重点平均",
+        "Spot (Standard)": "点测光（标准）",
+        "Spot (Large)": "点测光（大）",
+        "Flexible Spot": "自由点",
+        "Expanded Flexible Spot": "扩展自由点",
+        "Custom AF Area": "自定义 AF 区域",
+        "Tracking": "跟踪",
+        "Face Tracking": "人脸跟踪",
+        "Lock On AF": "锁定 AF",
+        "DMF": "直接手动对焦",
+        "AF-D": "深度图辅助连续 AF",
+        "Flash Fired": "闪光灯已触发",
+        "Did not fire": "未触发",
+        "External Flash Fired": "外接闪光灯已触发",
+        "Wireless Controlled Flash Fired": "无线控制闪光灯已触发",
+        "RAW + JPEG/HEIF": "RAW + JPEG/HEIF",
+        "Compressed RAW": "压缩 RAW",
+        "Compressed RAW + JPEG": "压缩 RAW + JPEG",
+        "Uncompressed RAW": "未压缩 RAW",
+        "Lossless Compressed RAW": "无损压缩 RAW",
+        "Compressed RAW 2": "压缩 RAW 2",
+        "Extra Fine": "超精细",
         "Classic Chrome": "经典正片",
         "Classic Negative": "经典负片",
         "Bleach Bypass": "漂白效果",
@@ -173,6 +228,16 @@ enum MetadataDisplayLocalizer {
         switch section.id {
         case "fujifilm-parameters":
             return "Fujifilm 参数"
+        case "sony-parameters":
+            return "SONY 参数"
+        case "sony-group-exposure":
+            return "SONY 曝光/画质"
+        case "sony-group-color":
+            return "SONY 色彩/白平衡"
+        case "sony-group-focus-drive":
+            return "SONY 对焦/驱动"
+        case "sony-group-camera-lens":
+            return "SONY 机身/镜头"
         case "fujifilm-white-balance", "fujifilm-group-white-balance":
             return "富士白平衡"
         case "fujifilm-rendering", "fujifilm-group-rendering":
@@ -194,6 +259,16 @@ enum MetadataDisplayLocalizer {
         switch section.id {
         case "fujifilm-parameters":
             return "Fujifilm Parameters"
+        case "sony-parameters":
+            return "SONY Parameters"
+        case "sony-group-exposure":
+            return "SONY Exposure/Quality"
+        case "sony-group-color":
+            return "SONY Color/WB"
+        case "sony-group-focus-drive":
+            return "SONY AF/Drive"
+        case "sony-group-camera-lens":
+            return "SONY Camera/Lens"
         case "fujifilm-white-balance", "fujifilm-group-white-balance":
             return "Fujifilm White Balance"
         case "fujifilm-rendering", "fujifilm-group-rendering":
