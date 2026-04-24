@@ -12,7 +12,9 @@ struct ManualPhotoPickerTabView: View {
     private var hasShownInitialPhotoLibraryAuthorizationCTA = false
     @State private var selectedItems: [PhotosPickerItem] = []
     @State private var selectedAssetForDetail: PhotoAsset?
-    @State private var isImporting = false
+    @State private var showsImportingDialog = false
+    @State private var importProgressTitle = AppLocalization.string("manualPicker.readingImage")
+    @State private var importProgressFraction: Double?
     @State private var importErrorMessage: String?
     @State private var showsInitialAuthorizationCTAThisSession = false
 
@@ -33,8 +35,8 @@ struct ManualPhotoPickerTabView: View {
             .presentationDragIndicator(.visible)
         }
         .overlay {
-            if isImporting {
-                ProgressView("正在读取图片")
+            if showsImportingDialog {
+                importingDialog
             }
         }
         .task(id: selectedItems.map(\.hashValue)) {
@@ -122,14 +124,42 @@ struct ManualPhotoPickerTabView: View {
         authorizationState == .unknown && showsInitialAuthorizationCTAThisSession
     }
 
+    private var importingDialog: some View {
+        ZStack {
+            Color.black.opacity(0.18)
+                .ignoresSafeArea()
+
+            VStack(spacing: 14) {
+                if let importProgressFraction {
+                    ProgressView(value: importProgressFraction)
+                        .frame(width: 190)
+                } else {
+                    ProgressView()
+                        .controlSize(.large)
+                }
+                Text(importProgressTitle)
+                    .font(.headline)
+            }
+            .padding(.horizontal, 28)
+            .padding(.vertical, 24)
+            .frame(minWidth: 220)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.primary.opacity(0.08))
+            }
+            .accessibilityElement(children: .combine)
+        }
+    }
+
     private func importSelectedItems() async {
         guard !selectedItems.isEmpty else {
             return
         }
 
-        isImporting = true
         defer {
-            isImporting = false
+            showsImportingDialog = false
+            importProgressFraction = nil
             selectedItems = []
         }
 
@@ -139,22 +169,20 @@ struct ManualPhotoPickerTabView: View {
 
         for (index, item) in selectedItems.enumerated() {
             do {
-                guard let data = try await item.loadTransferable(type: Data.self) else {
-                    continue
+                let asset = try await PhotosPickerPhotoImporter.importAsset(from: item, index: index) { phase in
+                    switch phase {
+                    case .reading:
+                        importProgressTitle = AppLocalization.string("manualPicker.readingImage")
+                        importProgressFraction = nil
+                    case .downloadingOriginal(let progress):
+                        importProgressTitle = AppLocalization.string("manualPicker.downloadingOriginal")
+                        importProgressFraction = progress
+                    }
+                    showsImportingDialog = true
                 }
-
-                let baseFileName = "\(AppLocalization.string("photoFileImporter.pickedImage")) \(index + 1)"
-                let suggestedFileName = item.supportedContentTypes.first?.preferredFilenameExtension.map {
-                    "\(baseFileName).\($0)"
-                } ?? baseFileName
-
-                if let asset = PhotoFileImporter.importAsset(
-                    from: data,
-                    suggestedFileName: suggestedFileName,
-                    id: item.itemIdentifier ?? UUID().uuidString
-                ) {
-                    assets.append(asset)
-                }
+                assets.append(asset)
+            } catch let error as LocalizedError {
+                importErrorMessage = error.errorDescription ?? AppLocalization.string("manualPicker.partialFailure")
             } catch {
                 importErrorMessage = AppLocalization.string("manualPicker.partialFailure")
             }

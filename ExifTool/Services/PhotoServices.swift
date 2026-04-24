@@ -12,6 +12,9 @@ import Photos
 import UniformTypeIdentifiers
 
 #if os(iOS)
+import CoreTransferable
+internal import PhotosUI
+import SwiftUI
 import UIKit
 typealias PlatformImage = UIImage
 #elseif os(macOS)
@@ -102,6 +105,247 @@ enum PhotoFileImporter {
         return PhotoAsset(file: file)
     }
 }
+
+#if os(iOS)
+enum PhotosPickerPhotoImporter {
+    enum ImportPhase {
+        case reading
+        case downloadingOriginal(progress: Double?)
+    }
+
+    enum ImportError: LocalizedError {
+        case originalResourceUnavailable
+        case unreadableImage
+        case transferableReadFailed
+
+        nonisolated var errorDescription: String? {
+            switch self {
+            case .originalResourceUnavailable:
+                return AppLocalization.string("manualPicker.originalResourceUnavailable")
+            case .unreadableImage:
+                return AppLocalization.string("manualPicker.noReadableImages")
+            case .transferableReadFailed:
+                return AppLocalization.string("manualPicker.transferableReadFailed")
+            }
+        }
+    }
+
+    private struct PickedPhotoFile: Transferable {
+        let data: Data
+        let suggestedFileName: String?
+
+        static var transferRepresentation: some TransferRepresentation {
+            FileRepresentation(importedContentType: .image) { receivedFile in
+                PickedPhotoFile(
+                    data: try Data(contentsOf: receivedFile.file),
+                    suggestedFileName: receivedFile.file.lastPathComponent
+                )
+            }
+            DataRepresentation(importedContentType: .image) { data in
+                PickedPhotoFile(data: data, suggestedFileName: nil)
+            }
+        }
+    }
+
+    private final class TransferProgressState: @unchecked Sendable {
+        private let lock = NSLock()
+        nonisolated(unsafe) private var finished = false
+
+        nonisolated init() { }
+
+        nonisolated var isFinished: Bool {
+            lock.lock()
+            defer { lock.unlock() }
+            return finished
+        }
+
+        nonisolated func finish() {
+            lock.lock()
+            finished = true
+            lock.unlock()
+        }
+    }
+
+    nonisolated static func importAsset(
+        from item: PhotosPickerItem,
+        index: Int,
+        progressHandler: @MainActor @escaping (ImportPhase) -> Void = { _ in }
+    ) async throws -> PhotoAsset {
+        let id = item.itemIdentifier ?? UUID().uuidString
+        var importFailure: ImportError?
+
+        do {
+            if let asset = try await importLegacyTransferableData(
+                from: item,
+                id: id,
+                index: index,
+                progressHandler: progressHandler
+            ) {
+                return asset
+            }
+        } catch {
+            importFailure = .transferableReadFailed
+        }
+
+        await progressHandler(.downloadingOriginal(progress: nil))
+        do {
+            if let asset = try await importOriginalResource(from: item, id: id) {
+                return asset
+            }
+        } catch let error as ImportError {
+            importFailure = error
+        }
+
+        await progressHandler(.reading)
+        do {
+            if let pickedFile = try await item.loadTransferable(type: PickedPhotoFile.self),
+               let asset = PhotoFileImporter.importAsset(
+                   from: pickedFile.data,
+                   suggestedFileName: pickedFile.suggestedFileName ?? suggestedFileName(for: item, index: index),
+                   id: id
+            ) {
+                return asset
+            }
+        } catch {
+            importFailure = importFailure ?? .transferableReadFailed
+        }
+
+        throw importFailure ?? ImportError.unreadableImage
+    }
+
+    private nonisolated static func importLegacyTransferableData(
+        from item: PhotosPickerItem,
+        id: String,
+        index: Int,
+        progressHandler: @MainActor @escaping (ImportPhase) -> Void
+    ) async throws -> PhotoAsset? {
+        guard let data = try await legacyTransferableData(from: item, progressHandler: progressHandler) else {
+            return nil
+        }
+
+        return PhotoFileImporter.importAsset(
+            from: data,
+            suggestedFileName: suggestedFileName(for: item, index: index),
+            id: id
+        )
+    }
+
+    private nonisolated static func legacyTransferableData(
+        from item: PhotosPickerItem,
+        progressHandler: @MainActor @escaping (ImportPhase) -> Void
+    ) async throws -> Data? {
+        try await withCheckedThrowingContinuation { continuation in
+            let state = TransferProgressState()
+            let progress = item.loadTransferable(type: Data.self) { result in
+                state.finish()
+                switch result {
+                case .success(let data):
+                    continuation.resume(returning: data)
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+
+            Task {
+                try? await Task.sleep(for: .milliseconds(350))
+
+                while !Task.isCancelled && !state.isFinished && !progress.isFinished {
+                    let fraction = normalizedFractionCompleted(for: progress)
+                    await progressHandler(.downloadingOriginal(progress: fraction))
+                    try? await Task.sleep(for: .milliseconds(200))
+                }
+            }
+        }
+    }
+
+    private nonisolated static func normalizedFractionCompleted(for progress: Progress) -> Double? {
+        guard progress.totalUnitCount > 0 else {
+            return nil
+        }
+
+        let fraction = Double(progress.completedUnitCount) / Double(progress.totalUnitCount)
+        return min(max(fraction, 0), 1)
+    }
+
+    private nonisolated static func importOriginalResource(from item: PhotosPickerItem, id: String) async throws -> PhotoAsset? {
+        guard let itemIdentifier = item.itemIdentifier else {
+            return nil
+        }
+
+        let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [itemIdentifier], options: nil)
+        guard let photoLibraryAsset = fetchResult.firstObject,
+              let resource = preferredOriginalResource(for: photoLibraryAsset) else {
+            return nil
+        }
+
+        do {
+            let data = try await resourceData(for: resource)
+            return PhotoFileImporter.importAsset(
+                from: data,
+                suggestedFileName: resource.originalFilename,
+                id: id
+            )
+        } catch {
+            throw ImportError.originalResourceUnavailable
+        }
+    }
+
+    private nonisolated static func preferredOriginalResource(for asset: PHAsset) -> PHAssetResource? {
+        let resources = PHAssetResource.assetResources(for: asset)
+        if let rawResource = resources.first(where: isRawResource) {
+            return rawResource
+        }
+
+        let preferredTypes: [PHAssetResourceType] = [.fullSizePhoto, .photo, .alternatePhoto]
+        for type in preferredTypes {
+            if let resource = resources.first(where: { $0.type == type }) {
+                return resource
+            }
+        }
+
+        return resources.first
+    }
+
+    private nonisolated static func isRawResource(_ resource: PHAssetResource) -> Bool {
+        guard let type = UTType(resource.uniformTypeIdentifier) else {
+            return false
+        }
+
+        let rawImageType = UTType("public.camera-raw-image")
+        return rawImageType.map { type.conforms(to: $0) } ?? false
+    }
+
+    private nonisolated static func resourceData(for resource: PHAssetResource) async throws -> Data {
+        try await withCheckedThrowingContinuation { continuation in
+            var result = Data()
+            let options = PHAssetResourceRequestOptions()
+            options.isNetworkAccessAllowed = true
+
+            PHAssetResourceManager.default().requestData(
+                for: resource,
+                options: options,
+                dataReceivedHandler: { data in
+                    result.append(data)
+                },
+                completionHandler: { error in
+                    if let error {
+                        continuation.resume(throwing: error)
+                    } else {
+                        continuation.resume(returning: result)
+                    }
+                }
+            )
+        }
+    }
+
+    private nonisolated static func suggestedFileName(for item: PhotosPickerItem, index: Int) -> String {
+        let baseFileName = "\(AppLocalization.string("photoFileImporter.pickedImage")) \(index + 1)"
+        return item.supportedContentTypes.first?.preferredFilenameExtension.map {
+            "\(baseFileName).\($0)"
+        } ?? baseFileName
+    }
+}
+#endif
 
 enum PhotoLoader {
     static func thumbnail(for asset: PhotoAsset, size: CGSize) async -> PlatformImage? {

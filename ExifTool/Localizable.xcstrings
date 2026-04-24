@@ -490,6 +490,22 @@
         }
       }
     },
+    "manualPicker.downloadingOriginal" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloading Original"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在下载原图"
+          }
+        }
+      }
+    },
     "manualPicker.importFailure" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -524,6 +540,22 @@
         }
       }
     },
+    "manualPicker.originalResourceUnavailable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The original photo file could not be read. If this RAW original is in iCloud, make sure it can be downloaded and try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法读取原始照片文件。如果这张 RAW 原图只在 iCloud，请确认可以下载后再试。"
+          }
+        }
+      }
+    },
     "manualPicker.partialFailure" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -537,6 +569,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "有部分图片读取失败，请重试。"
+          }
+        }
+      }
+    },
+    "manualPicker.readingImage" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reading Image"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在读取图片"
+          }
+        }
+      }
+    },
+    "manualPicker.transferableReadFailed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The selected image could not be loaded. Please try again after the original finishes downloading."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法载入所选图片。请等原图下载完成后再试。"
           }
         }
       }
@@ -2607,6 +2671,7 @@
       }
     },
     "正在读取图片" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
