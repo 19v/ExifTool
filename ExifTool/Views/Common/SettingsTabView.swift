@@ -122,6 +122,16 @@ struct SettingsTabView: View {
                     }
                 }
                 #endif
+
+                Section {
+                    EmptyView()
+                } footer: {
+                    Text(appVersionText)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .accessibilityLabel(appVersionAccessibilityLabel)
+                }
             }
             .navigationTitle("设置")
             #if os(iOS)
@@ -135,6 +145,38 @@ struct SettingsTabView: View {
             }
             #endif
         }
+    }
+
+    private var appVersionText: String {
+        if let versionNumber, let buildNumber {
+            return "版本 \(versionNumber) (Build \(buildNumber))"
+        }
+
+        if let versionNumber {
+            return "版本 \(versionNumber)"
+        }
+
+        if let buildNumber {
+            return "Build \(buildNumber)"
+        }
+
+        return "版本未知"
+    }
+
+    private var appVersionAccessibilityLabel: String {
+        if let versionNumber, let buildNumber {
+            return "当前版本 \(versionNumber)，Build \(buildNumber)"
+        }
+
+        return appVersionText
+    }
+
+    private var versionNumber: String? {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+    }
+
+    private var buildNumber: String? {
+        Bundle.main.infoDictionary?["CFBundleVersion"] as? String
     }
 
     #if os(iOS)
