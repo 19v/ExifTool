@@ -47,6 +47,7 @@ final class PhotoLibraryViewModel {
     private(set) var albums: [PhotoAlbum] = []
     private(set) var localOnlyAssetIDs: Set<String> = []
     private(set) var showsOnlyLocalAssets = false
+    private(set) var searchableAssetsRevision = 0
     private(set) var isFilteringLocalAssets = false
     private(set) var hasMoreLocalAssets = false
     private(set) var isBuildingLocalAlbumStats = false
@@ -173,7 +174,7 @@ final class PhotoLibraryViewModel {
     @ObservationIgnored private var localAvailabilityByID: [String: Bool] = [:]
     
     func prepare(showingOnlyLocalAssets: Bool) async {
-        showsOnlyLocalAssets = showingOnlyLocalAssets
+        updateShowsOnlyLocalAssets(showingOnlyLocalAssets)
         await refresh()
     }
     
@@ -183,7 +184,7 @@ final class PhotoLibraryViewModel {
     }
 
     func requestAccess(showingOnlyLocalAssets: Bool) async {
-        showsOnlyLocalAssets = showingOnlyLocalAssets
+        updateShowsOnlyLocalAssets(showingOnlyLocalAssets)
 
         let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         let newStatus: PHAuthorizationStatus
@@ -197,7 +198,7 @@ final class PhotoLibraryViewModel {
     }
 
     func setShowsOnlyLocalAssets(_ enabled: Bool) async {
-        showsOnlyLocalAssets = enabled
+        updateShowsOnlyLocalAssets(enabled)
         await refresh()
     }
     
@@ -239,6 +240,7 @@ final class PhotoLibraryViewModel {
             self.allFetchedAssets = fetchedAssets
 
             if showsOnlyLocalAssets {
+                self.markSearchableAssetsChanged()
                 isFilteringLocalAssets = true
                 self.nextLocalOnlyScanIndex = 0
                 self.isLoadingNextLocalOnlyPage = false
@@ -266,6 +268,7 @@ final class PhotoLibraryViewModel {
                 self.hasMoreLocalAssets = false
                 self.localOnlyAssetIDs = Set(fetchedAssets.map(\.id))
                 self.assets = fetchedAssets
+                self.markSearchableAssetsChanged()
                 self.albums = await Self.fetchImageAlbumsOffMain()
                 self.isBuildingLocalAlbumStats = false
                 self.authorizationState = fetchedAssets.isEmpty ? .empty : authorizationStateForCurrentScope
@@ -379,6 +382,20 @@ final class PhotoLibraryViewModel {
         isFilteringLocalAssets = false
         isBuildingLocalAlbumStats = false
         localAvailabilityByID = [:]
+        markSearchableAssetsChanged()
+    }
+
+    private func updateShowsOnlyLocalAssets(_ enabled: Bool) {
+        guard showsOnlyLocalAssets != enabled else {
+            return
+        }
+
+        showsOnlyLocalAssets = enabled
+        markSearchableAssetsChanged()
+    }
+
+    private func markSearchableAssetsChanged() {
+        searchableAssetsRevision &+= 1
     }
 
     private func loadNextLocalOnlyPage(for sessionID: UUID) async {

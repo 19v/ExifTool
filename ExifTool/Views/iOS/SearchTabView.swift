@@ -13,37 +13,33 @@ struct SearchTabView: View {
     let library: PhotoLibraryViewModel
     let readOnlyMode: Bool
 
-    @State private var query = ""
+    @State private var searchModel = PhotoSearchViewModel()
     @State private var pager = LocalAssetPagingViewModel()
 
-    private var results: [PhotoAsset] {
-        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedQuery.isEmpty else {
-            return []
-        }
-
-        return library.searchableAssets.filter { asset in
-            PhotoSearchIndex.text(for: asset).localizedCaseInsensitiveContains(trimmedQuery)
-        }
-    }
-
     var body: some View {
+        @Bindable var searchModel = searchModel
+
         NavigationStack {
             LibraryAuthorizationContent(library: library, emptyTitle: "没有可搜索的照片") {
-                searchContent
+                SearchResultsContent(
+                    hasQuery: searchModel.hasQuery,
+                    assets: displayedSearchAssets,
+                    readOnlyMode: readOnlyMode,
+                    isSearching: searchModel.isSearching,
+                    isLoadingMore: showsLocalSearchLoading,
+                    onAssetAppear: searchAssetAppearHandler,
+                    onRefresh: library.refresh
+                )
             }
             .navigationTitle("搜索")
-            .searchable(text: $query, prompt: "搜索照片")
-            .onChange(of: query) { _, _ in
+            .searchable(text: $searchModel.query, prompt: "搜索照片")
+            .task(id: library.searchableAssetsRevision) {
+                searchModel.setSourceAssets(library.searchableAssets)
+            }
+            .task(id: searchModel.resultsRevision) {
                 refreshSearchPager()
             }
-            .onChange(of: library.showsOnlyLocalAssets) { _, _ in
-                refreshSearchPager()
-            }
-            .onChange(of: library.searchableAssets.map(\.id)) { _, _ in
-                refreshSearchPager()
-            }
-            .task {
+            .task(id: library.showsOnlyLocalAssets) {
                 refreshSearchPager()
             }
             .safeAreaInset(edge: .bottom) {
@@ -58,29 +54,11 @@ struct SearchTabView: View {
     }
 
     private var displayedSearchAssets: [PhotoAsset] {
-        library.showsOnlyLocalAssets ? pager.assets : results
+        library.showsOnlyLocalAssets ? pager.assets : searchModel.results
     }
 
-    private var showsSearchLoading: Bool {
+    private var showsLocalSearchLoading: Bool {
         library.showsOnlyLocalAssets && pager.hasMoreAssets
-    }
-
-    @ViewBuilder
-    private var searchContent: some View {
-        if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            ContentUnavailableView("搜索照片", systemImage: "magnifyingglass", description: Text("可以搜索日期、尺寸或照片标识符。"))
-        } else if displayedSearchAssets.isEmpty && !showsSearchLoading {
-            ContentUnavailableView("没有匹配照片", systemImage: "photo.on.rectangle.angled")
-        } else {
-            PhotoAssetGridView(
-                assets: displayedSearchAssets,
-                readOnlyMode: readOnlyMode,
-                showsReadOnlyOverlay: false,
-                isLoadingMore: showsSearchLoading,
-                onAssetAppear: searchAssetAppearHandler,
-                onRefresh: library.refresh
-            )
-        }
     }
 
     private var searchAssetAppearHandler: ((String?) -> Void)? {
@@ -89,18 +67,18 @@ struct SearchTabView: View {
 
     private func refreshSearchPager() {
         if library.showsOnlyLocalAssets {
-            pager.setSourceAssets(results)
+            pager.setSourceAssets(searchModel.results)
         } else {
             pager.reset()
         }
     }
 
     private var searchBannerSnapshot: LocalPhotosStatusSnapshot? {
-        guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        guard searchModel.hasQuery else {
             return nil
         }
 
-        if displayedSearchAssets.isEmpty && showsSearchLoading {
+        if displayedSearchAssets.isEmpty && (searchModel.isSearching || showsLocalSearchLoading) {
             return LocalPhotosStatusSnapshot(
                 text: AppLocalization.string("search.localPhotos.loading"),
                 state: .loading,
@@ -109,7 +87,7 @@ struct SearchTabView: View {
             )
         }
 
-        if showsSearchLoading {
+        if showsLocalSearchLoading {
             return LocalPhotosStatusSnapshot(
                 text: AppLocalization.string("search.localPhotos.more"),
                 state: .paginating,
@@ -128,6 +106,40 @@ struct SearchTabView: View {
         }
 
         return nil
+    }
+}
+
+private struct SearchResultsContent: View {
+    let hasQuery: Bool
+    let assets: [PhotoAsset]
+    let readOnlyMode: Bool
+    let isSearching: Bool
+    let isLoadingMore: Bool
+    let onAssetAppear: ((String?) -> Void)?
+    let onRefresh: (() async -> Void)?
+
+    var body: some View {
+        if !hasQuery {
+            ContentUnavailableView(
+                "搜索照片",
+                systemImage: "magnifyingglass",
+                description: Text("可以搜索日期、尺寸或照片标识符。")
+            )
+        } else if assets.isEmpty && isSearching {
+            ProgressView("正在搜索")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if assets.isEmpty && !isLoadingMore {
+            ContentUnavailableView("没有匹配照片", systemImage: "photo.on.rectangle.angled")
+        } else {
+            PhotoAssetGridView(
+                assets: assets,
+                readOnlyMode: readOnlyMode,
+                showsReadOnlyOverlay: false,
+                isLoadingMore: isLoadingMore,
+                onAssetAppear: onAssetAppear,
+                onRefresh: onRefresh
+            )
+        }
     }
 }
 
