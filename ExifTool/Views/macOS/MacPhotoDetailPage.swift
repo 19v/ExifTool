@@ -182,7 +182,11 @@ private enum MetadataShareFormatter {
         showsChineseKeys: Bool,
         visibleMetadataKeys: Set<String>?
     ) -> String {
-        let sections = sections(from: metadata, visibleMetadataKeys: visibleMetadataKeys)
+        let projection = MetadataDisplayProjection(
+            metadata: metadata,
+            showsChineseKeys: showsChineseKeys,
+            visibleMetadataKeys: visibleMetadataKeys
+        )
         var lines = [AppLocalization.string("metadataShare.title")]
 
         if let displayName = asset.displayName {
@@ -196,19 +200,16 @@ private enum MetadataShareFormatter {
             lines.append("\(AppLocalization.string("metadataShare.location")): \(LocationFormatter.coordinateText(coordinate))")
         }
 
-        for section in sections {
+        for section in projection.sections {
             lines.append("")
-            lines.append("[\(MetadataDisplayLocalizer.sectionTitle(section, showsChinese: showsChineseKeys))]")
+            lines.append("[\(section.title)]")
             if section.itemGroups.isEmpty {
-                appendItems(section.items, to: &lines, showsChineseKeys: showsChineseKeys)
+                appendItems(section.items, to: &lines)
             } else {
                 for group in section.itemGroups {
                     lines.append("")
-                    lines.append(MetadataDisplayLocalizer.sectionTitle(
-                        MetadataSection(id: group.id, title: group.title, items: group.items),
-                        showsChinese: showsChineseKeys
-                    ))
-                    appendItems(group.items, to: &lines, showsChineseKeys: showsChineseKeys)
+                    lines.append(group.title)
+                    appendItems(group.items, to: &lines)
                 }
             }
         }
@@ -216,35 +217,9 @@ private enum MetadataShareFormatter {
         return lines.joined(separator: "\n")
     }
 
-    private static func appendItems(_ items: [MetadataItem], to lines: inout [String], showsChineseKeys: Bool) {
+    private static func appendItems(_ items: [MetadataDisplayItem], to lines: inout [String]) {
         for item in items {
-            let key = MetadataDisplayLocalizer.keyTitle(item.key, showsChinese: showsChineseKeys)
-            let value = MetadataDisplayLocalizer.valueText(item.value, showsChinese: showsChineseKeys)
-            lines.append("\(key): \(value)")
-        }
-    }
-
-    private static func sections(from metadata: PhotoMetadata, visibleMetadataKeys: Set<String>?) -> [MetadataSection] {
-        guard let visibleMetadataKeys else {
-            return metadata.sections
-        }
-
-        return metadata.sections.compactMap { section -> MetadataSection? in
-            let items = section.items.filter { visibleMetadataKeys.contains($0.key) }
-            let itemGroups = section.itemGroups.compactMap { group -> MetadataItemGroup? in
-                let groupItems = group.items.filter { visibleMetadataKeys.contains($0.key) }
-                guard !groupItems.isEmpty else {
-                    return nil
-                }
-
-                return MetadataItemGroup(id: group.id, title: group.title, items: groupItems)
-            }
-
-            guard !items.isEmpty || !itemGroups.isEmpty else {
-                return nil
-            }
-
-            return MetadataSection(id: section.id, title: section.title, items: items, itemGroups: itemGroups)
+            lines.append("\(item.title): \(item.value)")
         }
     }
 }

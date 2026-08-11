@@ -1,84 +1,49 @@
 #if os(iOS)
 
 import CoreLocation
-import ImageIO
 import SwiftUI
 
 struct IOSPhotoMetadataContent: View {
-    let metadata: PhotoMetadata
-    let showsChineseKeys: Bool
-    let highlightedMetadataKeys: Set<String>
-    let visibleMetadataKeys: Set<String>?
+    private let projection: MetadataDisplayProjection
 
     @Environment(\.openURL) private var openURL
     @State private var selectedSectionID: String?
     @State private var mapCoordinate: CLLocationCoordinate2D?
     @State private var isMapChooserPresented = false
 
-    private var filteredSections: [MetadataSection] {
-        let sections: [MetadataSection]
-
-        if let visibleMetadataKeys {
-            sections = metadata.sections.compactMap { section in
-                let items = section.items.filter { visibleMetadataKeys.contains($0.key) }
-                let itemGroups = section.itemGroups.compactMap { group -> MetadataItemGroup? in
-                    let groupItems = group.items.filter { visibleMetadataKeys.contains($0.key) }
-                    guard !groupItems.isEmpty else {
-                        return nil
-                    }
-
-                    return MetadataItemGroup(id: group.id, title: group.title, items: groupItems)
-                }
-
-                guard !items.isEmpty || !itemGroups.isEmpty else {
-                    return nil
-                }
-
-                return MetadataSection(id: section.id, title: section.title, items: items, itemGroups: itemGroups)
-            }
-        } else {
-            sections = metadata.sections
-        }
-
-        return sections
-            .enumerated()
-            .sorted { lhs, rhs in
-                let lhsPriority = specialSectionPriority(for: lhs.element)
-                let rhsPriority = specialSectionPriority(for: rhs.element)
-                return lhsPriority == rhsPriority ? lhs.offset < rhs.offset : lhsPriority < rhsPriority
-            }
-            .map(\.element)
+    init(
+        metadata: PhotoMetadata,
+        showsChineseKeys: Bool,
+        highlightedMetadataKeys: Set<String>,
+        visibleMetadataKeys: Set<String>?
+    ) {
+        projection = MetadataDisplayProjection(
+            metadata: metadata,
+            showsChineseKeys: showsChineseKeys,
+            highlightedMetadataKeys: highlightedMetadataKeys,
+            visibleMetadataKeys: visibleMetadataKeys
+        )
     }
 
-    private var selectedSection: MetadataSection? {
-        guard let selectedSectionID,
-              let selectedSection = filteredSections.first(where: { $0.id == selectedSectionID }) else {
-            return filteredSections.first
-        }
-
-        return selectedSection
-    }
-
-    private var sectionSelectionSignature: String {
-        filteredSections.map(\.id).joined(separator: "|")
+    private var selectedSection: MetadataDisplaySection? {
+        projection.selectedSection(id: selectedSectionID)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            if !filteredSections.isEmpty {
+            if !projection.sections.isEmpty {
                 IOSMetadataSectionPicker(
-                    sections: filteredSections,
+                    sections: projection.sections,
                     selectedSectionID: selectedSection?.id,
-                    showsChineseKeys: showsChineseKeys,
                     onSelect: selectSection
                 )
             }
 
-            if filteredSections.isEmpty {
+            if projection.sections.isEmpty {
                 ContentUnavailableView("没有 Exif 信息", systemImage: "info.circle")
                     .frame(maxWidth: .infinity, minHeight: 160)
             } else if let selectedSection {
-                if let coordinate = metadata.coordinate, isGPSSection(selectedSection) {
+                if let coordinate = projection.coordinate, selectedSection.isLocationSection {
                     MetadataLocationButton(coordinate: coordinate) {
                         mapCoordinate = coordinate
                         isMapChooserPresented = true
@@ -86,14 +51,12 @@ struct IOSPhotoMetadataContent: View {
                 }
 
                 MetadataSectionView(
-                    section: selectedSection,
-                    showsChineseKeys: showsChineseKeys,
-                    highlightedMetadataKeys: highlightedMetadataKeys
+                    section: selectedSection
                 )
             }
         }
         .onAppear(perform: updateSelection)
-        .onChange(of: sectionSelectionSignature) {
+        .onChange(of: projection.sectionIDs) {
             updateSelection()
         }
         .confirmationDialog("选择地图", isPresented: $isMapChooserPresented, titleVisibility: .visible) {
@@ -117,28 +80,13 @@ struct IOSPhotoMetadataContent: View {
             return
         }
 
-        selectedSectionID = filteredSections.first?.id
-    }
-
-    private func isGPSSection(_ section: MetadataSection) -> Bool {
-        section.id.caseInsensitiveCompare(String(kCGImagePropertyGPSDictionary)) == .orderedSame ||
-        section.title.caseInsensitiveCompare("GPS") == .orderedSame
-    }
-
-    private func specialSectionPriority(for section: MetadataSection) -> Int {
-        switch section.id {
-        case "fujifilm-parameters", "nikon-parameters":
-            return 0
-        default:
-            return 1
-        }
+        selectedSectionID = projection.sections.first?.id
     }
 }
 
 private struct IOSMetadataSectionPicker: View {
-    let sections: [MetadataSection]
+    let sections: [MetadataDisplaySection]
     let selectedSectionID: String?
-    let showsChineseKeys: Bool
     let onSelect: (String) -> Void
 
     var body: some View {
@@ -149,7 +97,7 @@ private struct IOSMetadataSectionPicker: View {
                     Button {
                         onSelect(section.id)
                     } label: {
-                        Text(MetadataDisplayLocalizer.sectionTitle(section, showsChinese: showsChineseKeys))
+                        Text(section.title)
                             .font(.subheadline.weight(.semibold))
                             .lineLimit(1)
                             .padding(.vertical, 8)

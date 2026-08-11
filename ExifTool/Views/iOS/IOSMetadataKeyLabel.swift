@@ -10,25 +10,19 @@
 import SwiftUI
 
 struct MetadataKeyLabel: View {
-    let englishKey: String
-    let showsChinese: Bool
+    let title: String
 
     var body: some View {
-        Text(displayKey)
+        Text(title)
             .font(.subheadline.weight(.medium))
             .foregroundStyle(.secondary)
             .multilineTextAlignment(.leading)
             .lineLimit(3)
             .frame(width: 120, alignment: .leading)
-            .accessibilityLabel(displayKey)
-    }
-
-    private var displayKey: String {
-        MetadataDisplayLocalizer.keyTitle(englishKey, showsChinese: showsChinese)
+            .accessibilityLabel(title)
     }
 }
 
 #endif
-
 
 

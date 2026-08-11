@@ -10,13 +10,11 @@
 import SwiftUI
 
 struct MetadataSectionView: View {
-    let section: MetadataSection
-    let showsChineseKeys: Bool
-    let highlightedMetadataKeys: Set<String>
+    let section: MetadataDisplaySection
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(MetadataDisplayLocalizer.sectionTitle(section, showsChinese: showsChineseKeys))
+            Text(section.title)
                 .font(.headline)
 
             if section.itemGroups.isEmpty {
@@ -24,10 +22,7 @@ struct MetadataSectionView: View {
             } else {
                 ForEach(section.itemGroups) { group in
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(MetadataDisplayLocalizer.sectionTitle(
-                            MetadataSection(id: group.id, title: group.title, items: group.items),
-                            showsChinese: showsChineseKeys
-                        ))
+                        Text(group.title)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.secondary)
 
@@ -38,19 +33,19 @@ struct MetadataSectionView: View {
         }
     }
 
-    private func metadataRows(_ items: [MetadataItem]) -> some View {
+    private func metadataRows(_ items: [MetadataDisplayItem]) -> some View {
         VStack(spacing: 0) {
             ForEach(items) { item in
                 HStack(alignment: .top, spacing: 12) {
-                    MetadataKeyLabel(englishKey: item.key, showsChinese: showsChineseKeys)
-                    Text(MetadataDisplayLocalizer.valueText(item.value, showsChinese: showsChineseKeys))
+                    MetadataKeyLabel(title: item.title)
+                    Text(item.value)
                         .font(.subheadline)
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .padding(.vertical, 9)
                 .padding(.horizontal, 12)
-                .background(highlightedMetadataKeys.contains(item.key) ? Color.accentColor.opacity(0.12) : Color.clear)
+                .background(item.isHighlighted ? Color.accentColor.opacity(0.12) : Color.clear)
 
                 if item.id != items.last?.id {
                     Divider()
@@ -62,6 +57,4 @@ struct MetadataSectionView: View {
 }
 
 #endif
-
-
 
