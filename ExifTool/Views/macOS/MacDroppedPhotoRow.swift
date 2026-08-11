@@ -14,7 +14,7 @@ struct MacDroppedPhotoRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            PhotoThumbnail(asset: asset)
+            MacPhotoThumbnail(asset: asset)
                 .frame(width: 52, height: 52)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
 

@@ -163,8 +163,8 @@ struct MacPhotoCompareDetailView: View {
 
             if let compareAsset {
                 HSplitView {
-                    compareColumn(title: "当前照片", asset: primaryAsset)
-                    compareColumn(title: "对比照片", asset: compareAsset)
+                    compareColumn(title: "当前照片", asset: primaryAsset, detail: primaryMetadata)
+                    compareColumn(title: "对比照片", asset: compareAsset, detail: compareMetadata)
                 }
             } else {
                 ContentUnavailableView("没有可对比的第二张照片", systemImage: "rectangle.split.2x1")
@@ -184,7 +184,7 @@ struct MacPhotoCompareDetailView: View {
         }
     }
 
-    private func compareColumn(title: String, asset: PhotoAsset) -> some View {
+    private func compareColumn(title: String, asset: PhotoAsset, detail: PhotoDetailState) -> some View {
         VStack(spacing: 0) {
             HStack {
                 Text(title)
@@ -198,13 +198,14 @@ struct MacPhotoCompareDetailView: View {
             .padding(.horizontal)
             .padding(.top, 12)
 
-            PhotoDetailPage(
+            MacPhotoDetailPage(
                 asset: asset,
                 readOnlyMode: readOnlyMode,
                 showsChineseKeys: $showsChineseKeys,
                 navigationTitle: asset.displayName ?? title,
                 highlightedMetadataKeys: differingMetadataKeys,
-                visibleMetadataKeys: showsOnlyDifferences ? differingMetadataKeys : nil
+                visibleMetadataKeys: showsOnlyDifferences ? differingMetadataKeys : nil,
+                suppliedDetail: detail
             )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

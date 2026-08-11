@@ -51,9 +51,8 @@ struct MacPhotoDropTabView: View {
                                     readOnlyMode: readOnlyMode
                                 )
                             } else {
-                                PhotoDetailView(
-                                    assets: workspace.sortedAssets,
-                                    initialAssetID: selectedAsset.id,
+                                MacPhotoDetailView(
+                                    asset: selectedAsset,
                                     readOnlyMode: readOnlyMode
                                 )
                                 .id(selectedAsset.id)

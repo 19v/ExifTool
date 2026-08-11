@@ -16,15 +16,8 @@ import UniformTypeIdentifiers
 #if os(macOS)
 let macPhotoViewerWindowID = "mac-photo-viewer"
 
-private struct MacPhotoWorkspaceFocusedKey: FocusedValueKey {
-    typealias Value = MacPhotoWorkspace
-}
-
 extension FocusedValues {
-    var macPhotoWorkspace: MacPhotoWorkspace? {
-        get { self[MacPhotoWorkspaceFocusedKey.self] }
-        set { self[MacPhotoWorkspaceFocusedKey.self] = newValue }
-    }
+    @Entry var macPhotoWorkspace: MacPhotoWorkspace?
 }
 
 @MainActor
@@ -95,7 +88,7 @@ final class MacPhotoWorkspace: ObservableObject {
     }
 
     var currentFileURL: URL? {
-        currentAsset?.localFile?.fileURL
+        currentAsset?.localFile.fileURL
     }
 
     var windowTitle: String {

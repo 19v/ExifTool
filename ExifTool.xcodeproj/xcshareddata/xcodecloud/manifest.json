@@ -1,0 +1,9 @@
+{
+  "id" : "3f1cf1e6-9883-4941-a7e8-24bddf0f3c41",
+  "targets" : [
+    {
+      "id" : "9DF833A1-4E21-4F7D-A3F0-0416858F5EA9",
+      "name" : "ExifTool"
+    }
+  ]
+}
