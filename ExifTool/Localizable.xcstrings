@@ -5,8 +5,14 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%1$@ -> %2$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ → %2$@"
           }
         }
       }
@@ -15,7 +21,13 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
+            "value" : "%1$lld × %2$lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
             "value" : "%1$lld × %2$lld"
           }
         }
@@ -71,7 +83,20 @@
       }
     },
     "English" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "English"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "英文"
+          }
+        }
+      }
     },
     "Exif 还没有读取完成，稍后再试。" : {
       "extractionState" : "stale",
@@ -1135,7 +1160,10 @@
       }
     },
     "上一张照片" : {
-
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Previous Photo" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "上一张照片" } }
+      }
     },
     "下一张" : {
       "localizations" : {
@@ -1154,7 +1182,10 @@
       }
     },
     "下一张照片" : {
-
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Next Photo" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "下一张照片" } }
+      }
     },
     "下载此照片原图并读取 Exif" : {
       "localizations" : {
@@ -1173,7 +1204,10 @@
       }
     },
     "中文" : {
-
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Chinese" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "中文" } }
+      }
     },
     "也可以直接按 Cmd+O 选择文件。" : {
       "localizations" : {
@@ -1288,13 +1322,22 @@
       }
     },
     "关闭" : {
-
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Close" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "关闭" } }
+      }
     },
     "关闭对比" : {
-
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Close Comparison" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "关闭对比" } }
+      }
     },
     "关闭对比模式" : {
-
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Close Comparison Mode" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "关闭对比模式" } }
+      }
     },
     "最近打开" : {
       "localizations" : {
@@ -1313,7 +1356,10 @@
       }
     },
     "分享" : {
-
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Share" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "分享" } }
+      }
     },
     "分享参数" : {
       "localizations" : {
@@ -1497,7 +1543,10 @@
       }
     },
     "只看不同" : {
-
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Differences Only" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "只看不同" } }
+      }
     },
     "只读模式" : {
       "localizations" : {
@@ -1759,7 +1808,10 @@
       }
     },
     "对比" : {
-
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Compare" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "对比" } }
+      }
     },
     "对比查看" : {
       "localizations" : {
@@ -1794,7 +1846,10 @@
       }
     },
     "对比照片" : {
-
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Compare Photos" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "对比照片" } }
+      }
     },
     "对比结果已复制到剪贴板" : {
       "extractionState" : "stale",
@@ -1913,10 +1968,16 @@
       }
     },
     "左右对比两张照片" : {
-
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Compare Two Photos Side by Side" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "左右对比两张照片" } }
+      }
     },
     "已标出 %lld 个不同字段" : {
-
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "%lld differing fields highlighted" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已标出 %lld 个不同字段" } }
+      }
     },
     "应用" : {
       "extractionState" : "stale",
@@ -2122,7 +2183,10 @@
       }
     },
     "打开 App 系统设置" : {
-
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Open App Settings" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "打开 App 系统设置" } }
+      }
     },
     "打开…" : {
       "localizations" : {
@@ -2341,10 +2405,16 @@
       }
     },
     "授权访问图库" : {
-
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Allow Photo Library Access" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "授权访问图库" } }
+      }
     },
     "排序" : {
-
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Sort" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "排序" } }
+      }
     },
     "搜索" : {
       "localizations" : {
@@ -3145,7 +3215,10 @@
       }
     },
     "选中的图片只在当前会话中使用，不会修改系统照片库。" : {
-
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Selected images are used only for this session. Your photo library will not be modified." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "选中的图片只在当前会话中使用，不会修改系统照片库。" } }
+      }
     },
     "选图" : {
       "localizations" : {
@@ -3295,7 +3368,10 @@
       }
     },
     "重新选择可访问照片" : {
-
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Reselect Accessible Photos" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "重新选择可访问照片" } }
+      }
     },
     "重新选择照片" : {
       "localizations" : {

@@ -1,0 +1,42 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "shareExtension.importFailed" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Unable to open this photo" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "无法打开这张照片" } }
+      }
+    },
+    "shareExtension.openFailed" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Unable to open ExifTool. Try again." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "无法打开 ExifTool，请重试" } }
+      }
+    },
+    "shareExtension.openInApp" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "View in ExifTool" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "在 ExifTool 中查看" } }
+      }
+    },
+    "shareExtension.openingApp" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Opening ExifTool" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "正在打开 ExifTool" } }
+      }
+    },
+    "shareExtension.photoReady" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Photo Ready" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "照片已准备好" } }
+      }
+    },
+    "shareExtension.readingPhoto" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Reading Photo" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "正在读取照片" } }
+      }
+    }
+  },
+  "version" : "1.0"
+}

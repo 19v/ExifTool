@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Select Xcode 26
+        shell: bash
+        run: |
+          xcode_path="$(find /Applications -maxdepth 1 -type d -name 'Xcode_26*.app' | sort | tail -n 1)"
+          if [[ -z "$xcode_path" ]]; then
+            echo "Xcode 26 is not installed on this runner."
+            exit 1
+          fi
+          echo "DEVELOPER_DIR=$xcode_path/Contents/Developer" >> "$GITHUB_ENV"
+          "$xcode_path/Contents/Developer/usr/bin/xcodebuild" -version
+
+      - name: Validate string catalogs
+        shell: bash
+        run: |
+          set -euo pipefail
+          catalogs=(
+            ExifTool/Localizable.xcstrings
+            ShareExtension/Localizable.xcstrings
+          )
+          for catalog in "${catalogs[@]}"; do
+            jq empty "$catalog"
+            jq -e '
+              all(
+                .strings[];
+                (.localizations.en.stringUnit.state == "translated") and
+                (.localizations["zh-Hans"].stringUnit.state == "translated")
+              )
+            ' "$catalog" > /dev/null
+          done
+
+      - name: Run macOS tests
+        run: |
+          xcodebuild \
+            -project ExifTool.xcodeproj \
+            -scheme ExifTool \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            test
+
+      - name: Build iOS app and share extension
+        run: |
+          xcodebuild \
+            -project ExifTool.xcodeproj \
+            -scheme ExifTool \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            build

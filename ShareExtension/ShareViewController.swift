@@ -17,6 +17,15 @@ final class ShareViewController: UIViewController {
         static let fileQueryItemName = "file"
     }
 
+    private enum LocalizedText {
+        static let importFailed = String(localized: "shareExtension.importFailed")
+        static let openFailed = String(localized: "shareExtension.openFailed")
+        static let openInApp = String(localized: "shareExtension.openInApp")
+        static let openingApp = String(localized: "shareExtension.openingApp")
+        static let photoReady = String(localized: "shareExtension.photoReady")
+        static let readingPhoto = String(localized: "shareExtension.readingPhoto")
+    }
+
     private var didStartProcessing = false
     private var didAttemptToOpenApp = false
     private var pendingContainingAppURL: URL?
@@ -35,13 +44,13 @@ final class ShareViewController: UIViewController {
         progressView.startAnimating()
 
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
-        statusLabel.text = "正在读取照片"
+        statusLabel.text = LocalizedText.readingPhoto
         statusLabel.font = .preferredFont(forTextStyle: .headline)
         statusLabel.textColor = .label
         statusLabel.textAlignment = .center
 
         openButton.translatesAutoresizingMaskIntoConstraints = false
-        openButton.setTitle("在 ExifTool 中查看", for: .normal)
+        openButton.setTitle(LocalizedText.openInApp, for: .normal)
         openButton.titleLabel?.font = .preferredFont(forTextStyle: .headline)
         openButton.isHidden = true
         openButton.addTarget(self, action: #selector(openButtonTapped), for: .touchUpInside)
@@ -210,7 +219,7 @@ final class ShareViewController: UIViewController {
             self.pendingContainingAppURL = url
             self.progressView.stopAnimating()
             self.progressView.isHidden = true
-            self.statusLabel.text = "照片已准备好"
+            self.statusLabel.text = LocalizedText.photoReady
             self.openButton.isHidden = false
         }
     }
@@ -237,7 +246,7 @@ final class ShareViewController: UIViewController {
         didAttemptToOpenApp = true
         progressView.isHidden = false
         progressView.startAnimating()
-        statusLabel.text = "正在打开 ExifTool"
+        statusLabel.text = LocalizedText.openingApp
         openButton.isHidden = true
 
         extensionContext.open(url) { [weak self] didOpen in
@@ -259,7 +268,7 @@ final class ShareViewController: UIViewController {
         DispatchQueue.main.async {
             self.progressView.stopAnimating()
             self.progressView.isHidden = true
-            self.statusLabel.text = "无法打开这张照片"
+            self.statusLabel.text = LocalizedText.importFailed
             self.openButton.isHidden = true
         }
     }
@@ -269,7 +278,7 @@ final class ShareViewController: UIViewController {
             self.didAttemptToOpenApp = false
             self.progressView.stopAnimating()
             self.progressView.isHidden = true
-            self.statusLabel.text = "无法打开 ExifTool，请重试"
+            self.statusLabel.text = LocalizedText.openFailed
             self.openButton.isHidden = false
         }
     }
