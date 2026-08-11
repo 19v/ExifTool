@@ -1,22 +1,21 @@
 #if os(macOS)
 
+import ImageIO
 import SwiftUI
 
 struct ComparisonRow: Identifiable, Equatable {
+    let id: String
     let key: String
     let label: String
     let leftValue: String
     let rightValue: String
     let isDifferent: Bool
-
-    var id: String { key }
 }
 
 struct ComparisonSection: Identifiable, Equatable {
+    let id: String
     let title: String
     let rows: [ComparisonRow]
-
-    var id: String { title }
 }
 
 struct DifferenceSummaryItem: Identifiable, Equatable {
@@ -42,29 +41,33 @@ struct MacPhotoComparisonSnapshot: Equatable {
     let differingSections: [ComparisonSection]
 
     init(leftMetadata: PhotoMetadata, rightMetadata: PhotoMetadata) {
-        let leftValues = Self.metadataValueMap(for: leftMetadata)
-        let rightValues = Self.metadataValueMap(for: rightMetadata)
-        let allKeys = Set(leftValues.keys).union(rightValues.keys)
-        let differingKeys = Set(allKeys.filter { leftValues[$0] != rightValues[$0] })
+        let leftEntries = Self.comparisonEntries(for: leftMetadata)
+        let rightEntries = Self.comparisonEntries(for: rightMetadata)
+        let leftEntriesByID = Self.entriesByID(leftEntries)
+        let rightEntriesByID = Self.entriesByID(rightEntries)
+        let orderedEntryIDs = Self.uniqueValues((leftEntries + rightEntries).map(\.id))
+        let differingEntryIDs = Set(orderedEntryIDs.filter {
+            leftEntriesByID[$0]?.value != rightEntriesByID[$0]?.value
+        })
 
-        differingMetadataKeys = differingKeys
+        differingMetadataKeys = Set(differingEntryIDs.compactMap { entryID in
+            leftEntriesByID[entryID]?.key ?? rightEntriesByID[entryID]?.key
+        })
         differenceSummaryItems = Self.differenceSummaryItems(
-            leftValues: leftValues,
-            rightValues: rightValues
+            leftEntries: leftEntries,
+            rightEntries: rightEntries
         )
         allSections = Self.sections(
-            leftMetadata: leftMetadata,
-            rightMetadata: rightMetadata,
-            leftValues: leftValues,
-            rightValues: rightValues,
-            keys: allKeys
+            orderedEntryIDs: orderedEntryIDs,
+            includedEntryIDs: Set(orderedEntryIDs),
+            leftEntriesByID: leftEntriesByID,
+            rightEntriesByID: rightEntriesByID
         )
         differingSections = Self.sections(
-            leftMetadata: leftMetadata,
-            rightMetadata: rightMetadata,
-            leftValues: leftValues,
-            rightValues: rightValues,
-            keys: differingKeys
+            orderedEntryIDs: orderedEntryIDs,
+            includedEntryIDs: differingEntryIDs,
+            leftEntriesByID: leftEntriesByID,
+            rightEntriesByID: rightEntriesByID
         )
     }
 
@@ -84,26 +87,12 @@ struct MacPhotoComparisonSnapshot: Equatable {
         showingOnlyDifferences ? differingSections : allSections
     }
 
-    private static func metadataValueMap(for metadata: PhotoMetadata) -> [String: String] {
-        var values: [String: String] = [:]
-
-        for section in metadata.sections {
-            for item in section.items {
-                values[item.key] = item.value
-            }
-        }
-
-        if let coordinate = metadata.coordinate {
-            values["__coordinate__"] = LocationFormatter.coordinateText(coordinate)
-        }
-
-        return values
-    }
-
     private static func differenceSummaryItems(
-        leftValues: [String: String],
-        rightValues: [String: String]
+        leftEntries: [MetadataComparisonEntry],
+        rightEntries: [MetadataComparisonEntry]
     ) -> [DifferenceSummaryItem] {
+        let leftValues = valuesByKey(leftEntries)
+        let rightValues = valuesByKey(rightEntries)
         let preferredKeys = [
             "DateTimeOriginal",
             "Make",
@@ -137,48 +126,129 @@ struct MacPhotoComparisonSnapshot: Equatable {
     }
 
     private static func sections(
-        leftMetadata: PhotoMetadata,
-        rightMetadata: PhotoMetadata,
-        leftValues: [String: String],
-        rightValues: [String: String],
-        keys: Set<String>
+        orderedEntryIDs: [String],
+        includedEntryIDs: Set<String>,
+        leftEntriesByID: [String: MetadataComparisonEntry],
+        rightEntriesByID: [String: MetadataComparisonEntry]
     ) -> [ComparisonSection] {
-        let orderedTitles = leftMetadata.sections.map(\.title) + rightMetadata.sections.map(\.title)
-        let uniqueTitles = orderedTitles.reduce(into: [String]()) { result, title in
-            if !result.contains(title) {
-                result.append(title)
+        let includedEntries = orderedEntryIDs.compactMap { entryID -> MetadataComparisonEntry? in
+            guard includedEntryIDs.contains(entryID) else {
+                return nil
             }
+            return leftEntriesByID[entryID] ?? rightEntriesByID[entryID]
         }
+        let orderedSectionIDs = uniqueValues(includedEntries.map(\.sectionID))
 
-        return uniqueTitles.compactMap { title in
-            let leftSection = leftMetadata.sections.first(where: { $0.title == title })
-            let rightSection = rightMetadata.sections.first(where: { $0.title == title })
-            let orderedKeys = ((leftSection?.items ?? []) + (rightSection?.items ?? [])).map(\.key)
-            let uniqueKeys = orderedKeys.reduce(into: [String]()) { result, key in
-                if keys.contains(key), !result.contains(key) {
-                    result.append(key)
-                }
+        return orderedSectionIDs.compactMap { sectionID in
+            let sectionEntries = includedEntries.filter { $0.sectionID == sectionID }
+            guard let firstEntry = sectionEntries.first else {
+                return nil
             }
 
-            let rows = uniqueKeys.map { key in
-                let leftValue = leftValues[key] ?? "-"
-                let rightValue = rightValues[key] ?? "-"
+            let rows = sectionEntries.map { entry in
+                let leftValue = leftEntriesByID[entry.id]?.value ?? "-"
+                let rightValue = rightEntriesByID[entry.id]?.value ?? "-"
                 return ComparisonRow(
-                    key: key,
-                    label: MetadataKeyTranslator.chineseName(for: key) ?? key,
+                    id: entry.id,
+                    key: entry.key,
+                    label: entry.label,
                     leftValue: leftValue,
                     rightValue: rightValue,
                     isDifferent: leftValue != rightValue
                 )
             }
 
-            guard !rows.isEmpty else {
-                return nil
-            }
-
-            return ComparisonSection(title: title, rows: rows)
+            return ComparisonSection(id: sectionID, title: firstEntry.sectionTitle, rows: rows)
         }
     }
+
+    private static func comparisonEntries(for metadata: PhotoMetadata) -> [MetadataComparisonEntry] {
+        var entries: [MetadataComparisonEntry] = []
+
+        for section in metadata.sections {
+            if section.itemGroups.isEmpty {
+                entries.append(contentsOf: section.items.map {
+                    comparisonEntry(item: $0, section: section, group: nil)
+                })
+            } else {
+                for group in section.itemGroups {
+                    entries.append(contentsOf: group.items.map {
+                        comparisonEntry(item: $0, section: section, group: group)
+                    })
+                }
+            }
+        }
+
+        if let coordinate = metadata.coordinate {
+            let gpsSection = metadata.sections.first(where: isGPSSection)
+            let sectionID = gpsSection?.id ?? "__location__"
+            let sectionTitle = gpsSection?.title ?? "GPS"
+            entries.append(MetadataComparisonEntry(
+                id: "\(sectionID)|__coordinate__",
+                sectionID: sectionID,
+                sectionTitle: sectionTitle,
+                key: "__coordinate__",
+                label: AppLocalization.string("metadataShare.location"),
+                value: LocationFormatter.coordinateText(coordinate)
+            ))
+        }
+
+        return entries
+    }
+
+    private static func comparisonEntry(
+        item: MetadataItem,
+        section: MetadataSection,
+        group: MetadataItemGroup?
+    ) -> MetadataComparisonEntry {
+        let groupID = group?.id ?? "__ungrouped__"
+        let keyLabel = MetadataKeyTranslator.chineseName(for: item.key) ?? item.key
+        let label = group.map { "\($0.title) · \(keyLabel)" } ?? keyLabel
+        return MetadataComparisonEntry(
+            id: "\(section.id)|\(groupID)|\(item.key)",
+            sectionID: section.id,
+            sectionTitle: section.title,
+            key: item.key,
+            label: label,
+            value: item.value
+        )
+    }
+
+    private static func entriesByID(_ entries: [MetadataComparisonEntry]) -> [String: MetadataComparisonEntry] {
+        entries.reduce(into: [:]) { result, entry in
+            result[entry.id] = entry
+        }
+    }
+
+    private static func valuesByKey(_ entries: [MetadataComparisonEntry]) -> [String: String] {
+        entries.reduce(into: [:]) { result, entry in
+            if result[entry.key] == nil {
+                result[entry.key] = entry.value
+            }
+        }
+    }
+
+    private static func uniqueValues(_ values: [String]) -> [String] {
+        values.reduce(into: []) { result, value in
+            if !result.contains(value) {
+                result.append(value)
+            }
+        }
+    }
+
+    nonisolated private static func isGPSSection(_ section: MetadataSection) -> Bool {
+        section.id.caseInsensitiveCompare(String(kCGImagePropertyGPSDictionary)) == .orderedSame ||
+        section.title.caseInsensitiveCompare("GPS") == .orderedSame
+    }
+}
+
+private struct MetadataComparisonEntry {
+    let id: String
+    let sectionID: String
+    let sectionTitle: String
+    let key: String
+    let label: String
+    let value: String
 }
 
 enum MacPhotoComparisonFeedback: Equatable {
