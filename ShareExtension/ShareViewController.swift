@@ -229,11 +229,30 @@ final class ShareViewController: UIViewController {
             return
         }
 
-        didAttemptToOpenApp = true
+        guard let extensionContext else {
+            showOpenFailure()
+            return
+        }
 
-        openURLViaResponderChain(url)
-        extensionContext?.open(url, completionHandler: nil)
-        finishAfterOpeningApp()
+        didAttemptToOpenApp = true
+        progressView.isHidden = false
+        progressView.startAnimating()
+        statusLabel.text = "正在打开 ExifTool"
+        openButton.isHidden = true
+
+        extensionContext.open(url) { [weak self] didOpen in
+            DispatchQueue.main.async {
+                guard let self else {
+                    return
+                }
+
+                if didOpen {
+                    self.finish()
+                } else {
+                    self.showOpenFailure()
+                }
+            }
+        }
     }
 
     private func showImportFailure() {
@@ -245,23 +264,13 @@ final class ShareViewController: UIViewController {
         }
     }
 
-    private func openURLViaResponderChain(_ url: URL) {
-        let openURLSelector = NSSelectorFromString("openURL:")
-        var responder: UIResponder? = self
-
-        while let currentResponder = responder {
-            if currentResponder.responds(to: openURLSelector) {
-                currentResponder.perform(openURLSelector, with: url)
-                return
-            }
-
-            responder = currentResponder.next
-        }
-    }
-
-    private func finishAfterOpeningApp() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-            self.finish()
+    private func showOpenFailure() {
+        DispatchQueue.main.async {
+            self.didAttemptToOpenApp = false
+            self.progressView.stopAnimating()
+            self.progressView.isHidden = true
+            self.statusLabel.text = "无法打开 ExifTool，请重试"
+            self.openButton.isHidden = false
         }
     }
 
