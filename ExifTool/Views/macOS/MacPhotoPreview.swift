@@ -13,6 +13,7 @@ struct MacPhotoPreview: View {
     let asset: PhotoAsset
 
     @State private var image: PlatformImage?
+    @State private var previewRequestID = UUID()
 
     var body: some View {
         Group {
@@ -29,11 +30,21 @@ struct MacPhotoPreview: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .task(id: asset.id) {
-            image = await PhotoLoader.previewImage(for: asset, size: CGSize(width: 900, height: 900))
+            let requestID = UUID()
+            previewRequestID = requestID
+            image = nil
+            let newImage = await PhotoLoader.previewImage(
+                for: asset,
+                size: CGSize(width: 900, height: 900)
+            )
+            guard !Task.isCancelled, requestID == previewRequestID else {
+                return
+            }
+
+            image = newImage
         }
     }
 }
 
 #endif
-
 

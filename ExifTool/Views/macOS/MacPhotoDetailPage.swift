@@ -19,6 +19,7 @@ struct MacPhotoDetailPage: View {
 
     @Binding private var showsChineseKeys: Bool
     @State private var detail = PhotoDetailState.loading
+    @State private var metadataRequestID = UUID()
     @State private var activityShareItem: ActivityShareItem?
     @State private var isPreparingPhotoShare = false
     @State private var shareErrorMessage: String?
@@ -99,8 +100,15 @@ struct MacPhotoDetailPage: View {
     }
 
     private func loadMetadata() async {
+        let requestID = UUID()
+        metadataRequestID = requestID
         detail = .loading
-        detail = await PhotoLoader.metadata(for: asset, allowNetwork: false)
+        let newDetail = await PhotoLoader.metadata(for: asset, allowNetwork: false)
+        guard !Task.isCancelled, requestID == metadataRequestID else {
+            return
+        }
+
+        detail = newDetail
     }
 
     private var loadedMetadata: PhotoMetadata? {

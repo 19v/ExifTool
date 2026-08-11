@@ -20,6 +20,7 @@ struct PhotoDetailPage: View {
     @AppStorage("allowsICloudDownload") private var allowsICloudDownload = false
     @Binding private var showsChineseKeys: Bool
     @State private var detail = PhotoDetailState.loading
+    @State private var metadataRequestID = UUID()
     @State private var isDownloadingOriginal = false
     @State private var showsICloudDownloadExplanation = false
     @State private var activityShareItem: ActivityShareItem?
@@ -127,6 +128,9 @@ struct PhotoDetailPage: View {
     }
 
     private func loadMetadata(allowNetwork: Bool) async {
+        let requestID = UUID()
+        metadataRequestID = requestID
+
         if allowNetwork {
             isDownloadingOriginal = true
         } else {
@@ -134,6 +138,10 @@ struct PhotoDetailPage: View {
         }
 
         let newDetail = await PhotoLoader.metadata(for: asset, allowNetwork: allowNetwork)
+        guard !Task.isCancelled, requestID == metadataRequestID else {
+            return
+        }
+
         detail = newDetail
         isDownloadingOriginal = false
     }

@@ -24,6 +24,7 @@ struct MacPhotoCompareDetailView: View {
     @State private var isExportingComparison = false
     @State private var comparisonFeedback: MacPhotoComparisonFeedback?
     @State private var comparisonSnapshot = MacPhotoComparisonSnapshot.empty
+    @State private var comparisonRequestID = UUID()
 
     init(
         assets: [PhotoAsset],
@@ -110,6 +111,9 @@ struct MacPhotoCompareDetailView: View {
     }
 
     private func loadComparisonMetadata() async {
+        let requestID = UUID()
+        comparisonRequestID = requestID
+
         guard let compareAsset else {
             primaryMetadata = .loading
             compareMetadata = .loading
@@ -117,10 +121,18 @@ struct MacPhotoCompareDetailView: View {
             return
         }
 
+        primaryMetadata = .loading
+        compareMetadata = .loading
+        comparisonSnapshot = .empty
+
         async let leftMetadata = PhotoLoader.metadata(for: primaryAsset, allowNetwork: false)
         async let rightMetadata = PhotoLoader.metadata(for: compareAsset, allowNetwork: false)
 
         let (leftDetail, rightDetail) = await (leftMetadata, rightMetadata)
+        guard !Task.isCancelled, requestID == comparisonRequestID else {
+            return
+        }
+
         primaryMetadata = leftDetail
         compareMetadata = rightDetail
 
