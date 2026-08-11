@@ -166,7 +166,7 @@ final class PhotoLibraryViewModel {
     
     @ObservationIgnored private var refreshTask: Task<Void, Never>?
     @ObservationIgnored private var albumStatsTask: Task<Void, Never>?
-    @ObservationIgnored private var allFetchedAssets: [PhotoAsset] = []
+    private var allFetchedAssets: [PhotoAsset] = []
     @ObservationIgnored private var nextLocalOnlyScanIndex = 0
     @ObservationIgnored private var isLoadingNextLocalOnlyPage = false
     @ObservationIgnored private var localOnlySessionID = UUID()
