@@ -177,6 +177,187 @@ enum PhotoTemporaryFileStore {
     }
 }
 
+private final class CancellablePhotoRequestState<Value, RequestToken>: @unchecked Sendable {
+    private enum Completion {
+        case pending
+        case finished(Value)
+    }
+
+    private let lock = NSLock()
+    nonisolated(unsafe) private let cancellationValue: Value
+    private let cancelRequest: @Sendable (RequestToken) -> Void
+    nonisolated(unsafe) private var completion: Completion = .pending
+    nonisolated(unsafe) private var continuation: CheckedContinuation<Value, Never>?
+    nonisolated(unsafe) private var requestToken: RequestToken?
+    nonisolated(unsafe) private var cancellationRequested = false
+
+    nonisolated init(
+        cancellationValue: Value,
+        cancelRequest: @escaping @Sendable (RequestToken) -> Void
+    ) {
+        self.cancellationValue = cancellationValue
+        self.cancelRequest = cancelRequest
+    }
+
+    nonisolated var shouldStartRequest: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        if case .pending = completion {
+            return true
+        }
+        return false
+    }
+
+    nonisolated var isFinished: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        if case .finished = completion {
+            return true
+        }
+        return false
+    }
+
+    nonisolated func install(_ continuation: CheckedContinuation<Value, Never>) {
+        let completionToResume: Completion
+        lock.lock()
+        switch completion {
+        case .pending:
+            self.continuation = continuation
+            completionToResume = .pending
+        case .finished(let value):
+            completionToResume = .finished(value)
+        }
+        lock.unlock()
+
+        if case .finished(let value) = completionToResume {
+            continuation.resume(returning: value)
+        }
+    }
+
+    nonisolated func register(requestToken: RequestToken) {
+        lock.lock()
+        self.requestToken = requestToken
+        let shouldCancel = cancellationRequested
+        lock.unlock()
+
+        if shouldCancel {
+            cancelRequest(requestToken)
+        }
+    }
+
+    nonisolated func finish(returning value: Value) {
+        let continuationToResume: CheckedContinuation<Value, Never>?
+        lock.lock()
+        guard case .pending = completion else {
+            lock.unlock()
+            return
+        }
+        completion = .finished(value)
+        continuationToResume = continuation
+        continuation = nil
+        lock.unlock()
+
+        continuationToResume?.resume(returning: value)
+    }
+
+    nonisolated func cancel() {
+        let requestTokenToCancel: RequestToken?
+        let continuationToResume: CheckedContinuation<Value, Never>?
+        lock.lock()
+        guard case .pending = completion else {
+            lock.unlock()
+            return
+        }
+        cancellationRequested = true
+        completion = .finished(cancellationValue)
+        requestTokenToCancel = requestToken
+        continuationToResume = continuation
+        continuation = nil
+        lock.unlock()
+
+        if let requestTokenToCancel {
+            cancelRequest(requestTokenToCancel)
+        }
+        continuationToResume?.resume(returning: cancellationValue)
+    }
+}
+
+private final class PhotoResourceDataRequestState: @unchecked Sendable {
+    private let lock = NSLock()
+    nonisolated(unsafe) private var requestID: PHAssetResourceDataRequestID?
+    nonisolated(unsafe) private var cancellationRequested = false
+    nonisolated(unsafe) private var writeError: Error?
+
+    nonisolated init() { }
+
+    nonisolated var shouldStartRequest: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return !cancellationRequested
+    }
+
+    nonisolated var shouldAcceptData: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return !cancellationRequested && writeError == nil
+    }
+
+    nonisolated func register(requestID: PHAssetResourceDataRequestID) {
+        lock.lock()
+        self.requestID = requestID
+        let shouldCancel = cancellationRequested || writeError != nil
+        lock.unlock()
+
+        if shouldCancel {
+            PHAssetResourceManager.default().cancelDataRequest(requestID)
+        }
+    }
+
+    nonisolated func recordWriteError(_ error: Error) {
+        let requestIDToCancel: PHAssetResourceDataRequestID?
+        lock.lock()
+        if writeError == nil {
+            writeError = error
+        }
+        requestIDToCancel = requestID
+        lock.unlock()
+
+        if let requestIDToCancel {
+            PHAssetResourceManager.default().cancelDataRequest(requestIDToCancel)
+        }
+    }
+
+    nonisolated func cancel() {
+        let requestIDToCancel: PHAssetResourceDataRequestID?
+        lock.lock()
+        cancellationRequested = true
+        requestIDToCancel = requestID
+        lock.unlock()
+
+        if let requestIDToCancel {
+            PHAssetResourceManager.default().cancelDataRequest(requestIDToCancel)
+        }
+    }
+
+    nonisolated func result(frameworkError: Error?, closeError: Error?) -> Result<Void, Error> {
+        lock.lock()
+        defer { lock.unlock() }
+        if cancellationRequested {
+            return .failure(CancellationError())
+        }
+        if let writeError {
+            return .failure(writeError)
+        }
+        if let closeError {
+            return .failure(closeError)
+        }
+        if let frameworkError {
+            return .failure(frameworkError)
+        }
+        return .success(())
+    }
+}
+
 private enum PhotoResourceFileWriter {
     nonisolated static func write(
         resource: PHAssetResource,
@@ -189,19 +370,51 @@ private enum PhotoResourceFileWriter {
         options.isNetworkAccessAllowed = allowNetwork
 
         do {
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-                PHAssetResourceManager.default().writeData(
-                    for: resource,
-                    toFile: destinationURL,
-                    options: options
-                ) { error in
-                    if let error {
-                        continuation.resume(throwing: error)
-                    } else {
-                        continuation.resume(returning: ())
-                    }
-                }
+            guard FileManager.default.createFile(atPath: destinationURL.path, contents: nil) else {
+                throw CocoaError(.fileWriteUnknown)
             }
+            let fileHandle = try FileHandle(forWritingTo: destinationURL)
+            let state = PhotoResourceDataRequestState()
+
+            let result: Result<Void, Error> = await withTaskCancellationHandler {
+                await withCheckedContinuation { continuation in
+                    guard state.shouldStartRequest else {
+                        try? fileHandle.close()
+                        continuation.resume(returning: .failure(CancellationError()))
+                        return
+                    }
+
+                    let requestID = PHAssetResourceManager.default().requestData(
+                        for: resource,
+                        options: options,
+                        dataReceivedHandler: { data in
+                            guard state.shouldAcceptData else {
+                                return
+                            }
+                            do {
+                                try fileHandle.write(contentsOf: data)
+                            } catch {
+                                state.recordWriteError(error)
+                            }
+                        },
+                        completionHandler: { error in
+                            let closeError: Error?
+                            do {
+                                try fileHandle.close()
+                                closeError = nil
+                            } catch {
+                                closeError = error
+                            }
+                            continuation.resume(returning: state.result(frameworkError: error, closeError: closeError))
+                        }
+                    )
+                    state.register(requestID: requestID)
+                }
+            } onCancel: {
+                state.cancel()
+            }
+
+            try result.get()
             return destinationURL
         } catch {
             try? FileManager.default.removeItem(at: destinationURL)
@@ -282,30 +495,12 @@ enum PhotosPickerPhotoImporter {
         }
     }
 
-    private final class TransferProgressState: @unchecked Sendable {
-        private let lock = NSLock()
-        nonisolated(unsafe) private var finished = false
-
-        nonisolated init() { }
-
-        nonisolated var isFinished: Bool {
-            lock.lock()
-            defer { lock.unlock() }
-            return finished
-        }
-
-        nonisolated func finish() {
-            lock.lock()
-            finished = true
-            lock.unlock()
-        }
-    }
-
     nonisolated static func importAsset(
         from item: PhotosPickerItem,
         index: Int,
         progressHandler: @MainActor @escaping (ImportPhase) -> Void = { _ in }
     ) async throws -> PhotoAsset {
+        try Task.checkCancellation()
         let id = item.itemIdentifier ?? UUID().uuidString
         var importFailure: ImportError?
 
@@ -318,6 +513,7 @@ enum PhotosPickerPhotoImporter {
             importFailure = error
         }
 
+        try Task.checkCancellation()
         await progressHandler(.reading)
         do {
             if let pickedFile = try await item.loadTransferable(type: PickedPhotoFile.self) {
@@ -333,10 +529,13 @@ enum PhotosPickerPhotoImporter {
                     return asset
                 }
             }
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             importFailure = importFailure ?? .transferableReadFailed
         }
 
+        try Task.checkCancellation()
         do {
             if let asset = try await importLegacyTransferableData(
                 from: item,
@@ -346,6 +545,8 @@ enum PhotosPickerPhotoImporter {
             ) {
                 return asset
             }
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             importFailure = importFailure ?? .transferableReadFailed
         }
@@ -374,28 +575,43 @@ enum PhotosPickerPhotoImporter {
         from item: PhotosPickerItem,
         progressHandler: @MainActor @escaping (ImportPhase) -> Void
     ) async throws -> Data? {
-        try await withCheckedThrowingContinuation { continuation in
-            let state = TransferProgressState()
-            let progress = item.loadTransferable(type: Data.self) { result in
-                state.finish()
-                switch result {
-                case .success(let data):
-                    continuation.resume(returning: data)
-                case .failure(let error):
-                    continuation.resume(throwing: error)
+        let state = CancellablePhotoRequestState<Result<Data?, Error>, Progress>(
+            cancellationValue: .failure(CancellationError()),
+            cancelRequest: { $0.cancel() }
+        )
+
+        let result = await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                state.install(continuation)
+                guard state.shouldStartRequest else {
+                    return
+                }
+
+                let progress = item.loadTransferable(type: Data.self) { result in
+                    switch result {
+                    case .success(let data):
+                        state.finish(returning: .success(data))
+                    case .failure(let error):
+                        state.finish(returning: .failure(error))
+                    }
+                }
+                state.register(requestToken: progress)
+
+                Task {
+                    try? await Task.sleep(for: .milliseconds(350))
+
+                    while !Task.isCancelled && !state.isFinished && !progress.isFinished {
+                        let fraction = normalizedFractionCompleted(for: progress)
+                        await progressHandler(.downloadingOriginal(progress: fraction))
+                        try? await Task.sleep(for: .milliseconds(200))
+                    }
                 }
             }
-
-            Task {
-                try? await Task.sleep(for: .milliseconds(350))
-
-                while !Task.isCancelled && !state.isFinished && !progress.isFinished {
-                    let fraction = normalizedFractionCompleted(for: progress)
-                    await progressHandler(.downloadingOriginal(progress: fraction))
-                    try? await Task.sleep(for: .milliseconds(200))
-                }
-            }
+        } onCancel: {
+            state.cancel()
         }
+
+        return try result.get()
     }
 
     private nonisolated static func normalizedFractionCompleted(for progress: Progress) -> Double? {
@@ -434,6 +650,8 @@ enum PhotosPickerPhotoImporter {
                 throw ImportError.unreadableImage
             }
             return asset
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             throw ImportError.originalResourceUnavailable
         }
@@ -550,6 +768,9 @@ enum PhotoLoader {
         var batchStart = 0
 
         while batchStart < libraryAssets.count {
+            guard !Task.isCancelled else {
+                return availableIDs
+            }
             let batch = Array(libraryAssets[batchStart ..< min(batchStart + batchSize, libraryAssets.count)])
 
             let batchResults = await withTaskGroup(of: String?.self) { group in
@@ -585,20 +806,39 @@ enum PhotoLoader {
     }
 
     private static func requestImage(for asset: PHAsset, size: CGSize, contentMode: PHImageContentMode) async -> PlatformImage? {
-        await withCheckedContinuation { continuation in
-            let options = PHImageRequestOptions()
-            options.deliveryMode = .highQualityFormat
-            options.resizeMode = contentMode == .aspectFit ? .fast : .exact
-            options.isNetworkAccessAllowed = false
+        let state = CancellablePhotoRequestState<PlatformImage?, PHImageRequestID>(
+            cancellationValue: nil,
+            cancelRequest: { PHImageManager.default().cancelImageRequest($0) }
+        )
 
-            PHImageManager.default().requestImage(
-                for: asset,
-                targetSize: size,
-                contentMode: contentMode,
-                options: options
-            ) { image, _ in
-                continuation.resume(returning: image)
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                state.install(continuation)
+                guard state.shouldStartRequest else {
+                    return
+                }
+
+                let options = PHImageRequestOptions()
+                options.deliveryMode = .highQualityFormat
+                options.resizeMode = contentMode == .aspectFit ? .fast : .exact
+                options.isNetworkAccessAllowed = false
+
+                let requestID = PHImageManager.default().requestImage(
+                    for: asset,
+                    targetSize: size,
+                    contentMode: contentMode,
+                    options: options
+                ) { image, info in
+                    let isDegraded = (info?[PHImageResultIsDegradedKey] as? Bool) == true
+                    guard !isDegraded else {
+                        return
+                    }
+                    state.finish(returning: image)
+                }
+                state.register(requestToken: requestID)
             }
+        } onCancel: {
+            state.cancel()
         }
     }
 
@@ -614,6 +854,9 @@ enum PhotoLoader {
                 defer { try? FileManager.default.removeItem(at: fileURL) }
                 return .loaded(MetadataParser.parse(url: fileURL, fallbackLocation: asset.location))
             } catch {
+                if error is CancellationError || Task.isCancelled {
+                    return .failed(CancellationError().localizedDescription)
+                }
                 if let fallback = await imageManagerData(for: asset, allowNetwork: allowNetwork) {
                     return .loaded(MetadataParser.parse(data: fallback, fallbackLocation: asset.location))
                 }
@@ -630,6 +873,9 @@ enum PhotoLoader {
             return .loaded(MetadataParser.parse(data: data, fallbackLocation: asset.location))
         }
 
+        if Task.isCancelled {
+            return .failed(CancellationError().localizedDescription)
+        }
         if !allowNetwork {
             return .needsDownload(AppLocalization.string("photoLoader.needsDownload"))
         }
@@ -675,16 +921,34 @@ enum PhotoLoader {
     }
 
     private static func imageManagerData(for asset: PHAsset, allowNetwork: Bool) async -> Data? {
-        await withCheckedContinuation { continuation in
-            let options = PHImageRequestOptions()
-            options.version = .current
-            options.deliveryMode = .highQualityFormat
-            options.isNetworkAccessAllowed = allowNetwork
+        let state = CancellablePhotoRequestState<Data?, PHImageRequestID>(
+            cancellationValue: nil,
+            cancelRequest: { PHImageManager.default().cancelImageRequest($0) }
+        )
 
-            PHImageManager.default().requestImageDataAndOrientation(for: asset, options: options) { data, _, _, info in
-                let isInCloud = (info?[PHImageResultIsInCloudKey] as? Bool) == true
-                continuation.resume(returning: !allowNetwork && isInCloud ? nil : data)
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                state.install(continuation)
+                guard state.shouldStartRequest else {
+                    return
+                }
+
+                let options = PHImageRequestOptions()
+                options.version = .current
+                options.deliveryMode = .highQualityFormat
+                options.isNetworkAccessAllowed = allowNetwork
+
+                let requestID = PHImageManager.default().requestImageDataAndOrientation(
+                    for: asset,
+                    options: options
+                ) { data, _, _, info in
+                    let isInCloud = (info?[PHImageResultIsInCloudKey] as? Bool) == true
+                    state.finish(returning: !allowNetwork && isInCloud ? nil : data)
+                }
+                state.register(requestToken: requestID)
             }
+        } onCancel: {
+            state.cancel()
         }
     }
 
@@ -693,17 +957,32 @@ enum PhotoLoader {
             return false
         }
 
-        return await withCheckedContinuation { continuation in
-            let options = PHAssetResourceRequestOptions()
-            options.isNetworkAccessAllowed = false
-            PHAssetResourceManager.default().requestData(
-                for: resource,
-                options: options,
-                dataReceivedHandler: { _ in },
-                completionHandler: { error in
-                    continuation.resume(returning: error == nil)
+        let state = CancellablePhotoRequestState<Bool, PHAssetResourceDataRequestID>(
+            cancellationValue: false,
+            cancelRequest: { PHAssetResourceManager.default().cancelDataRequest($0) }
+        )
+
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                state.install(continuation)
+                guard state.shouldStartRequest else {
+                    return
                 }
-            )
+
+                let options = PHAssetResourceRequestOptions()
+                options.isNetworkAccessAllowed = false
+                let requestID = PHAssetResourceManager.default().requestData(
+                    for: resource,
+                    options: options,
+                    dataReceivedHandler: { _ in },
+                    completionHandler: { error in
+                        state.finish(returning: error == nil)
+                    }
+                )
+                state.register(requestToken: requestID)
+            }
+        } onCancel: {
+            state.cancel()
         }
     }
 
