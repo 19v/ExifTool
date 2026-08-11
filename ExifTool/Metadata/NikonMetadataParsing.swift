@@ -352,6 +352,10 @@ nonisolated enum NikonMakerNoteParser {
     }
 
     private static func locateTIFFHeader(in data: Data) -> (start: Int, endian: Endian)? {
+        guard data.count >= 4 else {
+            return nil
+        }
+
         let limit = max(0, min(data.count - 4, 32))
 
         for offset in 0...limit {
