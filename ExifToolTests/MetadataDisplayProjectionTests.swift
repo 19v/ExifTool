@@ -3,6 +3,7 @@ import XCTest
 @testable import ExifTool
 
 final class MetadataDisplayProjectionTests: XCTestCase {
+    @MainActor
     func testFiltersDirectAndGroupedItemsIntoDisplayContent() throws {
         let metadata = PhotoMetadata(
             sections: [
@@ -51,6 +52,7 @@ final class MetadataDisplayProjectionTests: XCTestCase {
         XCTAssertTrue(groupedItem.isHighlighted)
     }
 
+    @MainActor
     func testOrdersCameraParameterSectionsFirstAndPreservesRelativeOrder() {
         let metadata = PhotoMetadata(
             sections: [
@@ -71,6 +73,7 @@ final class MetadataDisplayProjectionTests: XCTestCase {
         )
     }
 
+    @MainActor
     func testMarksLocationSectionAndFallsBackToFirstSelection() throws {
         let coordinate = CLLocationCoordinate2D(latitude: 31.2304, longitude: 121.4737)
         let metadata = PhotoMetadata(

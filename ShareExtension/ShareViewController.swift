@@ -8,10 +8,18 @@
 import UIKit
 import UniformTypeIdentifiers
 
+private final class SendableItemProvider: @unchecked Sendable {
+    nonisolated(unsafe) let value: NSItemProvider
+
+    nonisolated init(_ value: NSItemProvider) {
+        self.value = value
+    }
+}
+
 final class ShareViewController: UIViewController {
     private enum Constants {
-        static let appGroupIdentifier = "group.com.echopie.ExifTool"
-        static let sharedDirectoryName = "SharedPhotos"
+        nonisolated static let appGroupIdentifier = "group.com.echopie.ExifTool"
+        nonisolated static let sharedDirectoryName = "SharedPhotos"
         static let urlScheme = "exiftool"
         static let urlHost = "shared-photo"
         static let fileQueryItemName = "file"
@@ -86,28 +94,35 @@ final class ShareViewController: UIViewController {
         }
 
         let typeIdentifier = preferredImageTypeIdentifier(from: provider)
+        let sendableProvider = SendableItemProvider(provider)
 
-        provider.loadFileRepresentation(forTypeIdentifier: typeIdentifier) { [weak self] url, _ in
-            guard let self else {
-                return
-            }
-
+        provider.loadFileRepresentation(forTypeIdentifier: typeIdentifier) { [weak self, sendableProvider] url, _ in
             if let url,
-               let destinationFileName = self.copySharedFile(from: url, preferredExtension: UTType(typeIdentifier)?.preferredFilenameExtension) {
-                self.prepareToOpenContainingApp(with: destinationFileName)
+               let destinationFileName = Self.copySharedFile(from: url, preferredExtension: UTType(typeIdentifier)?.preferredFilenameExtension) {
+                Task { @MainActor [weak self] in
+                    guard let self else {
+                        return
+                    }
+                    self.prepareToOpenContainingApp(with: destinationFileName)
+                }
                 return
             }
 
-            provider.loadDataRepresentation(forTypeIdentifier: typeIdentifier) { [weak self] data, _ in
-                guard let self else {
-                    return
+            sendableProvider.value.loadDataRepresentation(forTypeIdentifier: typeIdentifier) { [weak self] data, _ in
+                let destinationFileName = data.flatMap {
+                    Self.writeSharedImageData($0, preferredExtension: UTType(typeIdentifier)?.preferredFilenameExtension)
                 }
 
-                if let data,
-                   let destinationFileName = self.writeSharedImageData(data, preferredExtension: UTType(typeIdentifier)?.preferredFilenameExtension) {
-                    self.prepareToOpenContainingApp(with: destinationFileName)
-                } else {
-                    self.showImportFailure()
+                Task { @MainActor [weak self] in
+                    guard let self else {
+                        return
+                    }
+
+                    if let destinationFileName {
+                        self.prepareToOpenContainingApp(with: destinationFileName)
+                    } else {
+                        self.showImportFailure()
+                    }
                 }
             }
         }
@@ -126,7 +141,7 @@ final class ShareViewController: UIViewController {
         return registeredTypes.first { UTType($0)?.conforms(to: .image) == true } ?? UTType.image.identifier
     }
 
-    private func copySharedFile(from sourceURL: URL, preferredExtension: String?) -> String? {
+    nonisolated private static func copySharedFile(from sourceURL: URL, preferredExtension: String?) -> String? {
         let destinationFileName = sharedFileName(fileExtension: sourceURL.pathExtension.isEmpty ? preferredExtension : sourceURL.pathExtension)
 
         guard let destinationURL = destinationURL(for: destinationFileName) else {
@@ -144,7 +159,7 @@ final class ShareViewController: UIViewController {
         }
     }
 
-    private func writeSharedImageData(_ data: Data, preferredExtension: String?) -> String? {
+    nonisolated private static func writeSharedImageData(_ data: Data, preferredExtension: String?) -> String? {
         let destinationFileName = sharedFileName(fileExtension: preferredExtension)
 
         guard let destinationURL = destinationURL(for: destinationFileName) else {
@@ -159,7 +174,7 @@ final class ShareViewController: UIViewController {
         }
     }
 
-    private func destinationURL(for fileName: String) -> URL? {
+    nonisolated private static func destinationURL(for fileName: String) -> URL? {
         guard let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: Constants.appGroupIdentifier) else {
             return nil
         }
@@ -174,7 +189,7 @@ final class ShareViewController: UIViewController {
         }
     }
 
-    private func sharedFileName(fileExtension: String?) -> String {
+    nonisolated private static func sharedFileName(fileExtension: String?) -> String {
         let suffix = fileExtension.flatMap { $0.isEmpty ? nil : $0 } ?? "jpg"
         return "\(UUID().uuidString).\(suffix)"
     }

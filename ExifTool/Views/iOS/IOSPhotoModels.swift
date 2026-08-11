@@ -112,7 +112,7 @@ struct PhotoAlbum: Identifiable, Hashable {
     let assetCount: Int
     let collection: PHAssetCollection
 
-    init(collection: PHAssetCollection, assetCount: Int) {
+    nonisolated init(collection: PHAssetCollection, assetCount: Int) {
         self.id = collection.localIdentifier
         self.title = collection.localizedTitle ?? AppLocalization.string("album.untitled")
         self.assetCount = assetCount

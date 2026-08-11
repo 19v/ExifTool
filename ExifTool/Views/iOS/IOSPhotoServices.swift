@@ -177,14 +177,14 @@ enum PhotoTemporaryFileStore {
     }
 }
 
-private final class CancellablePhotoRequestState<Value, RequestToken>: @unchecked Sendable {
+private final class CancellablePhotoRequestState<Value: Sendable, RequestToken: Sendable>: @unchecked Sendable {
     private enum Completion {
         case pending
         case finished(Value)
     }
 
     private let lock = NSLock()
-    nonisolated(unsafe) private let cancellationValue: Value
+    private let cancellationValue: Value
     private let cancelRequest: @Sendable (RequestToken) -> Void
     nonisolated(unsafe) private var completion: Completion = .pending
     nonisolated(unsafe) private var continuation: CheckedContinuation<Value, Never>?

@@ -5,6 +5,7 @@ import XCTest
 @testable import ExifTool
 
 final class MacPhotoComparisonSnapshotTests: XCTestCase {
+    @MainActor
     func testGroupedMakerNoteItemParticipatesInDifferences() throws {
         let leftMetadata = metadataWithGroupedItem(value: "AF-S")
         let rightMetadata = metadataWithGroupedItem(value: "AF-C")
@@ -22,6 +23,7 @@ final class MacPhotoComparisonSnapshotTests: XCTestCase {
         XCTAssertTrue(row.label.contains("曝光"))
     }
 
+    @MainActor
     func testCoordinateDifferenceCreatesComparisonRow() throws {
         let leftMetadata = PhotoMetadata(
             sections: [],

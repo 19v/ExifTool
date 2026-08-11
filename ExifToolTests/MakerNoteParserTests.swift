@@ -38,6 +38,7 @@ final class MakerNoteParserTests: XCTestCase {
         XCTAssertEqual(fields["快门次数"], "12345")
     }
 
+    @MainActor
     func testCameraMetadataBuilderRoutesVendorMakerNotes() throws {
         let fixtures: [(make: String, makerNote: Data, sectionID: String, key: String, value: String)] = [
             (
