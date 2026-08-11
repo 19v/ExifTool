@@ -7,13 +7,14 @@
 //  Created by Haochen on 2026/4/12.
 //
 
-import Combine
 import Foundation
+import Observation
 import Photos
 
 @MainActor
-final class PhotoLibraryViewModel: ObservableObject {
-    enum LocalPhotosSummaryState {
+@Observable
+final class PhotoLibraryViewModel {
+    enum LocalPhotosSummaryState: Equatable {
         case loading
         case paginating
         case buildingAlbums
@@ -25,14 +26,14 @@ final class PhotoLibraryViewModel: ObservableObject {
     private static let localOnlyPrefetchThreshold = 24
     private static let localOnlyAlbumRefreshInterval = 4
 
-    enum AccessScope {
+    enum AccessScope: Equatable {
         case unknown
         case limited
         case full
         case denied
     }
     
-    enum AuthorizationState {
+    enum AuthorizationState: Equatable {
         case unknown
         case limited
         case authorized
@@ -40,15 +41,15 @@ final class PhotoLibraryViewModel: ObservableObject {
         case empty
     }
     
-    @Published private(set) var accessScope: AccessScope = .unknown
-    @Published private(set) var authorizationState: AuthorizationState = .unknown
-    @Published private(set) var assets: [PhotoAsset] = []
-    @Published private(set) var albums: [PhotoAlbum] = []
-    @Published private(set) var localOnlyAssetIDs: Set<String> = []
-    @Published private(set) var showsOnlyLocalAssets = false
-    @Published private(set) var isFilteringLocalAssets = false
-    @Published private(set) var hasMoreLocalAssets = false
-    @Published private(set) var isBuildingLocalAlbumStats = false
+    private(set) var accessScope: AccessScope = .unknown
+    private(set) var authorizationState: AuthorizationState = .unknown
+    private(set) var assets: [PhotoAsset] = []
+    private(set) var albums: [PhotoAlbum] = []
+    private(set) var localOnlyAssetIDs: Set<String> = []
+    private(set) var showsOnlyLocalAssets = false
+    private(set) var isFilteringLocalAssets = false
+    private(set) var hasMoreLocalAssets = false
+    private(set) var isBuildingLocalAlbumStats = false
 
     var searchableAssets: [PhotoAsset] {
         showsOnlyLocalAssets ? allFetchedAssets : assets
@@ -163,13 +164,13 @@ final class PhotoLibraryViewModel: ObservableObject {
         )
     }
     
-    private var refreshTask: Task<Void, Never>?
-    private var albumStatsTask: Task<Void, Never>?
-    private var allFetchedAssets: [PhotoAsset] = []
-    private var nextLocalOnlyScanIndex = 0
-    private var isLoadingNextLocalOnlyPage = false
-    private var localOnlySessionID = UUID()
-    private var localAvailabilityByID: [String: Bool] = [:]
+    @ObservationIgnored private var refreshTask: Task<Void, Never>?
+    @ObservationIgnored private var albumStatsTask: Task<Void, Never>?
+    @ObservationIgnored private var allFetchedAssets: [PhotoAsset] = []
+    @ObservationIgnored private var nextLocalOnlyScanIndex = 0
+    @ObservationIgnored private var isLoadingNextLocalOnlyPage = false
+    @ObservationIgnored private var localOnlySessionID = UUID()
+    @ObservationIgnored private var localAvailabilityByID: [String: Bool] = [:]
     
     func prepare(showingOnlyLocalAssets: Bool) async {
         showsOnlyLocalAssets = showingOnlyLocalAssets

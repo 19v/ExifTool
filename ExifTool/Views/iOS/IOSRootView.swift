@@ -12,7 +12,7 @@ struct IOSRootView: View {
         case fullLibrary
     }
 
-    @StateObject private var library = PhotoLibraryViewModel()
+    @State private var library = PhotoLibraryViewModel()
     @State private var selectedTab = AppTab.picker
     @State private var sharedPhotoAsset: PhotoAsset?
     @State private var presentedFileURLToCleanup: URL?

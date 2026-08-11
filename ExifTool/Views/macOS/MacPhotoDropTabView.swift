@@ -13,7 +13,7 @@ import UniformTypeIdentifiers
 struct MacPhotoDropTabView: View {
     let readOnlyMode: Bool
 
-    @EnvironmentObject private var workspace: MacPhotoWorkspace
+    @Environment(MacPhotoWorkspace.self) private var workspace
     @Environment(\.openWindow) private var openWindow
     @State private var isDropTargeted = false
     @State private var isImporterPresented = false
@@ -21,6 +21,8 @@ struct MacPhotoDropTabView: View {
     @State private var compareAssetID: String?
 
     var body: some View {
+        @Bindable var workspace = workspace
+
         NavigationStack {
             Group {
                 if workspace.sortedAssets.isEmpty {

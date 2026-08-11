@@ -7,22 +7,23 @@
 //  Created by Haochen on 2026/4/12.
 //
 
-import Combine
 import Foundation
+import Observation
 
 @MainActor
-final class LocalAssetPagingViewModel: ObservableObject {
+@Observable
+final class LocalAssetPagingViewModel {
     private static let scanBatchSize = 48
     private static let pageSize = 90
     private static let prefetchThreshold = 24
 
-    @Published private(set) var assets: [PhotoAsset] = []
-    @Published private(set) var hasMoreAssets = false
+    private(set) var assets: [PhotoAsset] = []
+    private(set) var hasMoreAssets = false
 
-    private var sourceAssets: [PhotoAsset] = []
-    private var nextScanIndex = 0
-    private var isLoading = false
-    private var sessionID = UUID()
+    @ObservationIgnored private var sourceAssets: [PhotoAsset] = []
+    @ObservationIgnored private var nextScanIndex = 0
+    @ObservationIgnored private var isLoading = false
+    @ObservationIgnored private var sessionID = UUID()
 
     func setSourceAssets(_ assets: [PhotoAsset]) {
         sessionID = UUID()

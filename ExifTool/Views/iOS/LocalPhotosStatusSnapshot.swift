@@ -2,7 +2,7 @@
 
 import Foundation
 
-struct LocalPhotosStatusSnapshot {
+struct LocalPhotosStatusSnapshot: Equatable {
     let text: String
     let state: PhotoLibraryViewModel.LocalPhotosSummaryState?
     let localPhotosCount: Int?

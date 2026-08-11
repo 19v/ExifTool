@@ -44,11 +44,23 @@ struct PhotoAsset: Identifiable, Hashable {
     }
 
     static func == (lhs: PhotoAsset, rhs: PhotoAsset) -> Bool {
-        lhs.id == rhs.id
+        lhs.id == rhs.id &&
+        lhs.localFile.fileURL == rhs.localFile.fileURL &&
+        lhs.creationDate == rhs.creationDate &&
+        lhs.modificationDate == rhs.modificationDate &&
+        lhs.pixelWidth == rhs.pixelWidth &&
+        lhs.pixelHeight == rhs.pixelHeight &&
+        lhs.displayName == rhs.displayName
     }
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
+        hasher.combine(localFile.fileURL)
+        hasher.combine(creationDate)
+        hasher.combine(modificationDate)
+        hasher.combine(pixelWidth)
+        hasher.combine(pixelHeight)
+        hasher.combine(displayName)
     }
 }
 

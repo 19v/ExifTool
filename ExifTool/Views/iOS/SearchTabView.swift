@@ -10,11 +10,11 @@
 import SwiftUI
 
 struct SearchTabView: View {
-    @ObservedObject var library: PhotoLibraryViewModel
+    let library: PhotoLibraryViewModel
     let readOnlyMode: Bool
 
     @State private var query = ""
-    @StateObject private var pager = LocalAssetPagingViewModel()
+    @State private var pager = LocalAssetPagingViewModel()
 
     private var results: [PhotoAsset] {
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -7,8 +7,6 @@
 //  Created by Haochen on 2026/4/12.
 //
 
-import CoreLocation
-import ImageIO
 import SwiftUI
 
 struct PhotoDetailPage: View {
@@ -19,18 +17,14 @@ struct PhotoDetailPage: View {
     let highlightedMetadataKeys: Set<String>
     let visibleMetadataKeys: Set<String>?
 
-    @Environment(\.openURL) private var openURL
     @AppStorage("allowsICloudDownload") private var allowsICloudDownload = false
     @Binding private var showsChineseKeys: Bool
     @State private var detail = PhotoDetailState.loading
-    @State private var mapCoordinate: CLLocationCoordinate2D?
-    @State private var isMapChooserPresented = false
     @State private var isDownloadingOriginal = false
     @State private var showsICloudDownloadExplanation = false
     @State private var activityShareItem: ActivityShareItem?
     @State private var isPreparingPhotoShare = false
     @State private var shareErrorMessage: String?
-    @State private var selectedMetadataSectionID: String?
 
     init(
         asset: PhotoAsset,
@@ -51,24 +45,40 @@ struct PhotoDetailPage: View {
     }
 
     var body: some View {
-        legacyDetailLayout
-            .task(id: asset.id) {
-                selectedMetadataSectionID = nil
-                await loadMetadata(allowNetwork: false)
-            }
-            .confirmationDialog("选择地图", isPresented: $isMapChooserPresented, titleVisibility: .visible) {
-                if let mapCoordinate {
-                    Button("系统地图") {
-                        openURL(MapDestination.appleMaps.url(for: mapCoordinate))
-                    }
-                    Button("高德地图") {
-                        openURL(MapDestination.amap.url(for: mapCoordinate))
-                    }
-                    Button("Google Maps") {
-                        openURL(MapDestination.googleMaps.url(for: mapCoordinate))
-                    }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                PhotoPreview(asset: asset)
+                ReadOnlyStatusBanner(isReadOnly: readOnlyMode)
+
+                switch detail {
+                case .loading:
+                    ProgressView("正在读取 Exif")
+                        .frame(maxWidth: .infinity, minHeight: 120)
+                case .loaded(let metadata):
+                    IOSPhotoMetadataContent(
+                        metadata: metadata,
+                        showsChineseKeys: showsChineseKeys,
+                        highlightedMetadataKeys: highlightedMetadataKeys,
+                        visibleMetadataKeys: visibleMetadataKeys
+                    )
+                case .needsDownload(let message):
+                    IOSPhotoDownloadPrompt(
+                        message: message,
+                        isDownloading: isDownloadingOriginal,
+                        onDownload: requestOriginalDownload
+                    )
+                case .failed(let message):
+                    ContentUnavailableView(
+                        "无法读取 Exif",
+                        systemImage: "exclamationmark.triangle",
+                        description: Text(message)
+                    )
                 }
-                Button("取消", role: .cancel) { }
+            }
+            .padding()
+        }
+            .task(id: asset.id) {
+                await loadMetadata(allowNetwork: false)
             }
             .alert("需要联网下载 iCloud 原图", isPresented: $showsICloudDownloadExplanation) {
                 Button("保持离线", role: .cancel) { }
@@ -106,74 +116,13 @@ struct PhotoDetailPage: View {
             .platformTabBarHidden()
     }
 
-    private var legacyDetailLayout: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                PhotoPreview(asset: asset)
-
-                readOnlyBanner
-
-                switch detail {
-                case .loading:
-                    ProgressView("正在读取 Exif")
-                        .frame(maxWidth: .infinity, minHeight: 120)
-                case .loaded(let metadata):
-                    metadataContent(metadata)
-                case .needsDownload(let message):
-                    downloadOriginalContent(message)
-                case .failed(let message):
-                    ContentUnavailableView(
-                        "无法读取 Exif",
-                        systemImage: "exclamationmark.triangle",
-                        description: Text(message)
-                    )
-                }
+    private func requestOriginalDownload() {
+        if allowsICloudDownload {
+            Task {
+                await loadMetadata(allowNetwork: true)
             }
-            .padding()
-        }
-    }
-
-    private var readOnlyBanner: some View {
-        Label(readOnlyMode ? "只读模式已开启，不会修改照片或写入元数据" : "只读模式已关闭", systemImage: readOnlyMode ? "lock" : "lock.open")
-            .font(.callout)
-            .foregroundStyle(readOnlyMode ? .green : .orange)
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.platformSecondaryBackground, in: RoundedRectangle(cornerRadius: 8))
-    }
-
-    private func downloadOriginalContent(_ message: String) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            ContentUnavailableView(
-                "原图未在本机",
-                systemImage: "icloud.and.arrow.down",
-                description: Text(message)
-            )
-            .frame(maxWidth: .infinity, minHeight: 170)
-
-            Button {
-                if allowsICloudDownload {
-                    Task {
-                        await loadMetadata(allowNetwork: true)
-                    }
-                } else {
-                    showsICloudDownloadExplanation = true
-                }
-            } label: {
-                if isDownloadingOriginal {
-                    ProgressView()
-                        .frame(maxWidth: .infinity)
-                } else {
-                    Label("下载此照片原图并读取 Exif", systemImage: "icloud.and.arrow.down")
-                        .frame(maxWidth: .infinity)
-                }
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(isDownloadingOriginal)
-
-            Text("只会为当前照片联网下载原图缓存，不会修改照片或写入元数据。")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+        } else {
+            showsICloudDownloadExplanation = true
         }
     }
 
@@ -249,169 +198,39 @@ struct PhotoDetailPage: View {
         return error.localizedDescription
     }
 
-    private func metadataContent(_ metadata: PhotoMetadata) -> some View {
-        let filteredSections = filteredMetadataSections(from: metadata)
-        let selectedSection = selectedMetadataSection(from: filteredSections)
-        let sectionSelectionSignature = filteredSections.map(\.id).joined(separator: "|")
+}
 
-        return VStack(alignment: .leading, spacing: 18) {
-            if !filteredSections.isEmpty {
-                metadataSectionSegments(sections: filteredSections, selectedSectionID: selectedSection?.id)
-            }
+private struct IOSPhotoDownloadPrompt: View {
+    let message: String
+    let isDownloading: Bool
+    let onDownload: () -> Void
 
-            if filteredSections.isEmpty {
-                ContentUnavailableView("没有 Exif 信息", systemImage: "info.circle")
-                    .frame(maxWidth: .infinity, minHeight: 160)
-            } else if let selectedSection {
-                if let coordinate = metadata.coordinate, isGPSMetadataSection(selectedSection) {
-                    locationButton(coordinate)
-                }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ContentUnavailableView(
+                "原图未在本机",
+                systemImage: "icloud.and.arrow.down",
+                description: Text(message)
+            )
+            .frame(maxWidth: .infinity, minHeight: 170)
 
-                MetadataSectionView(
-                    section: selectedSection,
-                    showsChineseKeys: showsChineseKeys,
-                    highlightedMetadataKeys: highlightedMetadataKeys
-                )
-            }
-        }
-        .onAppear {
-            updateSelectedMetadataSection(for: filteredSections)
-        }
-        .onChange(of: sectionSelectionSignature) {
-            updateSelectedMetadataSection(for: filteredSections)
-        }
-    }
-
-    private func locationButton(_ coordinate: CLLocationCoordinate2D) -> some View {
-        Button {
-            mapCoordinate = coordinate
-            isMapChooserPresented = true
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "map")
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("地理位置")
-                        .font(.headline)
-                    Text(LocationFormatter.coordinateText(coordinate))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Image(systemName: "arrow.up.forward")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.secondary)
-            }
-            .padding(12)
-            .background(Color.platformSecondaryBackground, in: RoundedRectangle(cornerRadius: 8))
-        }
-        .buttonStyle(.plain)
-        .accessibilityHint("选择地图应用打开这个位置")
-    }
-
-    private func metadataSectionSegments(sections: [MetadataSection], selectedSectionID: String?) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(sections) { section in
-                    metadataSectionSegment(section, isSelected: section.id == selectedSectionID)
+            Button(action: onDownload) {
+                if isDownloading {
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                } else {
+                    Label("下载此照片原图并读取 Exif", systemImage: "icloud.and.arrow.down")
+                        .frame(maxWidth: .infinity)
                 }
             }
-            .padding(.vertical, 1)
-        }
-        .accessibilityLabel("参数分类")
-    }
+            .buttonStyle(.borderedProminent)
+            .disabled(isDownloading)
 
-    private func metadataSectionSegment(_ section: MetadataSection, isSelected: Bool) -> some View {
-        Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                selectedMetadataSectionID = section.id
-            }
-        } label: {
-            Text(MetadataDisplayLocalizer.sectionTitle(section, showsChinese: showsChineseKeys))
-                .font(.subheadline.weight(.semibold))
-                .lineLimit(1)
-                .padding(.vertical, 8)
-                .padding(.horizontal, 12)
-                .foregroundStyle(isSelected ? Color.white : Color.primary)
-                .background(
-                    isSelected ? Color.accentColor : Color.platformSecondaryBackground,
-                    in: RoundedRectangle(cornerRadius: 8)
-                )
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-
-    private func isGPSMetadataSection(_ section: MetadataSection) -> Bool {
-        section.id.caseInsensitiveCompare(String(kCGImagePropertyGPSDictionary)) == .orderedSame ||
-        section.title.caseInsensitiveCompare("GPS") == .orderedSame
-    }
-
-    private func selectedMetadataSection(from sections: [MetadataSection]) -> MetadataSection? {
-        guard let selectedMetadataSectionID,
-              let selectedSection = sections.first(where: { $0.id == selectedMetadataSectionID }) else {
-            return sections.first
-        }
-
-        return selectedSection
-    }
-
-    private func updateSelectedMetadataSection(for sections: [MetadataSection]) {
-        guard selectedMetadataSection(from: sections)?.id != selectedMetadataSectionID else {
-            return
-        }
-
-        selectedMetadataSectionID = sections.first?.id
-    }
-
-    private func filteredMetadataSections(from metadata: PhotoMetadata) -> [MetadataSection] {
-        let sections: [MetadataSection]
-
-        if let visibleMetadataKeys {
-            sections = metadata.sections.compactMap { section -> MetadataSection? in
-                let items = section.items.filter { visibleMetadataKeys.contains($0.key) }
-                let itemGroups = section.itemGroups.compactMap { group -> MetadataItemGroup? in
-                    let groupItems = group.items.filter { visibleMetadataKeys.contains($0.key) }
-                    guard !groupItems.isEmpty else {
-                        return nil
-                    }
-
-                    return MetadataItemGroup(id: group.id, title: group.title, items: groupItems)
-                }
-
-                guard !items.isEmpty || !itemGroups.isEmpty else {
-                    return nil
-                }
-
-                return MetadataSection(id: section.id, title: section.title, items: items, itemGroups: itemGroups)
-            }
-        } else {
-            sections = metadata.sections
-        }
-
-        return sections
-            .enumerated()
-            .sorted { lhs, rhs in
-                let lhsPriority = specialMetadataSectionPriority(for: lhs.element)
-                let rhsPriority = specialMetadataSectionPriority(for: rhs.element)
-
-                if lhsPriority != rhsPriority {
-                    return lhsPriority < rhsPriority
-                }
-
-                return lhs.offset < rhs.offset
-            }
-            .map(\.element)
-    }
-
-    private func specialMetadataSectionPriority(for section: MetadataSection) -> Int {
-        switch section.id {
-        case "fujifilm-parameters", "nikon-parameters":
-            return 0
-        default:
-            return 1
+            Text("只会为当前照片联网下载原图缓存，不会修改照片或写入元数据。")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
         }
     }
-
 }
 
 struct PhotoNavigationConfiguration {

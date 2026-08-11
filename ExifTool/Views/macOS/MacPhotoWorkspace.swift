@@ -5,8 +5,8 @@
 //  Created by Haochen on 2026/4/12.
 //
 
-import Combine
 import Foundation
+import Observation
 import SwiftUI
 #if os(macOS)
 import AppKit
@@ -21,13 +21,14 @@ extension FocusedValues {
 }
 
 @MainActor
-final class MacPhotoWorkspace: ObservableObject {
+@Observable
+final class MacPhotoWorkspace {
     private enum DefaultsKey {
         static let sortMode = "macPhotoSortMode"
         static let recentFilePaths = "macRecentFilePaths"
     }
 
-    enum SortMode: String, CaseIterable, Identifiable {
+    enum SortMode: String, CaseIterable, Equatable, Identifiable {
         case fileName
         case creationDateNewest
         case creationDateOldest
@@ -46,34 +47,38 @@ final class MacPhotoWorkspace: ObservableObject {
         }
     }
 
-    @Published private(set) var importedAssets: [PhotoAsset] = []
-    @Published var selectedAssetID: String?
-    @Published var sortMode: SortMode {
+    @ObservationIgnored private var importedAssets: [PhotoAsset] = []
+    private(set) var sortedAssets: [PhotoAsset] = []
+    var selectedAssetID: String?
+    var sortMode: SortMode {
         didSet {
             UserDefaults.standard.set(sortMode.rawValue, forKey: DefaultsKey.sortMode)
+            refreshSortedAssets()
         }
     }
+    private(set) var recentFiles: [URL]
 
     init(initialFileURLs: [URL] = []) {
         sortMode = Self.persistedSortMode
+        recentFiles = Self.persistedRecentFiles
 
         if !initialFileURLs.isEmpty {
             _ = importFiles(from: initialFileURLs)
         }
     }
 
-    var sortedAssets: [PhotoAsset] {
+    private func refreshSortedAssets() {
         switch sortMode {
         case .fileName:
-            return importedAssets.sorted {
+            sortedAssets = importedAssets.sorted {
                 ($0.displayName ?? $0.id).localizedStandardCompare($1.displayName ?? $1.id) == .orderedAscending
             }
         case .creationDateNewest:
-            return importedAssets.sorted { lhs, rhs in
+            sortedAssets = importedAssets.sorted { lhs, rhs in
                 compareDates(lhs.creationDate, rhs.creationDate, newestFirst: true, lhs: lhs, rhs: rhs)
             }
         case .creationDateOldest:
-            return importedAssets.sorted { lhs, rhs in
+            sortedAssets = importedAssets.sorted { lhs, rhs in
                 compareDates(lhs.creationDate, rhs.creationDate, newestFirst: false, lhs: lhs, rhs: rhs)
             }
         }
@@ -95,7 +100,7 @@ final class MacPhotoWorkspace: ObservableObject {
         currentAsset?.displayName ?? AppLocalization.string("mac.window.defaultTitle")
     }
 
-    var recentFiles: [URL] {
+    private static var persistedRecentFiles: [URL] {
         let storedPaths = UserDefaults.standard.stringArray(forKey: DefaultsKey.recentFilePaths) ?? []
         return storedPaths
             .map(URL.init(fileURLWithPath:))
@@ -109,6 +114,7 @@ final class MacPhotoWorkspace: ObservableObject {
         }
 
         self.importedAssets = importedAssets
+        refreshSortedAssets()
         selectedAssetID = sortedAssets.first?.id
         updateRecentFiles(with: urls)
         return true
@@ -161,11 +167,13 @@ final class MacPhotoWorkspace: ObservableObject {
 
     func clear() {
         importedAssets = []
+        sortedAssets = []
         selectedAssetID = nil
     }
 
     func clearRecentFiles() {
         UserDefaults.standard.removeObject(forKey: DefaultsKey.recentFilePaths)
+        recentFiles = []
     }
 
     func selectNextAsset() {
@@ -259,6 +267,7 @@ final class MacPhotoWorkspace: ObservableObject {
         }
 
         UserDefaults.standard.set(Array(mergedPaths.prefix(8)), forKey: DefaultsKey.recentFilePaths)
+        recentFiles = Array(mergedPaths.prefix(8)).map(URL.init(fileURLWithPath:))
     }
 }
 #endif

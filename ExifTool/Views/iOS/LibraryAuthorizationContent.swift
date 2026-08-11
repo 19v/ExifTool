@@ -10,7 +10,7 @@
 import SwiftUI
 
 struct LibraryAuthorizationContent<Content: View>: View {
-    @ObservedObject var library: PhotoLibraryViewModel
+    let library: PhotoLibraryViewModel
     let emptyTitle: LocalizedStringKey
     @ViewBuilder let content: Content
 

@@ -10,7 +10,7 @@
 import SwiftUI
 
 struct PhotoPickerTabView: View {
-    @ObservedObject var library: PhotoLibraryViewModel
+    let library: PhotoLibraryViewModel
     let readOnlyMode: Bool
     let onPresentLimitedLibraryPicker: (() -> Void)?
 

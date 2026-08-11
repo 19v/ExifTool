@@ -43,7 +43,7 @@ struct PhotoAssetGridView: View {
         ScrollView {
             LazyVGrid(columns: columns, spacing: 3) {
                 ForEach(assets) { asset in
-                    detailTrigger(for: asset)
+                    PhotoAssetGridCell(asset: asset)
                         .id(asset.id)
                         .onAppear {
                             onAssetAppear?(asset.id)
@@ -62,6 +62,13 @@ struct PhotoAssetGridView: View {
         .refreshable {
             await onRefresh?()
         }
+        .navigationDestination(for: PhotoAssetRoute.self) { route in
+            PhotoDetailView(
+                assets: assets,
+                initialAssetID: route.assetID,
+                readOnlyMode: readOnlyMode
+            )
+        }
         .overlay(alignment: .bottom) {
             if showsReadOnlyOverlay && readOnlyMode {
                 Text("只读模式已开启")
@@ -74,15 +81,17 @@ struct PhotoAssetGridView: View {
         }
     }
 
-    @ViewBuilder
-    private func detailTrigger(for asset: PhotoAsset) -> some View {
-        NavigationLink {
-            PhotoDetailView(
-                assets: assets,
-                initialAssetID: asset.id,
-                readOnlyMode: readOnlyMode
-            )
-        } label: {
+}
+
+private struct PhotoAssetRoute: Hashable {
+    let assetID: String
+}
+
+private struct PhotoAssetGridCell: View {
+    let asset: PhotoAsset
+
+    var body: some View {
+        NavigationLink(value: PhotoAssetRoute(assetID: asset.id)) {
             PhotoThumbnail(asset: asset)
         }
         .buttonStyle(.plain)

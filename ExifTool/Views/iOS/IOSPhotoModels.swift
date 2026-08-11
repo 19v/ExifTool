@@ -68,11 +68,25 @@ struct PhotoAsset: Identifiable, Hashable {
     }
 
     static func == (lhs: PhotoAsset, rhs: PhotoAsset) -> Bool {
-        lhs.id == rhs.id
+        lhs.id == rhs.id &&
+        lhs.creationDate == rhs.creationDate &&
+        lhs.modificationDate == rhs.modificationDate &&
+        lhs.pixelWidth == rhs.pixelWidth &&
+        lhs.pixelHeight == rhs.pixelHeight &&
+        lhs.location?.coordinate.latitude == rhs.location?.coordinate.latitude &&
+        lhs.location?.coordinate.longitude == rhs.location?.coordinate.longitude &&
+        lhs.displayName == rhs.displayName
     }
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
+        hasher.combine(creationDate)
+        hasher.combine(modificationDate)
+        hasher.combine(pixelWidth)
+        hasher.combine(pixelHeight)
+        hasher.combine(location?.coordinate.latitude)
+        hasher.combine(location?.coordinate.longitude)
+        hasher.combine(displayName)
     }
 
     var photoLibraryAsset: PHAsset? {
@@ -106,11 +120,15 @@ struct PhotoAlbum: Identifiable, Hashable {
     }
 
     static func == (lhs: PhotoAlbum, rhs: PhotoAlbum) -> Bool {
-        lhs.id == rhs.id
+        lhs.id == rhs.id &&
+        lhs.title == rhs.title &&
+        lhs.assetCount == rhs.assetCount
     }
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
+        hasher.combine(title)
+        hasher.combine(assetCount)
     }
 }
 

@@ -10,7 +10,7 @@
 import SwiftUI
 
 struct AlbumsTabView: View {
-    @ObservedObject var library: PhotoLibraryViewModel
+    let library: PhotoLibraryViewModel
     let readOnlyMode: Bool
 
     var body: some View {
@@ -65,7 +65,7 @@ struct AlbumDetailView: View {
     let readOnlyMode: Bool
     let showsOnlyLocalAssets: Bool
 
-    @StateObject private var pager = LocalAssetPagingViewModel()
+    @State private var pager = LocalAssetPagingViewModel()
     @State private var allAssets: [PhotoAsset] = []
 
     var body: some View {
