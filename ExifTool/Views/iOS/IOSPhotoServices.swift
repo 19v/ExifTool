@@ -46,7 +46,7 @@ enum PhotoSearchIndex {
 
 enum PhotoFileImporter {
     nonisolated static func importAssets(from urls: [URL]) -> [PhotoAsset] {
-        urls.compactMap(importAsset)
+        urls.compactMap { importAsset(from: $0) }
     }
 
     nonisolated static func importAsset(from data: Data, suggestedFileName: String? = nil, id: String = UUID().uuidString) -> PhotoAsset? {
@@ -70,7 +70,11 @@ enum PhotoFileImporter {
         return PhotoAsset(file: file)
     }
 
-    nonisolated static func importAsset(from url: URL) -> PhotoAsset? {
+    nonisolated static func importAsset(
+        from url: URL,
+        id: String? = nil,
+        suggestedFileName: String? = nil
+    ) -> PhotoAsset? {
         let fileURL = url.standardizedFileURL
         let resourceValues = try? fileURL.resourceValues(forKeys: [
             .contentTypeKey,
@@ -83,18 +87,17 @@ enum PhotoFileImporter {
             return nil
         }
 
-        guard let data = try? Data(contentsOf: fileURL),
-              let source = CGImageSourceCreateWithData(data as CFData, nil),
+        guard let source = CGImageSourceCreateWithURL(fileURL as CFURL, nil),
               CGImageSourceGetCount(source) > 0 else {
             return nil
         }
 
         let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
         let file = LocalPhotoFile(
-            id: fileURL.path(),
+            id: id ?? fileURL.path(),
             fileURL: fileURL,
-            fileName: resourceValues?.name ?? fileURL.lastPathComponent,
-            data: data,
+            fileName: suggestedFileName ?? resourceValues?.name ?? fileURL.lastPathComponent,
+            data: nil,
             creationDate: resourceValues?.creationDate,
             modificationDate: resourceValues?.contentModificationDate,
             pixelWidth: properties?[kCGImagePropertyPixelWidth] as? Int ?? 0,
@@ -102,6 +105,79 @@ enum PhotoFileImporter {
         )
 
         return PhotoAsset(file: file)
+    }
+
+    nonisolated static func importAssetCopyingToTemporaryStorage(from url: URL) -> PhotoAsset? {
+        guard let temporaryURL = try? PhotoResourceFileWriter.copyToTemporaryFile(
+            sourceURL: url,
+            directoryName: "ExifTool-Imports",
+            fileName: url.lastPathComponent
+        ) else {
+            return nil
+        }
+
+        guard let asset = importAsset(from: temporaryURL, suggestedFileName: url.lastPathComponent) else {
+            try? FileManager.default.removeItem(at: temporaryURL)
+            return nil
+        }
+        return asset
+    }
+}
+
+private enum PhotoResourceFileWriter {
+    nonisolated static func write(
+        resource: PHAssetResource,
+        allowNetwork: Bool,
+        directoryName: String,
+        fileName: String
+    ) async throws -> URL {
+        let destinationURL = try makeDestinationURL(directoryName: directoryName, fileName: fileName)
+        let options = PHAssetResourceRequestOptions()
+        options.isNetworkAccessAllowed = allowNetwork
+
+        do {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                PHAssetResourceManager.default().writeData(
+                    for: resource,
+                    toFile: destinationURL,
+                    options: options
+                ) { error in
+                    if let error {
+                        continuation.resume(throwing: error)
+                    } else {
+                        continuation.resume(returning: ())
+                    }
+                }
+            }
+            return destinationURL
+        } catch {
+            try? FileManager.default.removeItem(at: destinationURL)
+            throw error
+        }
+    }
+
+    nonisolated static func copyToTemporaryFile(
+        sourceURL: URL,
+        directoryName: String,
+        fileName: String
+    ) throws -> URL {
+        let destinationURL = try makeDestinationURL(directoryName: directoryName, fileName: fileName)
+        do {
+            try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+            return destinationURL
+        } catch {
+            try? FileManager.default.removeItem(at: destinationURL)
+            throw error
+        }
+    }
+
+    nonisolated private static func makeDestinationURL(directoryName: String, fileName: String) throws -> URL {
+        let directoryURL = FileManager.default.temporaryDirectory
+            .appending(path: directoryName, directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        let safeFileName = URL(fileURLWithPath: fileName).lastPathComponent
+        let resolvedFileName = safeFileName.isEmpty ? "Photo" : safeFileName
+        return directoryURL.appending(path: "\(UUID().uuidString)-\(resolvedFileName)")
     }
 }
 
@@ -130,18 +206,25 @@ enum PhotosPickerPhotoImporter {
     }
 
     private struct PickedPhotoFile: Transferable {
-        let data: Data
+        let fileURL: URL?
+        let data: Data?
         let suggestedFileName: String?
 
         static var transferRepresentation: some TransferRepresentation {
             FileRepresentation(importedContentType: .image) { receivedFile in
-                PickedPhotoFile(
-                    data: try Data(contentsOf: receivedFile.file),
-                    suggestedFileName: receivedFile.file.lastPathComponent
+                let fileName = receivedFile.file.lastPathComponent
+                return PickedPhotoFile(
+                    fileURL: try PhotoResourceFileWriter.copyToTemporaryFile(
+                        sourceURL: receivedFile.file,
+                        directoryName: "ExifTool-Imports",
+                        fileName: fileName
+                    ),
+                    data: nil,
+                    suggestedFileName: fileName
                 )
             }
             DataRepresentation(importedContentType: .image) { data in
-                PickedPhotoFile(data: data, suggestedFileName: nil)
+                PickedPhotoFile(fileURL: nil, data: data, suggestedFileName: nil)
             }
         }
     }
@@ -173,19 +256,6 @@ enum PhotosPickerPhotoImporter {
         let id = item.itemIdentifier ?? UUID().uuidString
         var importFailure: ImportError?
 
-        do {
-            if let asset = try await importLegacyTransferableData(
-                from: item,
-                id: id,
-                index: index,
-                progressHandler: progressHandler
-            ) {
-                return asset
-            }
-        } catch {
-            importFailure = .transferableReadFailed
-        }
-
         await progressHandler(.downloadingOriginal(progress: nil))
         do {
             if let asset = try await importOriginalResource(from: item, id: id) {
@@ -197,11 +267,27 @@ enum PhotosPickerPhotoImporter {
 
         await progressHandler(.reading)
         do {
-            if let pickedFile = try await item.loadTransferable(type: PickedPhotoFile.self),
-               let asset = PhotoFileImporter.importAsset(
-                   from: pickedFile.data,
-                   suggestedFileName: pickedFile.suggestedFileName ?? suggestedFileName(for: item, index: index),
-                   id: id
+            if let pickedFile = try await item.loadTransferable(type: PickedPhotoFile.self) {
+                let fileName = pickedFile.suggestedFileName ?? suggestedFileName(for: item, index: index)
+                if let fileURL = pickedFile.fileURL,
+                   let asset = PhotoFileImporter.importAsset(from: fileURL, id: id, suggestedFileName: fileName) {
+                    return asset
+                }
+                if let data = pickedFile.data,
+                   let asset = PhotoFileImporter.importAsset(from: data, suggestedFileName: fileName, id: id) {
+                    return asset
+                }
+            }
+        } catch {
+            importFailure = importFailure ?? .transferableReadFailed
+        }
+
+        do {
+            if let asset = try await importLegacyTransferableData(
+                from: item,
+                id: id,
+                index: index,
+                progressHandler: progressHandler
             ) {
                 return asset
             }
@@ -278,12 +364,21 @@ enum PhotosPickerPhotoImporter {
         }
 
         do {
-            let data = try await resourceData(for: resource)
-            return PhotoFileImporter.importAsset(
-                from: data,
-                suggestedFileName: resource.originalFilename,
-                id: id
+            let fileURL = try await PhotoResourceFileWriter.write(
+                resource: resource,
+                allowNetwork: true,
+                directoryName: "ExifTool-Imports",
+                fileName: resource.originalFilename
             )
+            guard let asset = PhotoFileImporter.importAsset(
+                from: fileURL,
+                id: id,
+                suggestedFileName: resource.originalFilename
+            ) else {
+                try? FileManager.default.removeItem(at: fileURL)
+                throw ImportError.unreadableImage
+            }
+            return asset
         } catch {
             throw ImportError.originalResourceUnavailable
         }
@@ -314,29 +409,6 @@ enum PhotosPickerPhotoImporter {
         return rawImageType.map { type.conforms(to: $0) } ?? false
     }
 
-    private nonisolated static func resourceData(for resource: PHAssetResource) async throws -> Data {
-        try await withCheckedThrowingContinuation { continuation in
-            var result = Data()
-            let options = PHAssetResourceRequestOptions()
-            options.isNetworkAccessAllowed = true
-
-            PHAssetResourceManager.default().requestData(
-                for: resource,
-                options: options,
-                dataReceivedHandler: { data in
-                    result.append(data)
-                },
-                completionHandler: { error in
-                    if let error {
-                        continuation.resume(throwing: error)
-                    } else {
-                        continuation.resume(returning: result)
-                    }
-                }
-            )
-        }
-    }
-
     private nonisolated static func suggestedFileName(for item: PhotosPickerItem, index: Int) -> String {
         let baseFileName = "\(AppLocalization.string("photoFileImporter.pickedImage")) \(index + 1)"
         return item.supportedContentTypes.first?.preferredFilenameExtension.map {
@@ -352,7 +424,7 @@ enum PhotoLoader {
         case .photoLibrary(let photoLibraryAsset):
             return await thumbnail(for: photoLibraryAsset, size: size)
         case .file(let file):
-            return thumbnail(from: file.data, maxPixelLength: max(size.width, size.height))
+            return thumbnail(from: file, maxPixelLength: max(size.width, size.height))
         }
     }
 
@@ -361,7 +433,7 @@ enum PhotoLoader {
         case .photoLibrary(let photoLibraryAsset):
             return await previewImage(for: photoLibraryAsset, size: size)
         case .file(let file):
-            return thumbnail(from: file.data, maxPixelLength: max(size.width, size.height))
+            return thumbnail(from: file, maxPixelLength: max(size.width, size.height))
         }
     }
 
@@ -370,7 +442,13 @@ enum PhotoLoader {
         case .photoLibrary(let photoLibraryAsset):
             return await metadata(for: photoLibraryAsset, allowNetwork: allowNetwork)
         case .file(let file):
-            return .loaded(MetadataParser.parse(data: file.data, fallbackLocation: nil))
+            if FileManager.default.fileExists(atPath: file.fileURL.path) {
+                return .loaded(MetadataParser.parse(url: file.fileURL, fallbackLocation: nil))
+            }
+            guard let data = file.data else {
+                return .failed(AppLocalization.string("photoLoader.missingReadableResource"))
+            }
+            return .loaded(MetadataParser.parse(data: data, fallbackLocation: nil))
         }
     }
 
@@ -381,20 +459,26 @@ enum PhotoLoader {
                 throw PhotoLoaderError.missingPhotoResource
             }
 
-            let data = try await resourceData(for: resource, allowNetwork: allowNetwork)
-            return try temporaryShareFileURL(
-                fileName: resource.originalFilename,
-                data: data,
-                uniformTypeIdentifier: resource.uniformTypeIdentifier
+            return try await PhotoResourceFileWriter.write(
+                resource: resource,
+                allowNetwork: allowNetwork,
+                directoryName: "ExifTool-Share",
+                fileName: sanitizedFileName(
+                    resource.originalFilename,
+                    uniformTypeIdentifier: resource.uniformTypeIdentifier
+                )
             )
         case .file(let file):
             if FileManager.default.fileExists(atPath: file.fileURL.path) {
                 return file.fileURL
             }
 
+            guard let data = file.data else {
+                throw PhotoLoaderError.missingPhotoResource
+            }
             return try temporaryShareFileURL(
                 fileName: file.fileName,
-                data: file.data,
+                data: data,
                 uniformTypeIdentifier: nil
             )
         }
@@ -466,8 +550,14 @@ enum PhotoLoader {
     private static func metadata(for asset: PHAsset, allowNetwork: Bool) async -> PhotoDetailState {
         if let resource = imageResource(for: asset) {
             do {
-                let data = try await resourceData(for: resource, allowNetwork: allowNetwork)
-                return .loaded(MetadataParser.parse(data: data, fallbackLocation: asset.location))
+                let fileURL = try await PhotoResourceFileWriter.write(
+                    resource: resource,
+                    allowNetwork: allowNetwork,
+                    directoryName: "ExifTool-Metadata",
+                    fileName: resource.originalFilename
+                )
+                defer { try? FileManager.default.removeItem(at: fileURL) }
+                return .loaded(MetadataParser.parse(url: fileURL, fallbackLocation: asset.location))
             } catch {
                 if let fallback = await imageManagerData(for: asset, allowNetwork: allowNetwork) {
                     return .loaded(MetadataParser.parse(data: fallback, fallbackLocation: asset.location))
@@ -492,14 +582,23 @@ enum PhotoLoader {
         return .failed(AppLocalization.string("photoLoader.missingReadableResource"))
     }
 
-    private static func thumbnail(from data: Data, maxPixelLength: CGFloat) -> PlatformImage? {
+    private static func thumbnail(from file: LocalPhotoFile, maxPixelLength: CGFloat) -> PlatformImage? {
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceCreateThumbnailWithTransform: true,
             kCGImageSourceThumbnailMaxPixelSize: max(1, Int(ceil(maxPixelLength)))
         ]
 
-        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+        let source: CGImageSource?
+        if FileManager.default.fileExists(atPath: file.fileURL.path) {
+            source = CGImageSourceCreateWithURL(file.fileURL as CFURL, nil)
+        } else if let data = file.data {
+            source = CGImageSourceCreateWithData(data as CFData, nil)
+        } else {
+            source = nil
+        }
+
+        guard let source,
               let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
             return nil
         }
@@ -520,29 +619,6 @@ enum PhotoLoader {
         return resources.first
     }
 
-    private static func resourceData(for resource: PHAssetResource, allowNetwork: Bool) async throws -> Data {
-        try await withCheckedThrowingContinuation { continuation in
-            var result = Data()
-            let options = PHAssetResourceRequestOptions()
-            options.isNetworkAccessAllowed = allowNetwork
-
-            PHAssetResourceManager.default().requestData(
-                for: resource,
-                options: options,
-                dataReceivedHandler: { data in
-                    result.append(data)
-                },
-                completionHandler: { error in
-                    if let error {
-                        continuation.resume(throwing: error)
-                    } else {
-                        continuation.resume(returning: result)
-                    }
-                }
-            )
-        }
-    }
-
     private static func imageManagerData(for asset: PHAsset, allowNetwork: Bool) async -> Data? {
         await withCheckedContinuation { continuation in
             let options = PHImageRequestOptions()
@@ -558,7 +634,22 @@ enum PhotoLoader {
     }
 
     private static func hasLocalOriginalData(for asset: PHAsset) async -> Bool {
-        await imageManagerData(for: asset, allowNetwork: false) != nil
+        guard let resource = imageResource(for: asset) else {
+            return false
+        }
+
+        return await withCheckedContinuation { continuation in
+            let options = PHAssetResourceRequestOptions()
+            options.isNetworkAccessAllowed = false
+            PHAssetResourceManager.default().requestData(
+                for: resource,
+                options: options,
+                dataReceivedHandler: { _ in },
+                completionHandler: { error in
+                    continuation.resume(returning: error == nil)
+                }
+            )
+        }
     }
 
     private static func temporaryShareFileURL(fileName: String, data: Data, uniformTypeIdentifier: String?) throws -> URL {
@@ -638,6 +729,3 @@ enum MapDestination {
 }
 
 #endif
-
-
-

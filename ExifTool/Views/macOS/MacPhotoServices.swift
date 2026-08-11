@@ -26,8 +26,7 @@ enum PhotoFileImporter {
             return nil
         }
 
-        guard let data = try? Data(contentsOf: fileURL),
-              let source = CGImageSourceCreateWithData(data as CFData, nil),
+        guard let source = CGImageSourceCreateWithURL(fileURL as CFURL, nil),
               CGImageSourceGetCount(source) > 0 else {
             return nil
         }
@@ -37,7 +36,7 @@ enum PhotoFileImporter {
             id: fileURL.path(),
             fileURL: fileURL,
             fileName: resourceValues?.name ?? fileURL.lastPathComponent,
-            data: data,
+            data: nil,
             creationDate: resourceValues?.creationDate,
             modificationDate: resourceValues?.contentModificationDate,
             pixelWidth: properties?[kCGImagePropertyPixelWidth] as? Int ?? 0,
@@ -50,29 +49,29 @@ enum PhotoFileImporter {
 
 enum PhotoLoader {
     static func thumbnail(for asset: PhotoAsset, size: CGSize) async -> PlatformImage? {
-        thumbnail(from: asset.localFile.data, maxPixelLength: max(size.width, size.height))
+        thumbnail(from: asset.localFile, maxPixelLength: max(size.width, size.height))
     }
 
     static func previewImage(for asset: PhotoAsset, size: CGSize) async -> PlatformImage? {
-        thumbnail(from: asset.localFile.data, maxPixelLength: max(size.width, size.height))
+        thumbnail(from: asset.localFile, maxPixelLength: max(size.width, size.height))
     }
 
     static func metadata(for asset: PhotoAsset, allowNetwork: Bool) async -> PhotoDetailState {
-        .loaded(MetadataParser.parse(data: asset.localFile.data, fallbackLocation: nil))
+        .loaded(MetadataParser.parse(url: asset.localFile.fileURL, fallbackLocation: nil))
     }
 
     static func shareablePhotoURL(for asset: PhotoAsset, allowNetwork: Bool) async throws -> URL {
         asset.localFile.fileURL
     }
 
-    private static func thumbnail(from data: Data, maxPixelLength: CGFloat) -> PlatformImage? {
+    private static func thumbnail(from file: LocalPhotoFile, maxPixelLength: CGFloat) -> PlatformImage? {
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceCreateThumbnailWithTransform: true,
             kCGImageSourceThumbnailMaxPixelSize: max(1, Int(ceil(maxPixelLength)))
         ]
 
-        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+        guard let source = CGImageSourceCreateWithURL(file.fileURL as CFURL, nil),
               let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
             return nil
         }

@@ -223,7 +223,7 @@ struct IOSRootView: View {
             }
         }
 
-        guard let asset = PhotoFileImporter.importAsset(from: url) else {
+        guard let asset = PhotoFileImporter.importAssetCopyingToTemporaryStorage(from: url) else {
             selectedTab = fallbackTabAfterSharedPhotoDismissal
             return
         }

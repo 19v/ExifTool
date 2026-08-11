@@ -23,7 +23,7 @@ struct LocalPhotoFile {
     let id: String
     let fileURL: URL
     let fileName: String
-    let data: Data
+    let data: Data?
     let creationDate: Date?
     let modificationDate: Date?
     let pixelWidth: Int

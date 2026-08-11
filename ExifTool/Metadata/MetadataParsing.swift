@@ -10,6 +10,14 @@ import Foundation
 import ImageIO
 
 enum MetadataParser {
+    static func parse(url: URL, fallbackLocation: CLLocation?) -> PhotoMetadata {
+        guard let data = try? Data(contentsOf: url, options: .mappedIfSafe) else {
+            return PhotoMetadata(sections: [], coordinate: fallbackLocation?.coordinate)
+        }
+
+        return parse(data: data, fallbackLocation: fallbackLocation)
+    }
+
     static func parse(data: Data, fallbackLocation: CLLocation?) -> PhotoMetadata {
         guard
             let source = CGImageSourceCreateWithData(data as CFData, nil),
