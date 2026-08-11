@@ -27,6 +27,8 @@ final class ShareViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
+        cleanupStaleSharedFiles()
+
         view.backgroundColor = .systemBackground
 
         progressView.translatesAutoresizingMaskIntoConstraints = false
@@ -166,6 +168,29 @@ final class ShareViewController: UIViewController {
     private func sharedFileName(fileExtension: String?) -> String {
         let suffix = fileExtension.flatMap { $0.isEmpty ? nil : $0 } ?? "jpg"
         return "\(UUID().uuidString).\(suffix)"
+    }
+
+    private func cleanupStaleSharedFiles(olderThan maximumAge: TimeInterval = 24 * 60 * 60) {
+        guard let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: Constants.appGroupIdentifier) else {
+            return
+        }
+
+        let directoryURL = containerURL.appending(path: Constants.sharedDirectoryName, directoryHint: .isDirectory)
+        guard let fileURLs = try? FileManager.default.contentsOfDirectory(
+            at: directoryURL,
+            includingPropertiesForKeys: [.contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return
+        }
+
+        let cutoffDate = Date().addingTimeInterval(-maximumAge)
+        for fileURL in fileURLs {
+            let modificationDate = try? fileURL.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
+            if modificationDate.map({ $0 < cutoffDate }) ?? true {
+                try? FileManager.default.removeItem(at: fileURL)
+            }
+        }
     }
 
     private func prepareToOpenContainingApp(with fileName: String) {

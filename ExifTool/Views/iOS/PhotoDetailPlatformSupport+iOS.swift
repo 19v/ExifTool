@@ -69,19 +69,49 @@ struct PhotoDetailPlatformToolbar: ToolbarContent {
 extension View {
     func photoDetailActivityShareSheet(item: Binding<ActivityShareItem?>) -> some View {
         sheet(item: item) { shareItem in
-            ActivityView(activityItems: shareItem.items)
+            ActivityView(activityItems: shareItem.items, cleanupURL: shareItem.cleanupURL)
         }
     }
 }
 
 private struct ActivityView: UIViewControllerRepresentable {
     let activityItems: [Any]
+    let cleanupURL: URL?
+
+    final class Coordinator {
+        private let cleanupURL: URL?
+        private var hasCleanedUp = false
+
+        init(cleanupURL: URL?) {
+            self.cleanupURL = cleanupURL
+        }
+
+        func cleanup() {
+            guard !hasCleanedUp, let cleanupURL else {
+                return
+            }
+            hasCleanedUp = true
+            PhotoTemporaryFileStore.removeIfManaged(cleanupURL)
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(cleanupURL: cleanupURL)
+    }
 
     func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+        let controller = UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+        controller.completionWithItemsHandler = { _, _, _, _ in
+            context.coordinator.cleanup()
+        }
+        return controller
     }
 
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) { }
+
+    static func dismantleUIViewController(_ uiViewController: UIActivityViewController, coordinator: Coordinator) {
+        coordinator.cleanup()
+    }
 }
 
 #endif

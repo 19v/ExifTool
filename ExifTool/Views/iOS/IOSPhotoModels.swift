@@ -82,6 +82,14 @@ struct PhotoAsset: Identifiable, Hashable {
 
         return asset
     }
+
+    var localFile: LocalPhotoFile? {
+        guard case .file(let file) = source else {
+            return nil
+        }
+
+        return file
+    }
 }
 
 struct PhotoAlbum: Identifiable, Hashable {

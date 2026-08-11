@@ -110,7 +110,7 @@ enum PhotoFileImporter {
     nonisolated static func importAssetCopyingToTemporaryStorage(from url: URL) -> PhotoAsset? {
         guard let temporaryURL = try? PhotoResourceFileWriter.copyToTemporaryFile(
             sourceURL: url,
-            directoryName: "ExifTool-Imports",
+            directoryName: PhotoTemporaryFileStore.importsDirectoryName,
             fileName: url.lastPathComponent
         ) else {
             return nil
@@ -121,6 +121,59 @@ enum PhotoFileImporter {
             return nil
         }
         return asset
+    }
+}
+
+enum PhotoTemporaryFileStore {
+    nonisolated static let importsDirectoryName = "ExifTool-Imports"
+    nonisolated static let metadataDirectoryName = "ExifTool-Metadata"
+    nonisolated static let shareDirectoryName = "ExifTool-Share"
+    nonisolated private static let managedDirectoryNames = [
+        importsDirectoryName,
+        metadataDirectoryName,
+        shareDirectoryName
+    ]
+
+    nonisolated static func cleanupStaleFiles(olderThan maximumAge: TimeInterval = 24 * 60 * 60) {
+        let fileManager = FileManager.default
+        let cutoffDate = Date().addingTimeInterval(-maximumAge)
+
+        for directoryName in managedDirectoryNames {
+            let directoryURL = managedDirectoryURL(named: directoryName)
+            guard let fileURLs = try? fileManager.contentsOfDirectory(
+                at: directoryURL,
+                includingPropertiesForKeys: [.contentModificationDateKey],
+                options: [.skipsHiddenFiles]
+            ) else {
+                continue
+            }
+
+            for fileURL in fileURLs {
+                let modificationDate = try? fileURL.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
+                if modificationDate.map({ $0 < cutoffDate }) ?? true {
+                    try? fileManager.removeItem(at: fileURL)
+                }
+            }
+        }
+    }
+
+    nonisolated static func removeIfManaged(_ fileURL: URL) {
+        guard managedDirectoryNames.contains(where: { contains(fileURL, in: $0) }) else {
+            return
+        }
+        try? FileManager.default.removeItem(at: fileURL)
+    }
+
+    nonisolated static func isShareFile(_ fileURL: URL) -> Bool {
+        contains(fileURL, in: shareDirectoryName)
+    }
+
+    nonisolated private static func contains(_ fileURL: URL, in directoryName: String) -> Bool {
+        fileURL.standardizedFileURL.deletingLastPathComponent() == managedDirectoryURL(named: directoryName).standardizedFileURL
+    }
+
+    nonisolated private static func managedDirectoryURL(named directoryName: String) -> URL {
+        FileManager.default.temporaryDirectory.appending(path: directoryName, directoryHint: .isDirectory)
     }
 }
 
@@ -216,7 +269,7 @@ enum PhotosPickerPhotoImporter {
                 return PickedPhotoFile(
                     fileURL: try PhotoResourceFileWriter.copyToTemporaryFile(
                         sourceURL: receivedFile.file,
-                        directoryName: "ExifTool-Imports",
+                        directoryName: PhotoTemporaryFileStore.importsDirectoryName,
                         fileName: fileName
                     ),
                     data: nil,
@@ -269,9 +322,11 @@ enum PhotosPickerPhotoImporter {
         do {
             if let pickedFile = try await item.loadTransferable(type: PickedPhotoFile.self) {
                 let fileName = pickedFile.suggestedFileName ?? suggestedFileName(for: item, index: index)
-                if let fileURL = pickedFile.fileURL,
-                   let asset = PhotoFileImporter.importAsset(from: fileURL, id: id, suggestedFileName: fileName) {
-                    return asset
+                if let fileURL = pickedFile.fileURL {
+                    if let asset = PhotoFileImporter.importAsset(from: fileURL, id: id, suggestedFileName: fileName) {
+                        return asset
+                    }
+                    PhotoTemporaryFileStore.removeIfManaged(fileURL)
                 }
                 if let data = pickedFile.data,
                    let asset = PhotoFileImporter.importAsset(from: data, suggestedFileName: fileName, id: id) {
@@ -367,7 +422,7 @@ enum PhotosPickerPhotoImporter {
             let fileURL = try await PhotoResourceFileWriter.write(
                 resource: resource,
                 allowNetwork: true,
-                directoryName: "ExifTool-Imports",
+                directoryName: PhotoTemporaryFileStore.importsDirectoryName,
                 fileName: resource.originalFilename
             )
             guard let asset = PhotoFileImporter.importAsset(
@@ -462,7 +517,7 @@ enum PhotoLoader {
             return try await PhotoResourceFileWriter.write(
                 resource: resource,
                 allowNetwork: allowNetwork,
-                directoryName: "ExifTool-Share",
+                directoryName: PhotoTemporaryFileStore.shareDirectoryName,
                 fileName: sanitizedFileName(
                     resource.originalFilename,
                     uniformTypeIdentifier: resource.uniformTypeIdentifier
@@ -553,7 +608,7 @@ enum PhotoLoader {
                 let fileURL = try await PhotoResourceFileWriter.write(
                     resource: resource,
                     allowNetwork: allowNetwork,
-                    directoryName: "ExifTool-Metadata",
+                    directoryName: PhotoTemporaryFileStore.metadataDirectoryName,
                     fileName: resource.originalFilename
                 )
                 defer { try? FileManager.default.removeItem(at: fileURL) }

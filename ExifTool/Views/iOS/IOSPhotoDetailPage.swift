@@ -214,7 +214,10 @@ struct PhotoDetailPage: View {
         Task {
             do {
                 let url = try await PhotoLoader.shareablePhotoURL(for: asset, allowNetwork: allowsICloudDownload)
-                activityShareItem = ActivityShareItem(items: [url])
+                activityShareItem = ActivityShareItem(
+                    items: [url],
+                    cleanupURL: PhotoTemporaryFileStore.isShareFile(url) ? url : nil
+                )
             } catch {
                 shareErrorMessage = photoShareErrorMessage(for: error)
             }
@@ -421,6 +424,12 @@ struct PhotoNavigationConfiguration {
 struct ActivityShareItem: Identifiable {
     let id = UUID()
     let items: [Any]
+    let cleanupURL: URL?
+
+    init(items: [Any], cleanupURL: URL? = nil) {
+        self.items = items
+        self.cleanupURL = cleanupURL
+    }
 }
 
 private enum MetadataShareFormatter {
@@ -498,5 +507,3 @@ private enum MetadataShareFormatter {
 }
 
 #endif
-
-

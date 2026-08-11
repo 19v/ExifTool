@@ -15,6 +15,7 @@ struct IOSRootView: View {
     @StateObject private var library = PhotoLibraryViewModel()
     @State private var selectedTab = AppTab.picker
     @State private var sharedPhotoAsset: PhotoAsset?
+    @State private var presentedFileURLToCleanup: URL?
     @State private var isRequestingLibraryAccess = false
     @AppStorage("readOnlyMode") private var readOnlyMode = true
     @AppStorage("allowsICloudDownload") private var allowsICloudDownload = false
@@ -62,12 +63,14 @@ struct IOSRootView: View {
             }
         }
         .task {
+            PhotoTemporaryFileStore.cleanupStaleFiles()
+            SharedPhotoImport.cleanupStaleFiles()
             await library.prepare(showingOnlyLocalAssets: showsOnlyLocalPhotos)
         }
         .onOpenURL { url in
             openIncomingPhoto(from: url)
         }
-        .sheet(item: $sharedPhotoAsset) { asset in
+        .sheet(item: $sharedPhotoAsset, onDismiss: cleanupPresentedFile) { asset in
             NavigationStack {
                 PhotoDetailView(
                     assets: [asset],
@@ -229,6 +232,7 @@ struct IOSRootView: View {
         }
 
         selectedTab = fallbackTabAfterSharedPhotoDismissal
+        presentedFileURLToCleanup = asset.localFile?.fileURL
         sharedPhotoAsset = asset
     }
 
@@ -241,7 +245,18 @@ struct IOSRootView: View {
         }
 
         selectedTab = fallbackTabAfterSharedPhotoDismissal
+        presentedFileURLToCleanup = fileURL
         sharedPhotoAsset = asset
+    }
+
+    private func cleanupPresentedFile() {
+        guard let presentedFileURLToCleanup else {
+            return
+        }
+
+        PhotoTemporaryFileStore.removeIfManaged(presentedFileURLToCleanup)
+        SharedPhotoImport.removeSharedFile(at: presentedFileURLToCleanup)
+        self.presentedFileURLToCleanup = nil
     }
 
     private var fallbackTabAfterSharedPhotoDismissal: AppTab {

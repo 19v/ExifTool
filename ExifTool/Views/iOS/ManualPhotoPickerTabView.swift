@@ -12,6 +12,7 @@ struct ManualPhotoPickerTabView: View {
     private var hasShownInitialPhotoLibraryAuthorizationCTA = false
     @State private var selectedItems: [PhotosPickerItem] = []
     @State private var selectedAssetForDetail: PhotoAsset?
+    @State private var temporaryFileURLToCleanup: URL?
     @State private var showsImportingDialog = false
     @State private var importProgressTitle = AppLocalization.string("manualPicker.readingImage")
     @State private var importProgressFraction: Double?
@@ -23,7 +24,7 @@ struct ManualPhotoPickerTabView: View {
             emptyState
                 .navigationTitle("选图")
         }
-        .sheet(item: $selectedAssetForDetail) { asset in
+        .sheet(item: $selectedAssetForDetail, onDismiss: cleanupPresentedTemporaryFile) { asset in
             NavigationStack {
                 PhotoDetailView(
                     assets: [asset],
@@ -189,10 +190,18 @@ struct ManualPhotoPickerTabView: View {
         }
 
         if let firstAsset = assets.first {
+            temporaryFileURLToCleanup = firstAsset.localFile?.fileURL
             selectedAssetForDetail = firstAsset
         } else if importErrorMessage == nil {
             importErrorMessage = AppLocalization.string("manualPicker.noReadableImages")
         }
+    }
+
+    private func cleanupPresentedTemporaryFile() {
+        if let temporaryFileURLToCleanup {
+            PhotoTemporaryFileStore.removeIfManaged(temporaryFileURLToCleanup)
+        }
+        temporaryFileURLToCleanup = nil
     }
 }
 
