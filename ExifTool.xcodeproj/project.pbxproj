@@ -6,6 +6,34 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		05C6800F2F91A0000020F602 /* ExifToolShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 05C680022F91A0000020F602 /* ExifToolShareExtension.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		05C680112F91A0000020F602 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 05C67FD92F8F69DD0020F602 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 05C680052F91A0000020F602;
+			remoteInfo = ExifToolShareExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		05C680102F91A0000020F602 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				05C6800F2F91A0000020F602 /* ExifToolShareExtension.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		05C67FE12F8F69DD0020F602 /* ExifTool.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ExifTool.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		05C680022F91A0000020F602 /* ExifToolShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ExifToolShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -70,10 +98,12 @@
 				05C67FDD2F8F69DD0020F602 /* Sources */,
 				05C67FDE2F8F69DD0020F602 /* Frameworks */,
 				05C67FDF2F8F69DD0020F602 /* Resources */,
+				05C680102F91A0000020F602 /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				05C680122F91A0000020F602 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				05C67FE32F8F69DD0020F602 /* ExifTool */,
@@ -179,6 +209,15 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		05C680122F91A0000020F602 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			platformFilter = ios;
+			target = 05C680052F91A0000020F602 /* ExifToolShareExtension */;
+			targetProxy = 05C680112F91A0000020F602 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		05C67FEA2F8F69DF0020F602 /* Debug */ = {
@@ -334,7 +373,7 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.4;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.demo.ExifTool;
+				PRODUCT_BUNDLE_IDENTIFIER = com.echopie.ExifTool;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
@@ -388,7 +427,7 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.4;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.demo.ExifTool;
+				PRODUCT_BUNDLE_IDENTIFIER = com.echopie.ExifTool;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
@@ -420,7 +459,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.demo.ExifTool.ShareExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = com.echopie.ExifTool.ShareExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -451,7 +490,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.demo.ExifTool.ShareExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = com.echopie.ExifTool.ShareExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;

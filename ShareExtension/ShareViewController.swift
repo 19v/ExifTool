@@ -10,7 +10,7 @@ import UniformTypeIdentifiers
 
 final class ShareViewController: UIViewController {
     private enum Constants {
-        static let appGroupIdentifier = "group.com.demo.ExifTool"
+        static let appGroupIdentifier = "group.com.echopie.ExifTool"
         static let sharedDirectoryName = "SharedPhotos"
         static let urlScheme = "exiftool"
         static let urlHost = "shared-photo"
