@@ -11,6 +11,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		05C682072F92A1000020F602 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 05C67FD92F8F69DD0020F602 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 05C67FE02F8F69DD0020F602;
+			remoteInfo = ExifTool;
+		};
 		05C681072F91A1000020F602 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 05C67FD92F8F69DD0020F602 /* Project object */;
@@ -45,6 +52,7 @@
 		05C67FE12F8F69DD0020F602 /* ExifTool.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ExifTool.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		05C680022F91A0000020F602 /* ExifToolShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ExifToolShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		05C681012F91A1000020F602 /* ExifToolTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ExifToolTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		05C682012F92A1000020F602 /* ExifToolIOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ExifToolIOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -61,6 +69,11 @@
 		05C681022F91A1000020F602 /* ExifToolTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = ExifToolTests;
+			sourceTree = "<group>";
+		};
+		05C682022F92A1000020F602 /* ExifToolIOSTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ExifToolIOSTests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -87,6 +100,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		05C682052F92A1000020F602 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -96,6 +116,7 @@
 				05C67FE32F8F69DD0020F602 /* ExifTool */,
 				05C680012F91A0000020F602 /* ShareExtension */,
 				05C681022F91A1000020F602 /* ExifToolTests */,
+				05C682022F92A1000020F602 /* ExifToolIOSTests */,
 				05C67FE22F8F69DD0020F602 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -106,6 +127,7 @@
 				05C67FE12F8F69DD0020F602 /* ExifTool.app */,
 				05C680022F91A0000020F602 /* ExifToolShareExtension.appex */,
 				05C681012F91A1000020F602 /* ExifToolTests.xctest */,
+				05C682012F92A1000020F602 /* ExifToolIOSTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -182,6 +204,29 @@
 			productReference = 05C681012F91A1000020F602 /* ExifToolTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		05C682032F92A1000020F602 /* ExifToolIOSTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 05C6820B2F92A1000020F602 /* Build configuration list for PBXNativeTarget "ExifToolIOSTests" */;
+			buildPhases = (
+				05C682042F92A1000020F602 /* Sources */,
+				05C682052F92A1000020F602 /* Frameworks */,
+				05C682062F92A1000020F602 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				05C682082F92A1000020F602 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				05C682022F92A1000020F602 /* ExifToolIOSTests */,
+			);
+			name = ExifToolIOSTests;
+			packageProductDependencies = (
+			);
+			productName = ExifToolIOSTests;
+			productReference = 05C682012F92A1000020F602 /* ExifToolIOSTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -199,6 +244,10 @@
 						CreatedOnToolsVersion = 26.4;
 					};
 					05C681032F91A1000020F602 = {
+						CreatedOnToolsVersion = 26.4;
+						TestTargetID = 05C67FE02F8F69DD0020F602;
+					};
+					05C682032F92A1000020F602 = {
 						CreatedOnToolsVersion = 26.4;
 						TestTargetID = 05C67FE02F8F69DD0020F602;
 					};
@@ -222,6 +271,7 @@
 				05C67FE02F8F69DD0020F602 /* ExifTool */,
 				05C680052F91A0000020F602 /* ExifToolShareExtension */,
 				05C681032F91A1000020F602 /* ExifToolTests */,
+				05C682032F92A1000020F602 /* ExifToolIOSTests */,
 			);
 		};
 /* End PBXProject section */
@@ -242,6 +292,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		05C681062F91A1000020F602 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		05C682062F92A1000020F602 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -272,6 +329,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		05C682042F92A1000020F602 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -279,6 +343,11 @@
 			isa = PBXTargetDependency;
 			target = 05C67FE02F8F69DD0020F602 /* ExifTool */;
 			targetProxy = 05C681072F91A1000020F602 /* PBXContainerItemProxy */;
+		};
+		05C682082F92A1000020F602 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 05C67FE02F8F69DD0020F602 /* ExifTool */;
+			targetProxy = 05C682072F92A1000020F602 /* PBXContainerItemProxy */;
 		};
 		05C680122F91A0000020F602 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -622,6 +691,52 @@
 			};
 			name = Release;
 		};
+		05C682092F92A1000020F602 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 578JV98PW6;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.echopie.ExifToolIOSTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ExifTool.app/ExifTool";
+				TEST_TARGET_NAME = ExifTool;
+			};
+			name = Debug;
+		};
+		05C6820A2F92A1000020F602 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 578JV98PW6;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.echopie.ExifToolIOSTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ExifTool.app/ExifTool";
+				TEST_TARGET_NAME = ExifTool;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -657,6 +772,15 @@
 			buildConfigurations = (
 				05C681092F91A1000020F602 /* Debug */,
 				05C6810A2F91A1000020F602 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		05C6820B2F92A1000020F602 /* Build configuration list for PBXNativeTarget "ExifToolIOSTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				05C682092F92A1000020F602 /* Debug */,
+				05C6820A2F92A1000020F602 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

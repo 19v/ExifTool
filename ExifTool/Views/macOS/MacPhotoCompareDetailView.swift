@@ -142,10 +142,16 @@ struct MacPhotoCompareDetailView: View {
             return
         }
 
-        comparisonSnapshot = MacPhotoComparisonSnapshot(
-            leftMetadata: leftMetadata,
-            rightMetadata: rightMetadata
-        )
+        let snapshot = await MediaProcessing.run {
+            MacPhotoComparisonSnapshot(
+                leftMetadata: leftMetadata,
+                rightMetadata: rightMetadata
+            )
+        }
+        guard !Task.isCancelled, requestID == comparisonRequestID else {
+            return
+        }
+        comparisonSnapshot = snapshot
     }
 
     private func copyComparisonReport() {
@@ -221,16 +227,16 @@ struct MacPhotoCompareDetailView: View {
         let sections = comparisonSnapshot.sections(showingOnlyDifferences: showsOnlyDifferences)
 
         var lines: [String] = [
-            "# 照片对比结果",
+            "# \(AppLocalization.string("mac.comparison.report.title"))",
             "",
-            "- 左侧：\(leftName)",
-            "- 右侧：\(rightName)",
-            "- 差异字段数：\(comparisonSnapshot.differingMetadataKeys.count)",
+            "- \(AppLocalization.string("mac.comparison.report.left")): \(leftName)",
+            "- \(AppLocalization.string("mac.comparison.report.right")): \(rightName)",
+            "- \(AppLocalization.string("mac.comparison.report.differenceCount")): \(comparisonSnapshot.differingMetadataKeys.count)",
             ""
         ]
 
         if !comparisonSnapshot.differenceSummaryItems.isEmpty {
-            lines.append("## 差异摘要")
+            lines.append("## \(AppLocalization.string("mac.comparison.report.summary"))")
             lines.append("")
             for item in comparisonSnapshot.differenceSummaryItems {
                 lines.append("- \(item.label): \(item.leftValue) -> \(item.rightValue)")
@@ -243,10 +249,12 @@ struct MacPhotoCompareDetailView: View {
             lines.append("")
 
             for row in section.rows {
-                let marker = row.isDifferent ? "不同" : "相同"
+                let marker = AppLocalization.string(
+                    row.isDifferent ? "mac.comparison.report.different" : "mac.comparison.report.same"
+                )
                 lines.append("- \(row.label) [\(marker)]")
-                lines.append("  左侧：\(row.leftValue)")
-                lines.append("  右侧：\(row.rightValue)")
+                lines.append("  \(AppLocalization.string("mac.comparison.report.left")): \(row.leftValue)")
+                lines.append("  \(AppLocalization.string("mac.comparison.report.right")): \(row.rightValue)")
             }
 
             lines.append("")

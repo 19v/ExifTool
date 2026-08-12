@@ -14,7 +14,15 @@ struct SearchTabView: View {
     let readOnlyMode: Bool
 
     @State private var searchModel = PhotoSearchViewModel()
-    @State private var pager = LocalAssetPagingViewModel()
+    @State private var pager: LocalAssetPagingViewModel
+
+    init(library: PhotoLibraryViewModel, readOnlyMode: Bool) {
+        self.library = library
+        self.readOnlyMode = readOnlyMode
+        _pager = State(initialValue: LocalAssetPagingViewModel { assets in
+            await library.localAvailabilityIndex.locallyAvailableIDs(in: assets)
+        })
+    }
 
     var body: some View {
         @Bindable var searchModel = searchModel

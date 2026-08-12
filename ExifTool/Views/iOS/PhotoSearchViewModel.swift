@@ -17,38 +17,42 @@ final class PhotoSearchViewModel {
     private(set) var isSearching = false
 
     @ObservationIgnored private var assetsByID: [String: PhotoAsset] = [:]
-    @ObservationIgnored private var indexedAssetsByID: [String: PhotoAsset] = [:]
-    @ObservationIgnored private var indexedTextByAssetID: [String: String] = [:]
     @ObservationIgnored private var documents: [PhotoSearchDocument] = []
+    @ObservationIgnored private var indexTask: Task<Void, Never>?
     @ObservationIgnored private var debounceTask: Task<Void, Never>?
     @ObservationIgnored private var filterTask: Task<[String], Never>?
     @ObservationIgnored private var requestID = UUID()
+    @ObservationIgnored private var indexGeneration = UUID()
 
     var hasQuery: Bool {
         !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     func setSourceAssets(_ assets: [PhotoAsset]) {
+        indexTask?.cancel()
+        debounceTask?.cancel()
+        filterTask?.cancel()
         assetsByID = Dictionary(uniqueKeysWithValues: assets.map { ($0.id, $0) })
         publish(results.compactMap { assetsByID[$0.id] })
+        documents = []
 
-        let currentIDs = Set(assetsByID.keys)
-        indexedAssetsByID = indexedAssetsByID.filter { currentIDs.contains($0.key) }
-        indexedTextByAssetID = indexedTextByAssetID.filter { currentIDs.contains($0.key) }
-
-        documents = assets.map { asset in
-            if indexedAssetsByID[asset.id] != asset {
-                indexedAssetsByID[asset.id] = asset
-                indexedTextByAssetID[asset.id] = PhotoSearchIndex.text(for: asset)
-            }
-
-            return PhotoSearchDocument(
-                assetID: asset.id,
-                text: indexedTextByAssetID[asset.id] ?? ""
-            )
+        let seeds = assets.map(PhotoSearchSeed.init)
+        let currentIndexGeneration = UUID()
+        indexGeneration = currentIndexGeneration
+        if hasQuery {
+            isSearching = true
         }
+        indexTask = Task { [weak self] in
+            let builtDocuments = await Task.detached(priority: .userInitiated) {
+                seeds.map(PhotoSearchIndex.document)
+            }.value
 
-        scheduleSearch(debounced: false)
+            guard let self, !Task.isCancelled, currentIndexGeneration == indexGeneration else {
+                return
+            }
+            self.documents = builtDocuments
+            self.scheduleSearch(debounced: false)
+        }
     }
 
     private func scheduleSearch(debounced: Bool) {

@@ -177,17 +177,7 @@ nonisolated enum NikonMetadataExtractor {
 nonisolated enum NikonMakerNoteParser {
     private typealias Endian = TIFFByteOrder
 
-    private struct IFDEntry {
-        let tag: UInt16
-        let type: UInt16
-        let count: Int
-        let valueData: Data
-        let endian: Endian
-    }
-
-    private static let typeSizes: [UInt16: Int] = [
-        1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 6: 1, 7: 1, 8: 2, 9: 4, 10: 8
-    ]
+    private typealias IFDEntry = TIFFIFDEntry
 
     static func parse(_ data: Data) -> [String: String] {
         guard let tiff = locateTIFFHeader(in: data),
@@ -369,61 +359,13 @@ nonisolated enum NikonMakerNoteParser {
     }
 
     private static func parseIFD(in data: Data, offset: Int, tiffStart: Int, endian: Endian) -> [IFDEntry] {
-        guard let countValue = readUInt16(data, at: offset, endian: endian) else {
-            return []
-        }
-
-        let count = Int(countValue)
-        guard count > 0, count < 512, offset + 2 + count * 12 <= data.count else {
-            return []
-        }
-
-        var entries: [IFDEntry] = []
-
-        for index in 0..<count {
-            let entryOffset = offset + 2 + index * 12
-            guard
-                let tag = readUInt16(data, at: entryOffset, endian: endian),
-                let type = readUInt16(data, at: entryOffset + 2, endian: endian),
-                let countValue = readUInt32(data, at: entryOffset + 4, endian: endian),
-                let typeSize = typeSizes[type]
-            else {
-                continue
-            }
-
-            let valueCount = Int(countValue)
-            guard valueCount > 0, valueCount <= 4096 else {
-                continue
-            }
-
-            guard let byteCount = TIFFReader.byteCount(typeSize: typeSize, count: valueCount) else {
-                continue
-            }
-            guard let valueData = valueData(in: data, entryOffset: entryOffset, byteCount: byteCount, tiffStart: tiffStart, endian: endian) else {
-                continue
-            }
-
-            entries.append(IFDEntry(tag: tag, type: type, count: valueCount, valueData: valueData, endian: endian))
-        }
-
-        return entries
-    }
-
-    private static func valueData(in data: Data, entryOffset: Int, byteCount: Int, tiffStart: Int, endian: Endian) -> Data? {
-        let reader = TIFFReader(data: data, byteOrder: endian)
-        if byteCount <= 4 {
-            return TIFFReader.offset(base: entryOffset, relative: 8)
-                .flatMap { reader.bytes(at: $0, count: byteCount) }
-        }
-
-        guard let offsetValue = readUInt32(data, at: entryOffset + 8, endian: endian) else {
-            return nil
-        }
-
-        guard let start = TIFFReader.offset(base: tiffStart, relative: Int(offsetValue)) else {
-            return nil
-        }
-        return reader.bytes(at: start, count: byteCount)
+        TIFFIFDDecoder.entries(
+            in: data,
+            ifdOffset: offset,
+            byteOrder: endian,
+            valueOffsetBases: [tiffStart],
+            maximumValueCount: 4_096
+        )
     }
 
     private static func numericValues(_ entry: IFDEntry) -> [Int] {

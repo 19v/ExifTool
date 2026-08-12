@@ -403,6 +403,48 @@
         }
       }
     },
+    "mac.comparison.report.differenceCount" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Different fields" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "差异字段数" } }
+      }
+    },
+    "mac.comparison.report.different" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Different" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "不同" } }
+      }
+    },
+    "mac.comparison.report.left" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Left" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "左侧" } }
+      }
+    },
+    "mac.comparison.report.right" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Right" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "右侧" } }
+      }
+    },
+    "mac.comparison.report.same" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Same" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "相同" } }
+      }
+    },
+    "mac.comparison.report.summary" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Difference Summary" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "差异摘要" } }
+      }
+    },
+    "mac.comparison.report.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Photo Comparison Report" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "照片对比结果" } }
+      }
+    },
     "mac.openPanel.message" : {
       "localizations" : {
         "en" : {

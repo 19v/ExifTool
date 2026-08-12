@@ -503,10 +503,6 @@ nonisolated enum FujifilmMakerNoteParser {
         let value: String
     }
 
-    private static let typeSizes: [UInt16: Int] = [
-        1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 6: 1, 7: 1, 8: 2, 9: 4, 10: 8
-    ]
-
     private static let tagNames: [UInt16: String] = [
         0x0000: "Version",
         0x0010: "InternalSerialNumber",
@@ -711,64 +707,25 @@ nonisolated enum FujifilmMakerNoteParser {
     }
 
     private static func parseIFD(in data: Data, offset: Int, endian: Endian) -> [ParsedTag] {
-        guard let entryCountValue = readUInt16(data, at: offset, endian: endian) else {
-            return []
-        }
-
-        let entryCount = Int(entryCountValue)
-        guard entryCount > 0, entryCount < 512, offset + 2 + entryCount * 12 <= data.count else {
-            return []
-        }
-
-        var parsedTags: [ParsedTag] = []
-
-        for index in 0..<entryCount {
-            let entryOffset = offset + 2 + index * 12
-            guard
-                let tag = readUInt16(data, at: entryOffset, endian: endian),
-                let type = readUInt16(data, at: entryOffset + 2, endian: endian),
-                let countValue = readUInt32(data, at: entryOffset + 4, endian: endian),
-                let typeSize = typeSizes[type],
-                let tagName = tagNames[tag]
-            else {
-                continue
+        TIFFIFDDecoder.entries(
+            in: data,
+            ifdOffset: offset,
+            byteOrder: endian,
+            valueOffsetBases: [0],
+            maximumValueCount: 1_024
+        ).compactMap { entry -> ParsedTag? in
+            guard let tagName = tagNames[entry.tag] else {
+                return nil
             }
-
-            let count = Int(countValue)
-            guard count > 0, count <= 1024 else {
-                continue
-            }
-
-            guard let byteCount = TIFFReader.byteCount(typeSize: typeSize, count: count) else {
-                continue
-            }
-            guard let valueData = valueData(in: data, entryOffset: entryOffset, byteCount: byteCount, endian: endian),
-                  let parsed = parsedTag(tag, name: tagName, type: type, count: count, valueData: valueData, endian: endian) else {
-                continue
-            }
-
-            parsedTags.append(parsed)
+            return parsedTag(
+                entry.tag,
+                name: tagName,
+                type: entry.type,
+                count: entry.count,
+                valueData: entry.valueData,
+                endian: entry.endian
+            )
         }
-
-        return parsedTags
-    }
-
-    private static func valueData(in data: Data, entryOffset: Int, byteCount: Int, endian: Endian) -> Data? {
-        guard byteCount > 0 else {
-            return nil
-        }
-        let reader = TIFFReader(data: data, byteOrder: endian)
-
-        if byteCount <= 4 {
-            return TIFFReader.offset(base: entryOffset, relative: 8)
-                .flatMap { reader.bytes(at: $0, count: byteCount) }
-        }
-
-        guard let valueOffset = readUInt32(data, at: entryOffset + 8, endian: endian) else {
-            return nil
-        }
-
-        return reader.bytes(at: Int(valueOffset), count: byteCount)
     }
 
     private static func parsedTag(

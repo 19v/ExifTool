@@ -8,6 +8,26 @@ import UniformTypeIdentifiers
 
 typealias PlatformImage = NSImage
 
+@MainActor
+private final class LocalThumbnailMemoryCache {
+    static let shared = LocalThumbnailMemoryCache()
+
+    private let images = NSCache<NSString, NSImage>()
+
+    private init() {
+        images.countLimit = 180
+        images.totalCostLimit = 64 * 1_024 * 1_024
+    }
+
+    func image(forKey key: String) -> NSImage? {
+        images.object(forKey: key as NSString)
+    }
+
+    func insert(_ image: NSImage, forKey key: String, pixelWidth: Int, pixelHeight: Int) {
+        images.setObject(image, forKey: key as NSString, cost: pixelWidth * pixelHeight * 4)
+    }
+}
+
 enum PhotoFileImporter {
     nonisolated static func importAssets(from urls: [URL]) -> [PhotoAsset] {
         urls.compactMap(importAsset)
@@ -69,6 +89,11 @@ enum PhotoLoader {
     }
 
     private static func thumbnail(from file: LocalPhotoFile, maxPixelLength: CGFloat) async -> PlatformImage? {
+        let cacheKey = localThumbnailCacheKey(for: file, maxPixelLength: maxPixelLength)
+        if let cachedImage = LocalThumbnailMemoryCache.shared.image(forKey: cacheKey) {
+            return cachedImage
+        }
+
         let fileURL = file.fileURL
         let data = file.data
         guard let cgImage = await MediaProcessing.run(operation: {
@@ -77,12 +102,24 @@ enum PhotoLoader {
             return nil
         }
 
-        return NSImage(cgImage: cgImage, size: .zero)
+        let image = NSImage(cgImage: cgImage, size: .zero)
+        LocalThumbnailMemoryCache.shared.insert(
+            image,
+            forKey: cacheKey,
+            pixelWidth: cgImage.width,
+            pixelHeight: cgImage.height
+        )
+        return image
+    }
+
+    private static func localThumbnailCacheKey(for file: LocalPhotoFile, maxPixelLength: CGFloat) -> String {
+        let modificationTimestamp = file.modificationDate?.timeIntervalSinceReferenceDate ?? 0
+        return "\(file.id)|\(Int(ceil(maxPixelLength)))|\(modificationTimestamp)"
     }
 }
 
 enum LocationFormatter {
-    static func coordinateText(_ coordinate: CLLocationCoordinate2D) -> String {
+    nonisolated static func coordinateText(_ coordinate: CLLocationCoordinate2D) -> String {
         let latitude = String(format: "%.6f", coordinate.latitude)
         let longitude = String(format: "%.6f", coordinate.longitude)
         return "\(latitude), \(longitude)"

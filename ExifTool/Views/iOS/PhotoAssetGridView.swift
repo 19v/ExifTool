@@ -17,6 +17,8 @@ struct PhotoAssetGridView: View {
     let onAssetAppear: ((String?) -> Void)?
     let onRefresh: (() async -> Void)?
 
+    @State private var thumbnailPreheater = PhotoThumbnailPreheater()
+
     private let columns = [
         GridItem(.flexible(), spacing: 3),
         GridItem(.flexible(), spacing: 3),
@@ -47,6 +49,7 @@ struct PhotoAssetGridView: View {
                         .id(asset.id)
                         .onAppear {
                             onAssetAppear?(asset.id)
+                            thumbnailPreheater.update(around: asset.id, in: assets)
                         }
                 }
 
@@ -61,6 +64,9 @@ struct PhotoAssetGridView: View {
         }
         .refreshable {
             await onRefresh?()
+        }
+        .onDisappear {
+            thumbnailPreheater.reset()
         }
         .navigationDestination(for: PhotoAssetRoute.self) { route in
             PhotoDetailView(

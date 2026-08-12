@@ -13,6 +13,8 @@ import Observation
 @MainActor
 @Observable
 final class LocalAssetPagingViewModel {
+    typealias AvailabilityResolver = @MainActor ([PhotoAsset]) async -> Set<String>
+
     private static let scanBatchSize = 48
     private static let pageSize = 90
     private static let prefetchThreshold = 24
@@ -24,11 +26,19 @@ final class LocalAssetPagingViewModel {
     @ObservationIgnored private var nextScanIndex = 0
     @ObservationIgnored private var isLoading = false
     @ObservationIgnored private var sessionID = UUID()
+    @ObservationIgnored private var loadTask: Task<Void, Never>?
+    @ObservationIgnored private let availabilityResolver: AvailabilityResolver
+
+    init(availabilityResolver: @escaping AvailabilityResolver = PhotoLoader.locallyAvailableAssetIDs) {
+        self.availabilityResolver = availabilityResolver
+    }
 
     func setSourceAssets(_ assets: [PhotoAsset]) {
+        loadTask?.cancel()
         sessionID = UUID()
         sourceAssets = assets
         nextScanIndex = 0
+        isLoading = false
         self.assets = []
         hasMoreAssets = !assets.isEmpty
 
@@ -36,12 +46,12 @@ final class LocalAssetPagingViewModel {
             return
         }
 
-        Task {
-            await loadNextPage(for: sessionID)
-        }
+        startLoadingNextPage()
     }
 
     func reset() {
+        loadTask?.cancel()
+        loadTask = nil
         sessionID = UUID()
         sourceAssets = []
         nextScanIndex = 0
@@ -56,9 +66,7 @@ final class LocalAssetPagingViewModel {
         }
 
         if assets.isEmpty {
-            Task {
-                await loadNextPage(for: sessionID)
-            }
+            startLoadingNextPage()
             return
         }
 
@@ -72,8 +80,13 @@ final class LocalAssetPagingViewModel {
             return
         }
 
-        Task {
-            await loadNextPage(for: sessionID)
+        startLoadingNextPage()
+    }
+
+    private func startLoadingNextPage() {
+        let currentSessionID = sessionID
+        loadTask = Task { [weak self] in
+            await self?.loadNextPage(for: currentSessionID)
         }
     }
 
@@ -83,7 +96,11 @@ final class LocalAssetPagingViewModel {
         }
 
         isLoading = true
-        defer { isLoading = false }
+        defer {
+            if sessionID == self.sessionID {
+                isLoading = false
+            }
+        }
 
         var matchedAssets: [PhotoAsset] = []
 
@@ -92,7 +109,7 @@ final class LocalAssetPagingViewModel {
             let assetBatch = Array(sourceAssets[nextScanIndex..<batchEnd])
             nextScanIndex = batchEnd
 
-            let localAssetIDs = await PhotoLoader.locallyAvailableAssetIDs(from: assetBatch)
+            let localAssetIDs = await availabilityResolver(assetBatch)
             guard !Task.isCancelled, sessionID == self.sessionID else {
                 return
             }

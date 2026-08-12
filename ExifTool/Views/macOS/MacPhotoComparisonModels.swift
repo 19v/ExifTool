@@ -3,7 +3,7 @@
 import ImageIO
 import SwiftUI
 
-struct ComparisonRow: Identifiable, Equatable {
+nonisolated struct ComparisonRow: Identifiable, Equatable, Sendable {
     let id: String
     let key: String
     let label: String
@@ -12,13 +12,13 @@ struct ComparisonRow: Identifiable, Equatable {
     let isDifferent: Bool
 }
 
-struct ComparisonSection: Identifiable, Equatable {
+nonisolated struct ComparisonSection: Identifiable, Equatable, Sendable {
     let id: String
     let title: String
     let rows: [ComparisonRow]
 }
 
-struct DifferenceSummaryItem: Identifiable, Equatable {
+nonisolated struct DifferenceSummaryItem: Identifiable, Equatable, Sendable {
     let key: String
     let label: String
     let leftValue: String
@@ -27,7 +27,7 @@ struct DifferenceSummaryItem: Identifiable, Equatable {
     var id: String { key }
 }
 
-struct MacPhotoComparisonSnapshot: Equatable {
+nonisolated struct MacPhotoComparisonSnapshot: Equatable, Sendable {
     static let empty = MacPhotoComparisonSnapshot(
         differingMetadataKeys: [],
         differenceSummaryItems: [],
@@ -242,7 +242,7 @@ struct MacPhotoComparisonSnapshot: Equatable {
     }
 }
 
-private struct MetadataComparisonEntry {
+nonisolated private struct MetadataComparisonEntry: Sendable {
     let id: String
     let sectionID: String
     let sectionTitle: String

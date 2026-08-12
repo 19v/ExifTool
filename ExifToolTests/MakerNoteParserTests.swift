@@ -5,6 +5,28 @@ import XCTest
 @testable import ExifTool
 
 final class MakerNoteParserTests: XCTestCase {
+    @MainActor
+    func testRealCameraFixturesProduceVendorSections() throws {
+        let fixtures = [
+            (fileName: "Fujifilm_FinePix_E500", sectionID: "fujifilm-parameters"),
+            (fileName: "Nikon_D70", sectionID: "nikon-parameters"),
+            (fileName: "Sony_HDR-HC3", sectionID: "sony-parameters")
+        ]
+
+        for fixture in fixtures {
+            let url = try XCTUnwrap(
+                Bundle(for: Self.self).url(forResource: fixture.fileName, withExtension: "jpg"),
+                "Missing fixture \(fixture.fileName)"
+            )
+            let metadata = MetadataParser.parse(url: url, fallbackCoordinate: nil)
+            let vendorSection = try XCTUnwrap(
+                metadata.sections.first { $0.id == fixture.sectionID },
+                "Expected vendor section for \(fixture.fileName)"
+            )
+            XCTAssertFalse(vendorSection.items.isEmpty, "Expected decoded fields for \(fixture.fileName)")
+        }
+    }
+
     func testFujifilmParsesLittleEndianInlineValue() {
         let data = makeIFD(
             endian: .little,

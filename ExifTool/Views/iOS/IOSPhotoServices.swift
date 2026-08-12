@@ -21,26 +21,133 @@ import UIKit
 typealias PlatformImage = UIImage
 #endif
 
-enum PhotoSearchIndex {
-    static func text(for asset: PhotoAsset) -> String {
+@MainActor
+private final class LocalThumbnailMemoryCache {
+    static let shared = LocalThumbnailMemoryCache()
+
+    private let images = NSCache<NSString, UIImage>()
+
+    private init() {
+        images.countLimit = 180
+        images.totalCostLimit = 64 * 1_024 * 1_024
+    }
+
+    func image(forKey key: String) -> UIImage? {
+        images.object(forKey: key as NSString)
+    }
+
+    func insert(_ image: UIImage, forKey key: String) {
+        let pixelWidth = image.cgImage?.width ?? Int(image.size.width * image.scale)
+        let pixelHeight = image.cgImage?.height ?? Int(image.size.height * image.scale)
+        images.setObject(image, forKey: key as NSString, cost: pixelWidth * pixelHeight * 4)
+    }
+}
+
+@MainActor
+private enum PhotoLibraryImageManager {
+    static let shared = PHCachingImageManager()
+}
+
+@MainActor
+final class PhotoThumbnailPreheater {
+    private let targetSize = CGSize(width: 360, height: 360)
+    private var cachedAssetsByID: [String: PHAsset] = [:]
+
+    func update(around assetID: String, in assets: [PhotoAsset]) {
+        guard let index = assets.firstIndex(where: { $0.id == assetID }) else {
+            return
+        }
+
+        let lowerBound = max(assets.startIndex, index - 12)
+        let upperBound = min(assets.endIndex, index + 31)
+        let desiredAssets = assets[lowerBound ..< upperBound].compactMap(\.photoLibraryAsset)
+        let desiredAssetsByID = Dictionary(uniqueKeysWithValues: desiredAssets.map { ($0.localIdentifier, $0) })
+        let assetsToStart = Set(desiredAssetsByID.keys)
+            .subtracting(cachedAssetsByID.keys)
+            .compactMap { desiredAssetsByID[$0] }
+        let assetsToStop = Set(cachedAssetsByID.keys)
+            .subtracting(desiredAssetsByID.keys)
+            .compactMap { cachedAssetsByID[$0] }
+
+        if !assetsToStop.isEmpty {
+            PhotoLibraryImageManager.shared.stopCachingImages(
+                for: assetsToStop,
+                targetSize: targetSize,
+                contentMode: .aspectFill,
+                options: requestOptions
+            )
+        }
+        if !assetsToStart.isEmpty {
+            PhotoLibraryImageManager.shared.startCachingImages(
+                for: assetsToStart,
+                targetSize: targetSize,
+                contentMode: .aspectFill,
+                options: requestOptions
+            )
+        }
+        cachedAssetsByID = desiredAssetsByID
+    }
+
+    func reset() {
+        guard !cachedAssetsByID.isEmpty else {
+            return
+        }
+        PhotoLibraryImageManager.shared.stopCachingImages(
+            for: Array(cachedAssetsByID.values),
+            targetSize: targetSize,
+            contentMode: .aspectFill,
+            options: requestOptions
+        )
+        cachedAssetsByID.removeAll(keepingCapacity: true)
+    }
+
+    private var requestOptions: PHImageRequestOptions {
+        let options = PHImageRequestOptions()
+        options.deliveryMode = .highQualityFormat
+        options.resizeMode = .exact
+        options.isNetworkAccessAllowed = false
+        return options
+    }
+}
+
+nonisolated struct PhotoSearchSeed: Sendable {
+    let assetID: String
+    let pixelWidth: Int
+    let pixelHeight: Int
+    let displayName: String?
+    let creationDate: Date?
+    let modificationDate: Date?
+
+    init(asset: PhotoAsset) {
+        assetID = asset.id
+        pixelWidth = asset.pixelWidth
+        pixelHeight = asset.pixelHeight
+        displayName = asset.displayName
+        creationDate = asset.creationDate
+        modificationDate = asset.modificationDate
+    }
+}
+
+nonisolated enum PhotoSearchIndex {
+    static func document(for seed: PhotoSearchSeed) -> PhotoSearchDocument {
         var parts = [
-            asset.id,
-            "\(asset.pixelWidth)x\(asset.pixelHeight)"
+            seed.assetID,
+            "\(seed.pixelWidth)x\(seed.pixelHeight)"
         ]
 
-        if let displayName = asset.displayName {
+        if let displayName = seed.displayName {
             parts.append(displayName)
         }
 
-        if let creationDate = asset.creationDate {
+        if let creationDate = seed.creationDate {
             parts.append(creationDate.formatted(date: .numeric, time: .shortened))
         }
 
-        if let modificationDate = asset.modificationDate {
+        if let modificationDate = seed.modificationDate {
             parts.append(modificationDate.formatted(date: .numeric, time: .shortened))
         }
 
-        return parts.joined(separator: " ")
+        return PhotoSearchDocument(assetID: seed.assetID, text: parts.joined(separator: " "))
     }
 }
 
@@ -177,7 +284,7 @@ enum PhotoTemporaryFileStore {
     }
 }
 
-private final class CancellablePhotoRequestState<Value: Sendable, RequestToken: Sendable>: @unchecked Sendable {
+final class CancellablePhotoRequestState<Value: Sendable, RequestToken: Sendable>: @unchecked Sendable {
     private enum Completion {
         case pending
         case finished(Value)
@@ -811,9 +918,10 @@ enum PhotoLoader {
     }
 
     private static func requestImage(for asset: PHAsset, size: CGSize, contentMode: PHImageContentMode) async -> PlatformImage? {
+        let imageManager = PhotoLibraryImageManager.shared
         let state = CancellablePhotoRequestState<PlatformImage?, PHImageRequestID>(
             cancellationValue: nil,
-            cancelRequest: { PHImageManager.default().cancelImageRequest($0) }
+            cancelRequest: { imageManager.cancelImageRequest($0) }
         )
 
         return await withTaskCancellationHandler {
@@ -828,7 +936,7 @@ enum PhotoLoader {
                 options.resizeMode = contentMode == .aspectFit ? .fast : .exact
                 options.isNetworkAccessAllowed = false
 
-                let requestID = PHImageManager.default().requestImage(
+                let requestID = imageManager.requestImage(
                     for: asset,
                     targetSize: size,
                     contentMode: contentMode,
@@ -896,6 +1004,11 @@ enum PhotoLoader {
     }
 
     private static func thumbnail(from file: LocalPhotoFile, maxPixelLength: CGFloat) async -> PlatformImage? {
+        let cacheKey = localThumbnailCacheKey(for: file, maxPixelLength: maxPixelLength)
+        if let cachedImage = LocalThumbnailMemoryCache.shared.image(forKey: cacheKey) {
+            return cachedImage
+        }
+
         let fileURL = file.fileURL
         let data = file.data
         guard let cgImage = await MediaProcessing.run(operation: {
@@ -904,7 +1017,14 @@ enum PhotoLoader {
             return nil
         }
 
-        return UIImage(cgImage: cgImage)
+        let image = UIImage(cgImage: cgImage)
+        LocalThumbnailMemoryCache.shared.insert(image, forKey: cacheKey)
+        return image
+    }
+
+    private static func localThumbnailCacheKey(for file: LocalPhotoFile, maxPixelLength: CGFloat) -> String {
+        let modificationTimestamp = file.modificationDate?.timeIntervalSinceReferenceDate ?? 0
+        return "\(file.id)|\(Int(ceil(maxPixelLength)))|\(modificationTimestamp)"
     }
 
     private static func imageResource(for asset: PHAsset) -> PHAssetResource? {
