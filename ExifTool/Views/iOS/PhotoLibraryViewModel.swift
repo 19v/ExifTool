@@ -14,6 +14,15 @@ import Photos
 @MainActor
 @Observable
 final class PhotoLibraryViewModel: NSObject {
+    private nonisolated struct PhotoAssetFetchSnapshot: @unchecked Sendable {
+        let result: PHFetchResult<PHAsset>
+        let assets: [PhotoAsset]
+    }
+
+    private nonisolated struct PhotoLibraryChange: @unchecked Sendable {
+        let value: PHChange
+    }
+
     private nonisolated struct PhotoAlbumMembershipIndex: @unchecked Sendable {
         let collections: [PHAssetCollection]
         let albumIDsByAssetID: [String: [String]]
@@ -175,6 +184,7 @@ final class PhotoLibraryViewModel: NSObject {
     @ObservationIgnored private var albumMembershipTask: Task<PhotoAlbumMembershipIndex, Never>?
     @ObservationIgnored private var libraryChangeTask: Task<Void, Never>?
     @ObservationIgnored private let photoLibrary: PHPhotoLibrary
+    @ObservationIgnored private var assetFetchResult: PHFetchResult<PHAsset>?
     private var allFetchedAssets: [PhotoAsset] = []
     @ObservationIgnored private var nextLocalOnlyScanIndex = 0
     @ObservationIgnored private var isLoadingNextLocalOnlyPage = false
@@ -182,6 +192,7 @@ final class PhotoLibraryViewModel: NSObject {
     @ObservationIgnored private var localOnlySessionID = UUID()
     @ObservationIgnored private var localAlbumCountsByID: [String: Int] = [:]
     @ObservationIgnored private var countedLocalAssetIDs: Set<String> = []
+    @ObservationIgnored private var hasRequestedLocalAlbumStats = false
 
     init(photoLibrary: PHPhotoLibrary = .shared()) {
         self.photoLibrary = photoLibrary
@@ -229,6 +240,7 @@ final class PhotoLibraryViewModel: NSObject {
         refreshGeneration = UUID()
         localOnlySessionID = refreshGeneration
         localAvailabilityIndex.invalidate()
+        assetFetchResult = nil
         localAlbumCountsByID.removeAll(keepingCapacity: true)
         countedLocalAssetIDs.removeAll(keepingCapacity: true)
         let generation = refreshGeneration
@@ -262,16 +274,15 @@ final class PhotoLibraryViewModel: NSObject {
         }
 
         refreshTask = Task { [showsOnlyLocalAssets] in
-            let fetchedAssets = await Self.fetchImageAssetsOffMain()
+            let snapshot = await Self.fetchImageAssetSnapshotOffMain()
             guard !Task.isCancelled, generation == self.refreshGeneration else {
                 return
             }
+            let fetchedAssets = snapshot.assets
+            self.assetFetchResult = snapshot.result
             self.allFetchedAssets = fetchedAssets
 
             if showsOnlyLocalAssets {
-                self.albumMembershipTask = Task {
-                    await Self.fetchPhotoAlbumMembershipIndexOffMain()
-                }
                 self.markSearchableAssetsChanged()
                 isFilteringLocalAssets = true
                 self.nextLocalOnlyScanIndex = 0
@@ -281,6 +292,7 @@ final class PhotoLibraryViewModel: NSObject {
                 self.assets = []
                 self.albums = []
                 self.isBuildingLocalAlbumStats = false
+                self.hasRequestedLocalAlbumStats = false
                 self.authorizationState = authorizationStateForCurrentScope
 
                 guard !fetchedAssets.isEmpty else {
@@ -350,6 +362,23 @@ final class PhotoLibraryViewModel: NSObject {
         }
     }
 
+    nonisolated private static func fetchImageAssetSnapshotOffMain() async -> PhotoAssetFetchSnapshot {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let options = PHFetchOptions()
+                options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+                options.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.image.rawValue)
+                let result = PHAsset.fetchAssets(with: options)
+                var assets: [PhotoAsset] = []
+                assets.reserveCapacity(result.count)
+                result.enumerateObjects { asset, _, _ in
+                    assets.append(PhotoAsset(asset: asset))
+                }
+                continuation.resume(returning: PhotoAssetFetchSnapshot(result: result, assets: assets))
+            }
+        }
+    }
+
     func loadMoreLocalAssetsIfNeeded(currentAssetID: String?) {
         guard showsOnlyLocalAssets, !isLoadingNextLocalOnlyPage, hasMoreLocalAssets else {
             return
@@ -378,11 +407,15 @@ final class PhotoLibraryViewModel: NSObject {
     }
 
     func buildRemainingLocalAlbumStatsIfNeeded() {
-        guard showsOnlyLocalAssets, !isBuildingLocalAlbumStats else {
+        guard showsOnlyLocalAssets, !hasRequestedLocalAlbumStats, !isBuildingLocalAlbumStats else {
             return
         }
 
+        hasRequestedLocalAlbumStats = true
         let sessionID = localOnlySessionID
+        albumMembershipTask = Task {
+            await Self.fetchPhotoAlbumMembershipIndexOffMain()
+        }
         albumStatsTask?.cancel()
         albumStatsTask = Task { [weak self] in
             await self?.buildRemainingLocalAlbumStats(for: sessionID)
@@ -405,6 +438,7 @@ final class PhotoLibraryViewModel: NSObject {
     private func resetLoadedContent() {
         albumStatsTask?.cancel()
         albumMembershipTask?.cancel()
+        assetFetchResult = nil
         allFetchedAssets = []
         nextLocalOnlyScanIndex = 0
         isLoadingNextLocalOnlyPage = false
@@ -417,6 +451,7 @@ final class PhotoLibraryViewModel: NSObject {
         localAvailabilityIndex.invalidate()
         localAlbumCountsByID = [:]
         countedLocalAssetIDs = []
+        hasRequestedLocalAlbumStats = false
         markSearchableAssetsChanged()
     }
 
@@ -433,18 +468,78 @@ final class PhotoLibraryViewModel: NSObject {
         searchableAssetsRevision &+= 1
     }
 
-    private func scheduleLibraryChangeRefresh() {
+    private func scheduleLibraryChangeRefresh(_ change: PhotoLibraryChange) {
         libraryChangeTask?.cancel()
         libraryChangeTask = Task { [weak self] in
-            do {
-                try await Task.sleep(for: .milliseconds(300))
-            } catch {
-                return
-            }
             guard let self, !Task.isCancelled else {
                 return
             }
-            await self.refresh()
+            self.applyLibraryChange(change.value)
+        }
+    }
+
+    private func applyLibraryChange(_ change: PHChange) {
+        guard let assetFetchResult,
+              let details = change.changeDetails(for: assetFetchResult) else {
+            Task { await refresh() }
+            return
+        }
+
+        let previousAssets = allFetchedAssets
+        let updatedResult = details.fetchResultAfterChanges
+        var updatedAssets: [PhotoAsset] = []
+        updatedAssets.reserveCapacity(updatedResult.count)
+        updatedResult.enumerateObjects { asset, _, _ in
+            updatedAssets.append(PhotoAsset(asset: asset))
+        }
+        self.assetFetchResult = updatedResult
+
+        guard updatedAssets != previousAssets else {
+            return
+        }
+
+        let previousIDs = Set(previousAssets.map(\.id))
+        let updatedIDs = Set(updatedAssets.map(\.id))
+        let removedIDs = previousIDs.subtracting(updatedIDs)
+        let insertedIDs = updatedIDs.subtracting(previousIDs)
+        let changedIDs = Set(details.changedObjects.map(\.localIdentifier))
+        let affectedIDs = insertedIDs.union(changedIDs)
+
+        allFetchedAssets = updatedAssets
+        localAvailabilityIndex.invalidate(assetIDs: removedIDs.union(affectedIDs))
+        localOnlyAssetIDs.subtract(removedIDs.union(affectedIDs))
+        countedLocalAssetIDs.subtract(removedIDs.union(affectedIDs))
+        markSearchableAssetsChanged()
+
+        guard showsOnlyLocalAssets else {
+            assets = updatedAssets
+            return
+        }
+
+        albumStatsTask?.cancel()
+        albumMembershipTask?.cancel()
+        albumMembershipTask = nil
+        albums = []
+        localAlbumCountsByID = [:]
+        countedLocalAssetIDs = []
+        hasRequestedLocalAlbumStats = false
+        localOnlySessionID = UUID()
+        isLoadingNextLocalOnlyPage = false
+
+        let scannedCount = min(nextLocalOnlyScanIndex, updatedAssets.count)
+        nextLocalOnlyScanIndex = scannedCount
+        let scannedAssets = Array(updatedAssets.prefix(scannedCount))
+        let sessionID = localOnlySessionID
+        Task { [weak self] in
+            guard let self else { return }
+            let resolvedIDs = await self.localAvailabilityIndex.locallyAvailableIDs(in: scannedAssets)
+            guard !Task.isCancelled, sessionID == self.localOnlySessionID else { return }
+            self.localOnlyAssetIDs.formUnion(resolvedIDs)
+            self.assets = scannedAssets.filter { self.localOnlyAssetIDs.contains($0.id) }
+            self.hasMoreLocalAssets = scannedCount < updatedAssets.count
+            self.authorizationState = self.assets.isEmpty && !self.hasMoreLocalAssets
+                ? .empty
+                : self.authorizationStateForCurrentScope
         }
     }
 
@@ -462,8 +557,6 @@ final class PhotoLibraryViewModel: NSObject {
         }
 
         var matchedAssets: [PhotoAsset] = []
-        var resolvedLocalIDs = Set<String>()
-
         while matchedAssets.count < Self.localOnlyPageSize, nextLocalOnlyScanIndex < allFetchedAssets.count {
             let batchEnd = min(nextLocalOnlyScanIndex + Self.localOnlyScanBatchSize, allFetchedAssets.count)
             let assetBatch = Array(allFetchedAssets[nextLocalOnlyScanIndex..<batchEnd])
@@ -475,18 +568,12 @@ final class PhotoLibraryViewModel: NSObject {
             }
 
             localOnlyAssetIDs.formUnion(batchAssetIDs)
-            resolvedLocalIDs.formUnion(batchAssetIDs)
             matchedAssets.append(contentsOf: assetBatch.filter { batchAssetIDs.contains($0.id) })
         }
 
         if !matchedAssets.isEmpty {
             assets.append(contentsOf: matchedAssets)
         }
-        await mergeLocalAlbumStats(for: resolvedLocalIDs, sessionID: sessionID, publish: true)
-        guard !Task.isCancelled, sessionID == localOnlySessionID else {
-            return
-        }
-
         hasMoreLocalAssets = nextLocalOnlyScanIndex < allFetchedAssets.count
         authorizationState = assets.isEmpty && !hasMoreLocalAssets ? .empty : authorizationStateForCurrentScope
     }
@@ -496,17 +583,21 @@ final class PhotoLibraryViewModel: NSObject {
             return
         }
 
-        var scanIndex = nextLocalOnlyScanIndex
-        guard scanIndex < allFetchedAssets.count else {
-            isBuildingLocalAlbumStats = false
-            return
-        }
-
         isBuildingLocalAlbumStats = true
         defer {
             if sessionID == localOnlySessionID {
                 isBuildingLocalAlbumStats = false
             }
+        }
+
+        await mergeLocalAlbumStats(for: localOnlyAssetIDs, sessionID: sessionID, publish: true)
+        guard !Task.isCancelled, sessionID == localOnlySessionID else {
+            return
+        }
+
+        var scanIndex = nextLocalOnlyScanIndex
+        guard scanIndex < allFetchedAssets.count else {
+            return
         }
 
         var scannedBatchCount = 0
@@ -674,8 +765,9 @@ final class PhotoLibraryViewModel: NSObject {
 
 extension PhotoLibraryViewModel: PHPhotoLibraryChangeObserver {
     nonisolated func photoLibraryDidChange(_ changeInstance: PHChange) {
+        let change = PhotoLibraryChange(value: changeInstance)
         Task { @MainActor [weak self] in
-            self?.scheduleLibraryChangeRefresh()
+            self?.scheduleLibraryChangeRefresh(change)
         }
     }
 }

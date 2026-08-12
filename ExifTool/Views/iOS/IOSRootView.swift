@@ -17,6 +17,7 @@ struct IOSRootView: View {
     @State private var sharedPhotoAsset: PhotoAsset?
     @State private var presentedFileURLToCleanup: URL?
     @State private var isRequestingLibraryAccess = false
+    @State private var isPresentingLimitedLibraryPicker = false
     @AppStorage("readOnlyMode") private var readOnlyMode = true
     @AppStorage("allowsICloudDownload") private var allowsICloudDownload = false
     @AppStorage("showsOnlyLocalPhotos") private var showsOnlyLocalPhotos = false
@@ -77,6 +78,13 @@ struct IOSRootView: View {
                     initialAssetID: asset.id,
                     readOnlyMode: readOnlyMode
                 )
+            }
+        }
+        .background {
+            LimitedLibraryPickerPresenter(isPresented: $isPresentingLimitedLibraryPicker) {
+                Task {
+                    await library.refresh()
+                }
             }
         }
         .onAppear {
@@ -162,28 +170,7 @@ struct IOSRootView: View {
     }
 
     private func presentLimitedLibraryPicker() {
-        guard let windowScene = UIApplication.shared.connectedScenes
-            .compactMap({ $0 as? UIWindowScene })
-            .first(where: { $0.activationState == .foregroundActive }),
-              let rootViewController = windowScene.windows.first(where: \.isKeyWindow)?.rootViewController else {
-            return
-        }
-
-        PHPhotoLibrary.shared().presentLimitedLibraryPicker(from: topViewController(for: rootViewController)) { _ in
-            Task {
-                await library.refresh()
-            }
-        }
-    }
-
-    private func topViewController(for rootViewController: UIViewController) -> UIViewController {
-        var topViewController = rootViewController
-
-        while let presentedViewController = topViewController.presentedViewController {
-            topViewController = presentedViewController
-        }
-
-        return topViewController
+        isPresentingLimitedLibraryPicker = true
     }
 
     private var localPhotosSummaryDestination: AppTab? {
@@ -261,6 +248,52 @@ struct IOSRootView: View {
 
     private var fallbackTabAfterSharedPhotoDismissal: AppTab {
         showsLibraryTabs ? .photos : .picker
+    }
+}
+
+private struct LimitedLibraryPickerPresenter: UIViewControllerRepresentable {
+    @Binding var isPresented: Bool
+    let onCompletion: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    func makeUIViewController(context: Context) -> UIViewController {
+        UIViewController()
+    }
+
+    func updateUIViewController(_ viewController: UIViewController, context: Context) {
+        context.coordinator.parent = self
+        guard isPresented,
+              !context.coordinator.isPresenting,
+              viewController.viewIfLoaded?.window != nil else {
+            return
+        }
+
+        context.coordinator.isPresenting = true
+        let coordinator = context.coordinator
+        PHPhotoLibrary.shared().presentLimitedLibraryPicker(from: viewController) { _ in
+            Task { @MainActor in
+                coordinator.finishPresentation()
+            }
+        }
+    }
+
+    @MainActor
+    final class Coordinator {
+        var parent: LimitedLibraryPickerPresenter
+        var isPresenting = false
+
+        init(parent: LimitedLibraryPickerPresenter) {
+            self.parent = parent
+        }
+
+        func finishPresentation() {
+            isPresenting = false
+            parent.isPresented = false
+            parent.onCompletion()
+        }
     }
 }
 

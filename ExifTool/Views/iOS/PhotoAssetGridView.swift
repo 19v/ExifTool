@@ -8,6 +8,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct PhotoAssetGridView: View {
     let assets: [PhotoAsset]
@@ -18,6 +19,7 @@ struct PhotoAssetGridView: View {
     let onRefresh: (() async -> Void)?
 
     @State private var thumbnailPreheater = PhotoThumbnailPreheater()
+    @Environment(\.displayScale) private var displayScale
 
     private let columns = [
         GridItem(.flexible(), spacing: 3),
@@ -42,31 +44,40 @@ struct PhotoAssetGridView: View {
     }
 
     var body: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, spacing: 3) {
-                ForEach(assets) { asset in
-                    PhotoAssetGridCell(asset: asset)
-                        .id(asset.id)
-                        .onAppear {
-                            onAssetAppear?(asset.id)
-                            thumbnailPreheater.update(around: asset.id, in: assets)
-                        }
-                }
+        GeometryReader { proxy in
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 3) {
+                    ForEach(assets) { asset in
+                        PhotoAssetGridCell(asset: asset)
+                            .id(asset.id)
+                            .onAppear {
+                                onAssetAppear?(asset.id)
+                                thumbnailPreheater.update(
+                                    around: asset.id,
+                                    in: assets,
+                                    pixelLength: thumbnailPixelLength(containerWidth: proxy.size.width)
+                                )
+                            }
+                    }
 
-                if isLoadingMore {
-                    ProgressView()
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .gridCellColumns(columns.count)
+                    if isLoadingMore {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .gridCellColumns(columns.count)
+                    }
                 }
+                .padding(3)
             }
-            .padding(3)
-        }
-        .refreshable {
-            await onRefresh?()
+            .refreshable {
+                await onRefresh?()
+            }
         }
         .onDisappear {
             thumbnailPreheater.reset()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
+            thumbnailPreheater.handleMemoryPressure()
         }
         .navigationDestination(for: PhotoAssetRoute.self) { route in
             PhotoDetailView(
@@ -85,6 +96,13 @@ struct PhotoAssetGridView: View {
                     .padding(.bottom, 12)
             }
         }
+    }
+
+    private func thumbnailPixelLength(containerWidth: CGFloat) -> CGFloat {
+        let horizontalPadding: CGFloat = 6
+        let columnSpacing: CGFloat = 6
+        let cellWidth = max(1, (containerWidth - horizontalPadding - columnSpacing) / CGFloat(columns.count))
+        return ceil(cellWidth * displayScale)
     }
 
 }

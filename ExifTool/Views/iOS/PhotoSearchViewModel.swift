@@ -17,7 +17,8 @@ final class PhotoSearchViewModel {
     private(set) var isSearching = false
 
     @ObservationIgnored private var assetsByID: [String: PhotoAsset] = [:]
-    @ObservationIgnored private var documents: [PhotoSearchDocument] = []
+    @ObservationIgnored private var documentsByID: [String: PhotoSearchDocument] = [:]
+    @ObservationIgnored private var orderedAssetIDs: [String] = []
     @ObservationIgnored private var indexTask: Task<Void, Never>?
     @ObservationIgnored private var debounceTask: Task<Void, Never>?
     @ObservationIgnored private var filterTask: Task<[String], Never>?
@@ -32,11 +33,19 @@ final class PhotoSearchViewModel {
         indexTask?.cancel()
         debounceTask?.cancel()
         filterTask?.cancel()
-        assetsByID = Dictionary(uniqueKeysWithValues: assets.map { ($0.id, $0) })
+        let newAssetsByID = Dictionary(uniqueKeysWithValues: assets.map { ($0.id, $0) })
+        let changedAssets = assets.filter {
+            documentsByID[$0.id] == nil || assetsByID[$0.id] != $0
+        }
+        let removedIDs = Set(assetsByID.keys).subtracting(newAssetsByID.keys)
+        assetsByID = newAssetsByID
+        orderedAssetIDs = assets.map(\.id)
+        for removedID in removedIDs {
+            documentsByID[removedID] = nil
+        }
         publish(results.compactMap { assetsByID[$0.id] })
-        documents = []
 
-        let seeds = assets.map(PhotoSearchSeed.init)
+        let seeds = changedAssets.map(PhotoSearchSeed.init)
         let currentIndexGeneration = UUID()
         indexGeneration = currentIndexGeneration
         if hasQuery {
@@ -44,13 +53,16 @@ final class PhotoSearchViewModel {
         }
         indexTask = Task { [weak self] in
             let builtDocuments = await Task.detached(priority: .userInitiated) {
-                seeds.map(PhotoSearchIndex.document)
+                Dictionary(uniqueKeysWithValues: seeds.map { seed in
+                    let document = PhotoSearchIndex.document(for: seed)
+                    return (document.assetID, document)
+                })
             }.value
 
             guard let self, !Task.isCancelled, currentIndexGeneration == indexGeneration else {
                 return
             }
-            self.documents = builtDocuments
+            self.documentsByID.merge(builtDocuments) { _, updated in updated }
             self.scheduleSearch(debounced: false)
         }
     }
@@ -73,7 +85,7 @@ final class PhotoSearchViewModel {
         if debounced {
             publish([])
         }
-        let currentDocuments = documents
+        let currentDocuments = orderedAssetIDs.compactMap { documentsByID[$0] }
 
         debounceTask = Task { [weak self] in
             if debounced {

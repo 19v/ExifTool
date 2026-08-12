@@ -4,6 +4,8 @@ import Foundation
 
 @MainActor
 final class LocalAssetAvailabilityIndex {
+    typealias Resolver = @MainActor ([PhotoAsset]) async -> Set<String>
+
     private struct InFlightResolution {
         let token: UUID
         let assetIDs: Set<String>
@@ -12,6 +14,11 @@ final class LocalAssetAvailabilityIndex {
 
     private var availabilityByID: [String: Bool] = [:]
     private var inFlightByID: [String: InFlightResolution] = [:]
+    private let resolver: Resolver
+
+    init(resolver: @escaping Resolver = PhotoLoader.locallyAvailableAssetIDs) {
+        self.resolver = resolver
+    }
 
     func locallyAvailableIDs(in assets: [PhotoAsset]) async -> Set<String> {
         var localIDs = Set<String>()
@@ -33,8 +40,9 @@ final class LocalAssetAvailabilityIndex {
         if !unresolvedAssets.isEmpty {
             let token = UUID()
             let assetIDs = Set(unresolvedAssets.map(\.id))
-            let task = Task {
-                await PhotoLoader.locallyAvailableAssetIDs(from: unresolvedAssets)
+            let resolver = resolver
+            let task = Task { @MainActor in
+                await resolver(unresolvedAssets)
             }
             let resolution = InFlightResolution(token: token, assetIDs: assetIDs, task: task)
             for assetID in assetIDs {
@@ -72,6 +80,26 @@ final class LocalAssetAvailabilityIndex {
         }
         inFlightByID.removeAll(keepingCapacity: true)
         availabilityByID.removeAll(keepingCapacity: true)
+    }
+
+    func invalidate(assetIDs: Set<String>) {
+        guard !assetIDs.isEmpty else {
+            return
+        }
+
+        let resolutions = assetIDs.compactMap { inFlightByID[$0] }
+        let tasksByToken = Dictionary(
+            resolutions.map { ($0.token, $0.task) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        for task in tasksByToken.values {
+            task.cancel()
+        }
+        let invalidatedIDs = Set(resolutions.flatMap(\.assetIDs)).union(assetIDs)
+        for assetID in invalidatedIDs {
+            availabilityByID[assetID] = nil
+            inFlightByID[assetID] = nil
+        }
     }
 }
 

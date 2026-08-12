@@ -41,6 +41,10 @@ private final class LocalThumbnailMemoryCache {
         let pixelHeight = image.cgImage?.height ?? Int(image.size.height * image.scale)
         images.setObject(image, forKey: key as NSString, cost: pixelWidth * pixelHeight * 4)
     }
+
+    func removeAllImages() {
+        images.removeAllObjects()
+    }
 }
 
 @MainActor
@@ -50,10 +54,15 @@ private enum PhotoLibraryImageManager {
 
 @MainActor
 final class PhotoThumbnailPreheater {
-    private let targetSize = CGSize(width: 360, height: 360)
+    private var targetSize = CGSize(width: 360, height: 360)
     private var cachedAssetsByID: [String: PHAsset] = [:]
 
-    func update(around assetID: String, in assets: [PhotoAsset]) {
+    func update(around assetID: String, in assets: [PhotoAsset], pixelLength: CGFloat) {
+        let newTargetSize = Self.targetSize(for: pixelLength)
+        if newTargetSize != targetSize {
+            reset()
+            targetSize = newTargetSize
+        }
         guard let index = assets.firstIndex(where: { $0.id == assetID }) else {
             return
         }
@@ -99,6 +108,25 @@ final class PhotoThumbnailPreheater {
             options: requestOptions
         )
         cachedAssetsByID.removeAll(keepingCapacity: true)
+    }
+
+    func handleMemoryPressure() {
+        reset()
+        PhotoLibraryImageManager.shared.stopCachingImagesForAllAssets()
+        LocalThumbnailMemoryCache.shared.removeAllImages()
+    }
+
+    private static func targetSize(for pixelLength: CGFloat) -> CGSize {
+        let normalizedLength: CGFloat
+        switch pixelLength {
+        case ...360:
+            normalizedLength = 360
+        case ...720:
+            normalizedLength = 720
+        default:
+            normalizedLength = 1_080
+        }
+        return CGSize(width: normalizedLength, height: normalizedLength)
     }
 
     private var requestOptions: PHImageRequestOptions {
@@ -871,11 +899,14 @@ enum PhotoLoader {
 
     static func locallyAvailableAssetIDs(from assets: [PhotoAsset]) async -> Set<String> {
         let libraryAssets = assets.compactMap(\.photoLibraryAsset)
+        let fileAssetIDs = assets.compactMap { asset in
+            asset.localFile == nil ? nil : asset.id
+        }
         guard !libraryAssets.isEmpty else {
-            return Set(assets.map(\.id))
+            return Set(fileAssetIDs)
         }
 
-        var availableIDs = Set<String>()
+        var availableIDs = Set(fileAssetIDs)
         let batchSize = 12
         var batchStart = 0
 

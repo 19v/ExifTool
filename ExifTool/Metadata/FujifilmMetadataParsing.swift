@@ -397,47 +397,16 @@ nonisolated enum FujifilmMetadataExtractor {
         return entry.valueOrOffset
     }
 
-    private struct TIFFIFDEntry {
-        let type: UInt16
-        let count: Int
-        let valueOrOffset: Int
-        let valueFieldOffset: Int
-    }
-
-    private static func ifdEntry(forTag targetTag: UInt16, in data: Data, tiffStart: Int, ifdOffset: Int, endian: TIFFEndian) -> TIFFIFDEntry? {
-        let absoluteIFDOffset = tiffStart + ifdOffset
-        guard absoluteIFDOffset >= 0,
-              absoluteIFDOffset + 2 <= data.count,
-              let entryCountValue = readUInt16(data, at: absoluteIFDOffset, endian: endian) else {
+    private static func ifdEntry(forTag targetTag: UInt16, in data: Data, tiffStart: Int, ifdOffset: Int, endian: TIFFEndian) -> TIFFRawIFDEntry? {
+        guard let absoluteIFDOffset = TIFFReader.offset(base: tiffStart, relative: ifdOffset) else {
             return nil
         }
-
-        let entryCount = Int(entryCountValue)
-        guard entryCount >= 0, absoluteIFDOffset + 2 + entryCount * 12 <= data.count else {
-            return nil
-        }
-
-        for index in 0..<entryCount {
-            let entryOffset = absoluteIFDOffset + 2 + index * 12
-            guard
-                let tag = readUInt16(data, at: entryOffset, endian: endian),
-                tag == targetTag,
-                let type = readUInt16(data, at: entryOffset + 2, endian: endian),
-                let countValue = readUInt32(data, at: entryOffset + 4, endian: endian),
-                let valueOrOffset = readUInt32(data, at: entryOffset + 8, endian: endian)
-            else {
-                continue
-            }
-
-            return TIFFIFDEntry(
-                type: type,
-                count: Int(countValue),
-                valueOrOffset: Int(valueOrOffset),
-                valueFieldOffset: entryOffset + 8
-            )
-        }
-
-        return nil
+        return TIFFIFDDecoder.rawEntry(
+            forTag: targetTag,
+            in: data,
+            ifdOffset: absoluteIFDOffset,
+            byteOrder: endian
+        )
     }
 
     private static func readUInt16(_ data: Data, at offset: Int, endian: TIFFEndian) -> UInt16? {

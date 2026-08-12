@@ -99,6 +99,13 @@ nonisolated struct TIFFIFDEntry: Sendable {
     let endian: TIFFByteOrder
 }
 
+nonisolated struct TIFFRawIFDEntry: Sendable {
+    let type: UInt16
+    let count: Int
+    let valueOrOffset: Int
+    let valueFieldOffset: Int
+}
+
 nonisolated enum TIFFIFDDecoder {
     private static let typeSizes: [UInt16: Int] = [
         1: 1, 2: 1, 3: 2, 4: 4, 5: 8,
@@ -163,6 +170,45 @@ nonisolated enum TIFFIFDDecoder {
         }
 
         return entries
+    }
+
+    static func rawEntry(
+        forTag targetTag: UInt16,
+        in data: Data,
+        ifdOffset: Int,
+        byteOrder: TIFFByteOrder,
+        maximumEntryCount: Int = 511
+    ) -> TIFFRawIFDEntry? {
+        let reader = TIFFReader(data: data, byteOrder: byteOrder)
+        guard let countValue = reader.uint16(at: ifdOffset) else {
+            return nil
+        }
+        let entryCount = Int(countValue)
+        guard entryCount > 0, entryCount <= maximumEntryCount,
+              let entriesByteCount = TIFFReader.byteCount(typeSize: 12, count: entryCount),
+              let entriesOffset = TIFFReader.offset(base: ifdOffset, relative: 2),
+              TIFFReader.validRange(offset: entriesOffset, length: entriesByteCount, dataCount: data.count) != nil else {
+            return nil
+        }
+
+        for index in 0..<entryCount {
+            let relativeOffset = index.multipliedReportingOverflow(by: 12)
+            guard !relativeOffset.overflow,
+                  let entryOffset = TIFFReader.offset(base: entriesOffset, relative: relativeOffset.partialValue),
+                  reader.uint16(at: entryOffset) == targetTag,
+                  let type = reader.uint16(at: entryOffset + 2),
+                  let count = reader.uint32(at: entryOffset + 4),
+                  let valueOrOffset = reader.uint32(at: entryOffset + 8) else {
+                continue
+            }
+            return TIFFRawIFDEntry(
+                type: type,
+                count: Int(count),
+                valueOrOffset: Int(valueOrOffset),
+                valueFieldOffset: entryOffset + 8
+            )
+        }
+        return nil
     }
 
     private static func valueData(

@@ -44,10 +44,10 @@ struct SearchTabView: View {
             .task(id: library.searchableAssetsRevision) {
                 searchModel.setSourceAssets(library.searchableAssets)
             }
-            .task(id: searchModel.resultsRevision) {
-                refreshSearchPager()
-            }
-            .task(id: library.showsOnlyLocalAssets) {
+            .task(id: SearchPagerRevision(
+                resultsRevision: searchModel.resultsRevision,
+                showsOnlyLocalAssets: library.showsOnlyLocalAssets
+            )) {
                 refreshSearchPager()
             }
             .safeAreaInset(edge: .bottom) {
@@ -149,6 +149,11 @@ private struct SearchResultsContent: View {
             )
         }
     }
+}
+
+private struct SearchPagerRevision: Equatable {
+    let resultsRevision: Int
+    let showsOnlyLocalAssets: Bool
 }
 
 #endif

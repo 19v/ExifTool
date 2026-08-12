@@ -27,6 +27,38 @@ final class MakerNoteParserTests: XCTestCase {
         }
     }
 
+    @MainActor
+    func testReducedRAWFixturesMatchPinnedExifToolCameraMetadata() throws {
+        let fixtures = [
+            (fileName: "Nikon_D70", extension: "nef", sectionID: "nikon-parameters", make: "NIKON CORPORATION", model: "NIKON D70")
+        ]
+
+        for fixture in fixtures {
+            let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: fixture.fileName, withExtension: fixture.extension))
+            let metadata = MetadataParser.parse(url: url, fallbackCoordinate: nil)
+            let flattenedItems = metadata.sections.flatMap(\.items)
+
+            XCTAssertTrue(flattenedItems.contains { $0.value == fixture.make }, "Expected make for \(fixture.fileName)")
+            XCTAssertTrue(flattenedItems.contains { $0.value == fixture.model }, "Expected model for \(fixture.fileName)")
+            XCTAssertNotNil(
+                metadata.sections.first { $0.id == fixture.sectionID },
+                "Expected vendor MakerNote section for \(fixture.fileName)"
+            )
+        }
+    }
+
+    @MainActor
+    func testReducedRAFFixtureFailsSafelyWhenImageIODoesNotExposeMetadata() throws {
+        let url = try XCTUnwrap(
+            Bundle(for: Self.self).url(forResource: "Fujifilm_FinePix_S5Pro", withExtension: "raf")
+        )
+
+        let metadata = MetadataParser.parse(url: url, fallbackCoordinate: nil)
+
+        XCTAssertTrue(metadata.sections.isEmpty)
+        XCTAssertNil(metadata.coordinate)
+    }
+
     func testFujifilmParsesLittleEndianInlineValue() {
         let data = makeIFD(
             endian: .little,

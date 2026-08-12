@@ -34,6 +34,48 @@ final class TIFFReaderTests: XCTestCase {
         XCTAssertEqual(TIFFReader(data: data, byteOrder: .big).uint32(at: 0), 0x01020304)
     }
 
+    func testIFDDecoderTriesOffsetBasesInOrder() {
+        var data = Data(repeating: 0, count: 48)
+        data[0] = 0x01
+        data.replaceSubrange(2..<14, with: [
+            0x01, 0x20, 0x03, 0x00, 0x03, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00
+        ])
+        data.replaceSubrange(32..<38, with: [0x0a, 0x00, 0x14, 0x00, 0x1e, 0x00])
+
+        let entries = TIFFIFDDecoder.entries(
+            in: data,
+            ifdOffset: 0,
+            byteOrder: .little,
+            valueOffsetBases: [1_000, 16]
+        )
+
+        XCTAssertEqual(entries.first?.valueData, Data([0x0a, 0x00, 0x14, 0x00, 0x1e, 0x00]))
+    }
+
+    func testIFDDecoderRejectsUnsupportedTypesAndExcessiveCounts() {
+        let unsupportedType = Data([
+            0x01, 0x00,
+            0x01, 0x20, 0xff, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00
+        ])
+        let excessiveCount = Data([
+            0x01, 0x00,
+            0x01, 0x20, 0x01, 0x00, 0x01, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+        ])
+
+        XCTAssertTrue(TIFFIFDDecoder.entries(
+            in: unsupportedType,
+            ifdOffset: 0,
+            byteOrder: .little,
+            valueOffsetBases: [0]
+        ).isEmpty)
+        XCTAssertTrue(TIFFIFDDecoder.entries(
+            in: excessiveCount,
+            ifdOffset: 0,
+            byteOrder: .little,
+            valueOffsetBases: [0]
+        ).isEmpty)
+    }
+
     func testRejectsNegativeTruncatedAndOverflowingRanges() {
         let reader = TIFFReader(data: Data([0, 1, 2, 3]), byteOrder: .little)
 

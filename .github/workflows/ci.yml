@@ -54,6 +54,13 @@ jobs:
             ' "$catalog" > /dev/null
           done
 
+      - name: Validate privacy manifests
+        shell: bash
+        run: |
+          set -euo pipefail
+          plutil -lint ExifTool/PrivacyInfo.xcprivacy
+          plutil -lint ShareExtension/PrivacyInfo.xcprivacy
+
       - name: Run macOS tests
         run: |
           xcodebuild \
@@ -123,24 +130,30 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             test
 
-      - name: Build iOS Release app and share extension
+      - name: Archive iOS Release app and share extension
         run: |
           xcodebuild \
             -project ExifTool.xcodeproj \
             -scheme ExifTool \
             -configuration Release \
-            -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath "$RUNNER_TEMP/derived-data/ios-release" \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/archives/ExifTool.xcarchive" \
             SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
             GCC_TREAT_WARNINGS_AS_ERRORS=YES \
             CODE_SIGNING_ALLOWED=NO \
-            build
+            archive
 
-      - name: Verify Release share extension embedding
+      - name: Verify Release archive contents
         shell: bash
         run: |
           set -euo pipefail
-          appex="$RUNNER_TEMP/derived-data/ios-release/Build/Products/Release-iphonesimulator/ExifTool.app/PlugIns/ExifToolShareExtension.appex"
+          app="$RUNNER_TEMP/archives/ExifTool.xcarchive/Products/Applications/ExifTool.app"
+          appex="$app/PlugIns/ExifToolShareExtension.appex"
+          test -d "$app"
           test -d "$appex"
+          test -f "$app/PrivacyInfo.xcprivacy"
+          test -f "$appex/PrivacyInfo.xcprivacy"
           bundle_id="$(plutil -extract CFBundleIdentifier raw "$appex/Info.plist")"
           test "$bundle_id" = "com.echopie.ExifTool.ShareExtension"
+          grep -q 'group.com.echopie.ExifTool' ExifTool/ExifTool.entitlements
+          grep -q 'group.com.echopie.ExifTool' ShareExtension.entitlements
