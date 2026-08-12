@@ -170,6 +170,7 @@ final class PhotoLibraryViewModel {
     private var allFetchedAssets: [PhotoAsset] = []
     @ObservationIgnored private var nextLocalOnlyScanIndex = 0
     @ObservationIgnored private var isLoadingNextLocalOnlyPage = false
+    @ObservationIgnored private var refreshGeneration = UUID()
     @ObservationIgnored private var localOnlySessionID = UUID()
     @ObservationIgnored private var localAvailabilityByID: [String: Bool] = [:]
     
@@ -205,7 +206,10 @@ final class PhotoLibraryViewModel {
     private func loadAssets(for status: PHAuthorizationStatus) {
         refreshTask?.cancel()
         albumStatsTask?.cancel()
-        localOnlySessionID = UUID()
+        refreshGeneration = UUID()
+        localOnlySessionID = refreshGeneration
+        localAvailabilityByID.removeAll(keepingCapacity: true)
+        let generation = refreshGeneration
 
         switch status {
         case .authorized:
@@ -237,6 +241,9 @@ final class PhotoLibraryViewModel {
 
         refreshTask = Task { [showsOnlyLocalAssets] in
             let fetchedAssets = await Self.fetchImageAssetsOffMain()
+            guard !Task.isCancelled, generation == self.refreshGeneration else {
+                return
+            }
             self.allFetchedAssets = fetchedAssets
 
             if showsOnlyLocalAssets {
@@ -258,18 +265,18 @@ final class PhotoLibraryViewModel {
                     return
                 }
                 
-                await loadNextLocalOnlyPage(for: self.localOnlySessionID)
+                await loadNextLocalOnlyPage(for: generation)
             } else {
-                guard !Task.isCancelled else {
-                    return
-                }
-
                 self.nextLocalOnlyScanIndex = fetchedAssets.count
                 self.hasMoreLocalAssets = false
                 self.localOnlyAssetIDs = Set(fetchedAssets.map(\.id))
                 self.assets = fetchedAssets
                 self.markSearchableAssetsChanged()
-                self.albums = await Self.fetchImageAlbumsOffMain()
+                let fetchedAlbums = await Self.fetchImageAlbumsOffMain()
+                guard !Task.isCancelled, generation == self.refreshGeneration else {
+                    return
+                }
+                self.albums = fetchedAlbums
                 self.isBuildingLocalAlbumStats = false
                 self.authorizationState = fetchedAssets.isEmpty ? .empty : authorizationStateForCurrentScope
                 self.isFilteringLocalAssets = false
@@ -405,8 +412,10 @@ final class PhotoLibraryViewModel {
 
         isLoadingNextLocalOnlyPage = true
         defer {
-            isLoadingNextLocalOnlyPage = false
-            isFilteringLocalAssets = false
+            if sessionID == localOnlySessionID {
+                isLoadingNextLocalOnlyPage = false
+                isFilteringLocalAssets = false
+            }
         }
 
         var matchedAssets: [PhotoAsset] = []
@@ -416,7 +425,7 @@ final class PhotoLibraryViewModel {
             let assetBatch = Array(allFetchedAssets[nextLocalOnlyScanIndex..<batchEnd])
             nextLocalOnlyScanIndex = batchEnd
 
-            let batchAssetIDs = await locallyAvailableIDs(in: assetBatch)
+            let batchAssetIDs = await locallyAvailableIDs(in: assetBatch, sessionID: sessionID)
             guard !Task.isCancelled, sessionID == localOnlySessionID else {
                 return
             }
@@ -427,7 +436,11 @@ final class PhotoLibraryViewModel {
 
         if !matchedAssets.isEmpty {
             assets.append(contentsOf: matchedAssets)
-            albums = await Self.fetchImageAlbumsOffMain(filteringTo: localOnlyAssetIDs)
+            let fetchedAlbums = await Self.fetchImageAlbumsOffMain(filteringTo: localOnlyAssetIDs)
+            guard !Task.isCancelled, sessionID == localOnlySessionID else {
+                return
+            }
+            albums = fetchedAlbums
         }
 
         hasMoreLocalAssets = nextLocalOnlyScanIndex < allFetchedAssets.count
@@ -446,7 +459,11 @@ final class PhotoLibraryViewModel {
         }
 
         isBuildingLocalAlbumStats = true
-        defer { isBuildingLocalAlbumStats = false }
+        defer {
+            if sessionID == localOnlySessionID {
+                isBuildingLocalAlbumStats = false
+            }
+        }
 
         var scannedBatchCount = 0
 
@@ -455,7 +472,7 @@ final class PhotoLibraryViewModel {
             let assetBatch = Array(allFetchedAssets[scanIndex..<batchEnd])
             scanIndex = batchEnd
 
-            let batchAssetIDs = await locallyAvailableIDs(in: assetBatch)
+            let batchAssetIDs = await locallyAvailableIDs(in: assetBatch, sessionID: sessionID)
             guard !Task.isCancelled, sessionID == localOnlySessionID else {
                 return
             }
@@ -467,13 +484,17 @@ final class PhotoLibraryViewModel {
                 scannedBatchCount.isMultiple(of: Self.localOnlyAlbumRefreshInterval) ||
                 batchEnd == allFetchedAssets.count
             if shouldRefreshAlbums {
-                albums = await Self.fetchImageAlbumsOffMain(filteringTo: localOnlyAssetIDs)
+                let fetchedAlbums = await Self.fetchImageAlbumsOffMain(filteringTo: localOnlyAssetIDs)
+                guard !Task.isCancelled, sessionID == localOnlySessionID else {
+                    return
+                }
+                albums = fetchedAlbums
                 try? await Task.sleep(for: .milliseconds(80))
             }
         }
     }
 
-    private func locallyAvailableIDs(in assets: [PhotoAsset]) async -> Set<String> {
+    private func locallyAvailableIDs(in assets: [PhotoAsset], sessionID: UUID) async -> Set<String> {
         var knownIDs = Set<String>()
         var unknownAssets: [PhotoAsset] = []
         unknownAssets.reserveCapacity(assets.count)
@@ -493,6 +514,9 @@ final class PhotoLibraryViewModel {
         }
 
         let resolvedLocalIDs = await PhotoLoader.locallyAvailableAssetIDs(from: unknownAssets)
+        guard !Task.isCancelled, sessionID == localOnlySessionID else {
+            return []
+        }
         let resolvedLocalIDSet = Set(resolvedLocalIDs)
 
         for asset in unknownAssets {

@@ -697,7 +697,7 @@ enum PhotoLoader {
         case .photoLibrary(let photoLibraryAsset):
             return await thumbnail(for: photoLibraryAsset, size: size)
         case .file(let file):
-            return thumbnail(from: file, maxPixelLength: max(size.width, size.height))
+            return await thumbnail(from: file, maxPixelLength: max(size.width, size.height))
         }
     }
 
@@ -706,7 +706,7 @@ enum PhotoLoader {
         case .photoLibrary(let photoLibraryAsset):
             return await previewImage(for: photoLibraryAsset, size: size)
         case .file(let file):
-            return thumbnail(from: file, maxPixelLength: max(size.width, size.height))
+            return await thumbnail(from: file, maxPixelLength: max(size.width, size.height))
         }
     }
 
@@ -716,12 +716,17 @@ enum PhotoLoader {
             return await metadata(for: photoLibraryAsset, allowNetwork: allowNetwork)
         case .file(let file):
             if FileManager.default.fileExists(atPath: file.fileURL.path) {
-                return .loaded(MetadataParser.parse(url: file.fileURL, fallbackLocation: nil))
+                let fileURL = file.fileURL
+                return .loaded(await MediaProcessing.run {
+                    MetadataParser.parse(url: fileURL, fallbackCoordinate: nil)
+                })
             }
             guard let data = file.data else {
                 return .failed(AppLocalization.string("photoLoader.missingReadableResource"))
             }
-            return .loaded(MetadataParser.parse(data: data, fallbackLocation: nil))
+            return .loaded(await MediaProcessing.run {
+                MetadataParser.parse(data: data, fallbackCoordinate: nil)
+            })
         }
     }
 
@@ -843,6 +848,7 @@ enum PhotoLoader {
     }
 
     private static func metadata(for asset: PHAsset, allowNetwork: Bool) async -> PhotoDetailState {
+        let fallbackCoordinate = asset.location?.coordinate
         if let resource = imageResource(for: asset) {
             do {
                 let fileURL = try await PhotoResourceFileWriter.write(
@@ -852,13 +858,17 @@ enum PhotoLoader {
                     fileName: resource.originalFilename
                 )
                 defer { try? FileManager.default.removeItem(at: fileURL) }
-                return .loaded(MetadataParser.parse(url: fileURL, fallbackLocation: asset.location))
+                return .loaded(await MediaProcessing.run {
+                    MetadataParser.parse(url: fileURL, fallbackCoordinate: fallbackCoordinate)
+                })
             } catch {
                 if error is CancellationError || Task.isCancelled {
                     return .failed(CancellationError().localizedDescription)
                 }
                 if let fallback = await imageManagerData(for: asset, allowNetwork: allowNetwork) {
-                    return .loaded(MetadataParser.parse(data: fallback, fallbackLocation: asset.location))
+                    return .loaded(await MediaProcessing.run {
+                        MetadataParser.parse(data: fallback, fallbackCoordinate: fallbackCoordinate)
+                    })
                 }
 
                 if !allowNetwork {
@@ -870,7 +880,9 @@ enum PhotoLoader {
         }
 
         if let data = await imageManagerData(for: asset, allowNetwork: allowNetwork) {
-            return .loaded(MetadataParser.parse(data: data, fallbackLocation: asset.location))
+            return .loaded(await MediaProcessing.run {
+                MetadataParser.parse(data: data, fallbackCoordinate: fallbackCoordinate)
+            })
         }
 
         if Task.isCancelled {
@@ -883,24 +895,12 @@ enum PhotoLoader {
         return .failed(AppLocalization.string("photoLoader.missingReadableResource"))
     }
 
-    private static func thumbnail(from file: LocalPhotoFile, maxPixelLength: CGFloat) -> PlatformImage? {
-        let options: [CFString: Any] = [
-            kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceThumbnailMaxPixelSize: max(1, Int(ceil(maxPixelLength)))
-        ]
-
-        let source: CGImageSource?
-        if FileManager.default.fileExists(atPath: file.fileURL.path) {
-            source = CGImageSourceCreateWithURL(file.fileURL as CFURL, nil)
-        } else if let data = file.data {
-            source = CGImageSourceCreateWithData(data as CFData, nil)
-        } else {
-            source = nil
-        }
-
-        guard let source,
-              let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
+    private static func thumbnail(from file: LocalPhotoFile, maxPixelLength: CGFloat) async -> PlatformImage? {
+        let fileURL = file.fileURL
+        let data = file.data
+        guard let cgImage = await MediaProcessing.run(operation: {
+            ImageThumbnailDecoder.decode(fileURL: fileURL, data: data, maxPixelLength: maxPixelLength)
+        }) else {
             return nil
         }
 

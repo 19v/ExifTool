@@ -19,13 +19,7 @@ struct PhotoDetailPage: View {
 
     @AppStorage("allowsICloudDownload") private var allowsICloudDownload = false
     @Binding private var showsChineseKeys: Bool
-    @State private var detail = PhotoDetailState.loading
-    @State private var metadataRequestID = UUID()
-    @State private var isDownloadingOriginal = false
-    @State private var showsICloudDownloadExplanation = false
-    @State private var activityShareItem: ActivityShareItem?
-    @State private var isPreparingPhotoShare = false
-    @State private var shareErrorMessage: String?
+    @State private var model = IOSPhotoDetailModel()
 
     init(
         asset: PhotoAsset,
@@ -46,70 +40,55 @@ struct PhotoDetailPage: View {
     }
 
     var body: some View {
+        @Bindable var model = model
+
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 PhotoPreview(asset: asset)
                 ReadOnlyStatusBanner(isReadOnly: readOnlyMode)
-
-                switch detail {
-                case .loading:
-                    ProgressView("正在读取 Exif")
-                        .frame(maxWidth: .infinity, minHeight: 120)
-                case .loaded(let metadata):
-                    IOSPhotoMetadataContent(
-                        metadata: metadata,
-                        showsChineseKeys: showsChineseKeys,
-                        highlightedMetadataKeys: highlightedMetadataKeys,
-                        visibleMetadataKeys: visibleMetadataKeys
-                    )
-                case .needsDownload(let message):
-                    IOSPhotoDownloadPrompt(
-                        message: message,
-                        isDownloading: isDownloadingOriginal,
-                        onDownload: requestOriginalDownload
-                    )
-                case .failed(let message):
-                    ContentUnavailableView(
-                        "无法读取 Exif",
-                        systemImage: "exclamationmark.triangle",
-                        description: Text(message)
-                    )
-                }
+                IOSPhotoDetailStateContent(
+                    detail: model.detail,
+                    isDownloadingOriginal: model.isDownloadingOriginal,
+                    showsChineseKeys: showsChineseKeys,
+                    highlightedMetadataKeys: highlightedMetadataKeys,
+                    visibleMetadataKeys: visibleMetadataKeys,
+                    onDownload: requestOriginalDownload
+                )
             }
             .padding()
         }
             .task(id: asset.id) {
-                await loadMetadata(allowNetwork: false)
+                await model.loadMetadata(for: asset, allowNetwork: false)
             }
-            .alert("需要联网下载 iCloud 原图", isPresented: $showsICloudDownloadExplanation) {
+            .alert("需要联网下载 iCloud 原图", isPresented: $model.showsICloudDownloadExplanation) {
                 Button("保持离线", role: .cancel) { }
                 Button("允许并下载") {
                     allowsICloudDownload = true
                     Task {
-                        await loadMetadata(allowNetwork: true)
+                        await model.loadMetadata(for: asset, allowNetwork: true)
                     }
                 }
             } message: {
                 Text("这张照片的原图可能只保存在 iCloud。应用需要联网把原图下载到本机后才能读取完整 Exif，你也可以保持离线，或在设置里改成仅显示已下载到本地的照片。")
             }
-            .alert("无法分享", isPresented: shareErrorBinding) {
+            .alert("无法分享", isPresented: $model.isShareErrorPresented) {
                 Button("好", role: .cancel) {
-                    shareErrorMessage = nil
+                    model.shareErrorMessage = nil
                 }
             } message: {
-                if let shareErrorMessage {
+                if let shareErrorMessage = model.shareErrorMessage {
                     Text(shareErrorMessage)
                 }
             }
-            .photoDetailActivityShareSheet(item: $activityShareItem)
+            .photoDetailActivityShareSheet(item: $model.activityShareItem)
             .navigationTitle(navigationTitle)
             .platformInlineNavigationTitle()
             .toolbar {
                 PhotoDetailPlatformToolbar(
                     showsChineseKeys: $showsChineseKeys,
                     photoNavigation: photoNavigation,
-                    isPreparingPhotoShare: isPreparingPhotoShare,
-                    canShareParameters: loadedMetadata != nil,
+                    isPreparingPhotoShare: model.isPreparingPhotoShare,
+                    canShareParameters: model.loadedMetadata != nil,
                     onSharePhoto: sharePhoto,
                     onShareParameters: shareParameters
                 )
@@ -120,92 +99,63 @@ struct PhotoDetailPage: View {
     private func requestOriginalDownload() {
         if allowsICloudDownload {
             Task {
-                await loadMetadata(allowNetwork: true)
+                await model.loadMetadata(for: asset, allowNetwork: true)
             }
         } else {
-            showsICloudDownloadExplanation = true
+            model.showsICloudDownloadExplanation = true
         }
-    }
-
-    private func loadMetadata(allowNetwork: Bool) async {
-        let requestID = UUID()
-        metadataRequestID = requestID
-
-        if allowNetwork {
-            isDownloadingOriginal = true
-        } else {
-            detail = .loading
-        }
-
-        let newDetail = await PhotoLoader.metadata(for: asset, allowNetwork: allowNetwork)
-        guard !Task.isCancelled, requestID == metadataRequestID else {
-            return
-        }
-
-        detail = newDetail
-        isDownloadingOriginal = false
-    }
-
-    private var loadedMetadata: PhotoMetadata? {
-        guard case .loaded(let metadata) = detail else {
-            return nil
-        }
-
-        return metadata
-    }
-
-    private var shareErrorBinding: Binding<Bool> {
-        Binding(
-            get: { shareErrorMessage != nil },
-            set: { isPresented in
-                if !isPresented {
-                    shareErrorMessage = nil
-                }
-            }
-        )
     }
 
     private func sharePhoto() {
-        isPreparingPhotoShare = true
-
         Task {
-            do {
-                let url = try await PhotoLoader.shareablePhotoURL(for: asset, allowNetwork: allowsICloudDownload)
-                activityShareItem = ActivityShareItem(
-                    items: [url],
-                    cleanupURL: PhotoTemporaryFileStore.isShareFile(url) ? url : nil
-                )
-            } catch {
-                shareErrorMessage = photoShareErrorMessage(for: error)
-            }
-
-            isPreparingPhotoShare = false
+            await model.sharePhoto(asset: asset, allowsICloudDownload: allowsICloudDownload)
         }
     }
 
     private func shareParameters() {
-        guard let metadata = loadedMetadata else {
-            shareErrorMessage = AppLocalization.string("photoDetail.shareParametersNotReady")
-            return
-        }
-
-        let text = MetadataShareFormatter.text(
-            for: asset,
-            metadata: metadata,
+        model.shareParameters(
+            asset: asset,
             showsChineseKeys: showsChineseKeys,
             visibleMetadataKeys: visibleMetadataKeys
         )
-        activityShareItem = ActivityShareItem(items: [text])
     }
 
-    private func photoShareErrorMessage(for error: Error) -> String {
-        if !allowsICloudDownload {
-            return AppLocalization.string("photoDetail.shareNeedsDownload")
+}
+
+private struct IOSPhotoDetailStateContent: View {
+    let detail: PhotoDetailState
+    let isDownloadingOriginal: Bool
+    let showsChineseKeys: Bool
+    let highlightedMetadataKeys: Set<String>
+    let visibleMetadataKeys: Set<String>?
+    let onDownload: () -> Void
+
+    var body: some View {
+        switch detail {
+        case .loading:
+            ProgressView("正在读取 Exif")
+                .frame(maxWidth: .infinity, minHeight: 120)
+        case .loaded(let metadata):
+            IOSPhotoMetadataContent(
+                metadata: metadata,
+                showsChineseKeys: showsChineseKeys,
+                highlightedMetadataKeys: highlightedMetadataKeys,
+                visibleMetadataKeys: visibleMetadataKeys
+            )
+        case .needsDownload(let message):
+            IOSPhotoDownloadPrompt(
+                message: message,
+                isDownloading: isDownloadingOriginal,
+                onDownload: onDownload
+            )
+        case .failed(let message):
+            ContentUnavailableView(
+                "无法读取 Exif",
+                systemImage: "exclamationmark.triangle",
+                description: Text(message)
+            )
         }
-
-        return error.localizedDescription
     }
-
 }
 
 private struct IOSPhotoDownloadPrompt: View {
@@ -259,7 +209,7 @@ struct ActivityShareItem: Identifiable {
     }
 }
 
-private enum MetadataShareFormatter {
+enum MetadataShareFormatter {
     static func text(
         for asset: PhotoAsset,
         metadata: PhotoMetadata,

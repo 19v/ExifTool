@@ -28,7 +28,9 @@ struct MacRootView: View {
                 return
             }
 
-            _ = workspace.importFiles(from: [url])
+            Task {
+                _ = await workspace.importFiles(from: [url])
+            }
         }
     }
 }

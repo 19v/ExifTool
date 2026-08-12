@@ -26,6 +26,7 @@ final class MacPhotoWorkspace {
     private enum DefaultsKey {
         static let sortMode = "macPhotoSortMode"
         static let recentFilePaths = "macRecentFilePaths"
+        static let recentFileBookmarks = "macRecentFileBookmarks"
     }
 
     enum SortMode: String, CaseIterable, Equatable, Identifiable {
@@ -48,6 +49,7 @@ final class MacPhotoWorkspace {
     }
 
     @ObservationIgnored private var importedAssets: [PhotoAsset] = []
+    @ObservationIgnored private var activeSecurityScopedURLs: [String: URL] = [:]
     private(set) var sortedAssets: [PhotoAsset] = []
     var selectedAssetID: String?
     var sortMode: SortMode {
@@ -60,10 +62,20 @@ final class MacPhotoWorkspace {
 
     init(initialFileURLs: [URL] = []) {
         sortMode = Self.persistedSortMode
-        recentFiles = Self.persistedRecentFiles
+        let restoredRecentFiles = Self.restoreRecentFiles()
+        recentFiles = restoredRecentFiles.urls
+        activeSecurityScopedURLs = restoredRecentFiles.activeURLs
 
         if !initialFileURLs.isEmpty {
-            _ = importFiles(from: initialFileURLs)
+            Task { [weak self] in
+                _ = await self?.importFiles(from: initialFileURLs)
+            }
+        }
+    }
+
+    deinit {
+        for url in activeSecurityScopedURLs.values {
+            url.stopAccessingSecurityScopedResource()
         }
     }
 
@@ -100,28 +112,79 @@ final class MacPhotoWorkspace {
         currentAsset?.displayName ?? AppLocalization.string("mac.window.defaultTitle")
     }
 
-    private static var persistedRecentFiles: [URL] {
-        let storedPaths = UserDefaults.standard.stringArray(forKey: DefaultsKey.recentFilePaths) ?? []
-        return storedPaths
-            .map(URL.init(fileURLWithPath:))
-            .filter { FileManager.default.fileExists(atPath: $0.path()) }
+    private static func restoreRecentFiles() -> (urls: [URL], activeURLs: [String: URL]) {
+        let defaults = UserDefaults.standard
+        let bookmarkData = defaults.array(forKey: DefaultsKey.recentFileBookmarks) as? [Data] ?? []
+        var urls: [URL] = []
+        var activeURLs: [String: URL] = [:]
+        var refreshedBookmarks: [Data] = []
+
+        for data in bookmarkData {
+            var isStale = false
+            guard let url = try? URL(
+                resolvingBookmarkData: data,
+                options: [.withSecurityScope, .withoutUI],
+                relativeTo: nil,
+                bookmarkDataIsStale: &isStale
+            ), FileManager.default.fileExists(atPath: url.path()) else {
+                continue
+            }
+
+            let normalizedURL = url.standardizedFileURL
+            let path = normalizedURL.path()
+            if normalizedURL.startAccessingSecurityScopedResource() {
+                activeURLs[path] = normalizedURL
+            }
+            urls.append(normalizedURL)
+
+            if isStale,
+               let refreshedData = try? normalizedURL.bookmarkData(
+                   options: .withSecurityScope,
+                   includingResourceValuesForKeys: nil,
+                   relativeTo: nil
+               ) {
+                refreshedBookmarks.append(refreshedData)
+            } else {
+                refreshedBookmarks.append(data)
+            }
+        }
+
+        if bookmarkData.isEmpty {
+            let legacyURLs = (defaults.stringArray(forKey: DefaultsKey.recentFilePaths) ?? [])
+                .map(URL.init(fileURLWithPath:))
+                .filter { FileManager.default.fileExists(atPath: $0.path()) }
+            urls = legacyURLs
+            refreshedBookmarks = legacyURLs.compactMap(Self.bookmarkData(for:))
+        }
+
+        defaults.set(refreshedBookmarks, forKey: DefaultsKey.recentFileBookmarks)
+        defaults.removeObject(forKey: DefaultsKey.recentFilePaths)
+        return (Array(urls.prefix(8)), activeURLs)
     }
 
-    func importFiles(from urls: [URL]) -> Bool {
-        let importedAssets = PhotoFileImporter.importAssets(from: urls)
+    func importFiles(from urls: [URL]) async -> Bool {
+        let normalizedURLs = urls.map(\.standardizedFileURL)
+        let newlyAccessedPaths = beginAccessingSecurityScopes(for: normalizedURLs)
+        let importedAssets = await MediaProcessing.run {
+            PhotoFileImporter.importAssets(from: normalizedURLs)
+        }
         guard !importedAssets.isEmpty else {
+            endAccessingSecurityScopes(for: newlyAccessedPaths)
             return false
         }
 
         self.importedAssets = importedAssets
         refreshSortedAssets()
         selectedAssetID = sortedAssets.first?.id
-        updateRecentFiles(with: urls)
+        let importedURLs = importedAssets.map(\.localFile.fileURL)
+        let importedPaths = Set(importedURLs.map { $0.standardizedFileURL.path() })
+        endAccessingSecurityScopes(for: newlyAccessedPaths.subtracting(importedPaths))
+        updateRecentFiles(with: importedURLs)
         return true
     }
 
-    func openRecentFile(_ url: URL) -> Bool {
-        importFiles(from: [url])
+    func openRecentFile(_ url: URL) async -> Bool {
+        await importFiles(from: [url])
     }
 
     func pickFiles() {
@@ -137,7 +200,9 @@ final class MacPhotoWorkspace {
             return
         }
 
-        _ = importFiles(from: panel.urls)
+        Task { [weak self] in
+            _ = await self?.importFiles(from: panel.urls)
+        }
     }
 
     func revealCurrentFileInFinder() {
@@ -169,11 +234,14 @@ final class MacPhotoWorkspace {
         importedAssets = []
         sortedAssets = []
         selectedAssetID = nil
+        releaseUnusedSecurityScopes()
     }
 
     func clearRecentFiles() {
         UserDefaults.standard.removeObject(forKey: DefaultsKey.recentFilePaths)
+        UserDefaults.standard.removeObject(forKey: DefaultsKey.recentFileBookmarks)
         recentFiles = []
+        releaseUnusedSecurityScopes()
     }
 
     func selectNextAsset() {
@@ -258,16 +326,50 @@ final class MacPhotoWorkspace {
     }
 
     private func updateRecentFiles(with urls: [URL]) {
-        let normalizedNewPaths = urls.map { $0.standardizedFileURL.path() }
-        let existingPaths = UserDefaults.standard.stringArray(forKey: DefaultsKey.recentFilePaths) ?? []
-
-        var mergedPaths: [String] = normalizedNewPaths
-        for path in existingPaths where !mergedPaths.contains(path) {
-            mergedPaths.append(path)
+        var mergedURLs = urls.map(\.standardizedFileURL)
+        for url in recentFiles where !mergedURLs.contains(where: { $0.path() == url.path() }) {
+            mergedURLs.append(url)
         }
 
-        UserDefaults.standard.set(Array(mergedPaths.prefix(8)), forKey: DefaultsKey.recentFilePaths)
-        recentFiles = Array(mergedPaths.prefix(8)).map(URL.init(fileURLWithPath:))
+        recentFiles = Array(mergedURLs.prefix(8))
+        let bookmarks = recentFiles.compactMap(Self.bookmarkData(for:))
+        UserDefaults.standard.set(bookmarks, forKey: DefaultsKey.recentFileBookmarks)
+        UserDefaults.standard.removeObject(forKey: DefaultsKey.recentFilePaths)
+        releaseUnusedSecurityScopes()
+    }
+
+    private static func bookmarkData(for url: URL) -> Data? {
+        try? url.bookmarkData(
+            options: .withSecurityScope,
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil
+        )
+    }
+
+    private func beginAccessingSecurityScopes(for urls: [URL]) -> Set<String> {
+        var newlyAccessedPaths = Set<String>()
+        for url in urls {
+            let path = url.path()
+            guard activeSecurityScopedURLs[path] == nil,
+                  url.startAccessingSecurityScopedResource() else {
+                continue
+            }
+            activeSecurityScopedURLs[path] = url
+            newlyAccessedPaths.insert(path)
+        }
+        return newlyAccessedPaths
+    }
+
+    private func endAccessingSecurityScopes(for paths: Set<String>) {
+        for path in paths {
+            activeSecurityScopedURLs.removeValue(forKey: path)?.stopAccessingSecurityScopedResource()
+        }
+    }
+
+    private func releaseUnusedSecurityScopes() {
+        let retainedPaths = Set(importedAssets.map { $0.localFile.fileURL.standardizedFileURL.path() })
+            .union(recentFiles.map { $0.standardizedFileURL.path() })
+        endAccessingSecurityScopes(for: Set(activeSecurityScopedURLs.keys).subtracting(retainedPaths))
     }
 }
 #endif

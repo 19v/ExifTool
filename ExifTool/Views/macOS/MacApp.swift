@@ -80,7 +80,9 @@ struct ExifToolApp: App {
                 } else {
                     ForEach(workspace?.recentFiles ?? [], id: \.self) { url in
                         Button(url.lastPathComponent) {
-                            _ = workspace?.openRecentFile(url)
+                            Task {
+                                _ = await workspace?.openRecentFile(url)
+                            }
                         }
                     }
 

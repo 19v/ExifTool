@@ -21,8 +21,18 @@ struct ManualPhotoPickerTabView: View {
 
     var body: some View {
         NavigationStack {
-            emptyState
-                .navigationTitle("选图")
+            ManualPhotoPickerEmptyState(
+                selectedItems: $selectedItems,
+                showsAuthorizationCTA: shouldShowInitialAuthorizationCTA,
+                onRequestPhotoPermission: onRequestPhotoPermission
+            )
+            .navigationTitle("选图")
+            .onAppear(perform: updateInitialAuthorizationCTA)
+            .onChange(of: authorizationState) { _, newValue in
+                if newValue != .unknown {
+                    showsInitialAuthorizationCTAThisSession = false
+                }
+            }
         }
         .sheet(item: $selectedAssetForDetail, onDismiss: cleanupPresentedTemporaryFile) { asset in
             NavigationStack {
@@ -37,7 +47,10 @@ struct ManualPhotoPickerTabView: View {
         }
         .overlay {
             if showsImportingDialog {
-                importingDialog
+                ManualPhotoImportProgressOverlay(
+                    title: importProgressTitle,
+                    fraction: importProgressFraction
+                )
             }
         }
         .task(id: selectedItems.map(\.hashValue)) {
@@ -50,64 +63,6 @@ struct ManualPhotoPickerTabView: View {
         } message: {
             Text(importErrorMessage ?? AppLocalization.string("manualPicker.importFailure"))
         }
-    }
-
-    private var emptyState: some View {
-        VStack(spacing: 18) {
-            pickerButton()
-
-            VStack(spacing: 6) {
-                Text("选择图片")
-                    .font(.headline)
-                Text("选中的图片只在当前会话中使用，不会修改系统照片库。")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-
-                if shouldShowInitialAuthorizationCTA {
-                    Button(AppLocalization.string("授权访问图库")) {
-                        onRequestPhotoPermission?()
-                    }
-                    .font(.subheadline.weight(.semibold))
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.blue)
-                    .padding(.top, 14)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.horizontal, 24)
-        .onAppear {
-            guard authorizationState == .unknown else {
-                showsInitialAuthorizationCTAThisSession = false
-                return
-            }
-
-            if !hasShownInitialPhotoLibraryAuthorizationCTA {
-                showsInitialAuthorizationCTAThisSession = true
-                hasShownInitialPhotoLibraryAuthorizationCTA = true
-            }
-        }
-        .onChange(of: authorizationState) { _, newValue in
-            if newValue != .unknown {
-                showsInitialAuthorizationCTAThisSession = false
-            }
-        }
-    }
-
-    private func pickerButton() -> some View {
-        PhotosPicker(
-            selection: $selectedItems,
-            maxSelectionCount: 1,
-            matching: .images
-        ) {
-            Image(systemName: "plus")
-                .font(.system(size: 40, weight: .semibold))
-                .frame(width: 84, height: 84)
-                .background(.regularMaterial, in: Circle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("选择图片")
     }
 
     private var errorBinding: Binding<Bool> {
@@ -125,31 +80,15 @@ struct ManualPhotoPickerTabView: View {
         authorizationState == .unknown && showsInitialAuthorizationCTAThisSession
     }
 
-    private var importingDialog: some View {
-        ZStack {
-            Color.black.opacity(0.18)
-                .ignoresSafeArea()
+    private func updateInitialAuthorizationCTA() {
+        guard authorizationState == .unknown else {
+            showsInitialAuthorizationCTAThisSession = false
+            return
+        }
 
-            VStack(spacing: 14) {
-                if let importProgressFraction {
-                    ProgressView(value: importProgressFraction)
-                        .frame(width: 190)
-                } else {
-                    ProgressView()
-                        .controlSize(.large)
-                }
-                Text(importProgressTitle)
-                    .font(.headline)
-            }
-            .padding(.horizontal, 28)
-            .padding(.vertical, 24)
-            .frame(minWidth: 220)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-            .overlay {
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.primary.opacity(0.08))
-            }
-            .accessibilityElement(children: .combine)
+        if !hasShownInitialPhotoLibraryAuthorizationCTA {
+            showsInitialAuthorizationCTAThisSession = true
+            hasShownInitialPhotoLibraryAuthorizationCTA = true
         }
     }
 
@@ -202,6 +141,83 @@ struct ManualPhotoPickerTabView: View {
             PhotoTemporaryFileStore.removeIfManaged(temporaryFileURLToCleanup)
         }
         temporaryFileURLToCleanup = nil
+    }
+}
+
+private struct ManualPhotoPickerEmptyState: View {
+    @Binding var selectedItems: [PhotosPickerItem]
+    let showsAuthorizationCTA: Bool
+    let onRequestPhotoPermission: (() -> Void)?
+
+    var body: some View {
+        VStack(spacing: 18) {
+            PhotosPicker(
+                selection: $selectedItems,
+                maxSelectionCount: 1,
+                matching: .images
+            ) {
+                Image(systemName: "plus")
+                    .font(.system(size: 40, weight: .semibold))
+                    .frame(width: 84, height: 84)
+                    .background(.regularMaterial, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("选择图片")
+
+            VStack(spacing: 6) {
+                Text("选择图片")
+                    .font(.headline)
+                Text("选中的图片只在当前会话中使用，不会修改系统照片库。")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+
+                if showsAuthorizationCTA {
+                    Button(AppLocalization.string("授权访问图库")) {
+                        onRequestPhotoPermission?()
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.blue)
+                    .padding(.top, 14)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 24)
+    }
+}
+
+private struct ManualPhotoImportProgressOverlay: View {
+    let title: String
+    let fraction: Double?
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.18)
+                .ignoresSafeArea()
+
+            VStack(spacing: 14) {
+                if let fraction {
+                    ProgressView(value: fraction)
+                        .frame(width: 190)
+                } else {
+                    ProgressView()
+                        .controlSize(.large)
+                }
+                Text(title)
+                    .font(.headline)
+            }
+            .padding(.horizontal, 28)
+            .padding(.vertical, 24)
+            .frame(minWidth: 220)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.primary.opacity(0.08))
+            }
+            .accessibilityElement(children: .combine)
+        }
     }
 }
 

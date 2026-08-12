@@ -9,24 +9,28 @@ import CoreLocation
 import Foundation
 import ImageIO
 
-enum MetadataParser {
-    static func parse(url: URL, fallbackLocation: CLLocation?) -> PhotoMetadata {
+nonisolated enum MetadataParser {
+    static func parse(url: URL, fallbackCoordinate: CLLocationCoordinate2D?) -> PhotoMetadata {
         guard let data = try? Data(contentsOf: url, options: .mappedIfSafe) else {
-            return PhotoMetadata(sections: [], coordinate: fallbackLocation?.coordinate)
+            return PhotoMetadata(sections: [], coordinate: fallbackCoordinate)
         }
 
-        return parse(data: data, fallbackLocation: fallbackLocation)
+        return parse(data: data, fallbackCoordinate: fallbackCoordinate)
     }
 
-    static func parse(data: Data, fallbackLocation: CLLocation?) -> PhotoMetadata {
+    static func parse(data: Data, fallbackCoordinate: CLLocationCoordinate2D?) -> PhotoMetadata {
+        guard !Task.isCancelled else {
+            return PhotoMetadata(sections: [], coordinate: fallbackCoordinate)
+        }
+
         guard
             let source = CGImageSourceCreateWithData(data as CFData, nil),
             let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [String: Any]
         else {
-            return PhotoMetadata(sections: [], coordinate: fallbackLocation?.coordinate)
+            return PhotoMetadata(sections: [], coordinate: fallbackCoordinate)
         }
 
-        let coordinate = parseCoordinate(from: properties) ?? fallbackLocation?.coordinate
+        let coordinate = parseCoordinate(from: properties) ?? fallbackCoordinate
         var sections = properties.compactMap { key, value -> MetadataSection? in
             guard let dictionary = value as? [String: Any] else {
                 return nil
@@ -47,7 +51,13 @@ enum MetadataParser {
         }
         .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
 
+        guard !Task.isCancelled else {
+            return PhotoMetadata(sections: sections, coordinate: coordinate)
+        }
         sections.append(contentsOf: CameraMetadataSectionBuilder.sections(from: properties, imageData: data))
+        guard !Task.isCancelled else {
+            return PhotoMetadata(sections: sections, coordinate: coordinate)
+        }
         sections.append(contentsOf: WhiteBalanceMetadataFallbackBuilder.sections(from: properties, existingSections: sections))
 
         return PhotoMetadata(sections: sections, coordinate: coordinate)
@@ -126,7 +136,7 @@ enum MetadataParser {
     }
 }
 
-enum WhiteBalanceMetadataFallbackBuilder {
+nonisolated enum WhiteBalanceMetadataFallbackBuilder {
     private struct Candidate {
         let key: String
         let value: Any

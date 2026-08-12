@@ -8,7 +8,7 @@
 import Foundation
 import ImageIO
 
-enum CameraMetadataSectionBuilder {
+nonisolated enum CameraMetadataSectionBuilder {
     static func sections(from properties: [String: Any], imageData: Data? = nil) -> [MetadataSection] {
         SonyMetadataExtractor.sections(from: properties, imageData: imageData) +
         FujifilmMetadataExtractor.sections(from: properties, imageData: imageData) +
@@ -346,10 +346,7 @@ nonisolated enum FujifilmMetadataExtractor {
         return ifdDataValue(forTag: 0x927c, in: segment, tiffStart: tiffStart, ifdOffset: exifIFDOffset, endian: endian)
     }
 
-    private enum TIFFEndian {
-        case little
-        case big
-    }
+    private typealias TIFFEndian = TIFFByteOrder
 
     private static let tiffTypeSizes: [UInt16: Int] = [
         1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 6: 1, 7: 1, 8: 2, 9: 4, 10: 8
@@ -444,31 +441,11 @@ nonisolated enum FujifilmMetadataExtractor {
     }
 
     private static func readUInt16(_ data: Data, at offset: Int, endian: TIFFEndian) -> UInt16? {
-        guard offset >= 0, offset + 2 <= data.count else {
-            return nil
-        }
-
-        let bytes = [data[offset], data[offset + 1]]
-        switch endian {
-        case .little:
-            return UInt16(bytes[0]) | (UInt16(bytes[1]) << 8)
-        case .big:
-            return (UInt16(bytes[0]) << 8) | UInt16(bytes[1])
-        }
+        TIFFReader(data: data, byteOrder: endian).uint16(at: offset)
     }
 
     private static func readUInt32(_ data: Data, at offset: Int, endian: TIFFEndian) -> UInt32? {
-        guard offset >= 0, offset + 4 <= data.count else {
-            return nil
-        }
-
-        let bytes = [data[offset], data[offset + 1], data[offset + 2], data[offset + 3]]
-        switch endian {
-        case .little:
-            return UInt32(bytes[0]) | (UInt32(bytes[1]) << 8) | (UInt32(bytes[2]) << 16) | (UInt32(bytes[3]) << 24)
-        case .big:
-            return (UInt32(bytes[0]) << 24) | (UInt32(bytes[1]) << 16) | (UInt32(bytes[2]) << 8) | UInt32(bytes[3])
-        }
+        TIFFReader(data: data, byteOrder: endian).uint32(at: offset)
     }
 
     private static func firstCandidate(for field: Field, in candidates: [Candidate], usedKeys: Set<String>) -> Candidate? {
@@ -518,10 +495,7 @@ nonisolated enum FujifilmMetadataExtractor {
 }
 
 nonisolated enum FujifilmMakerNoteParser {
-    private enum Endian {
-        case little
-        case big
-    }
+    private typealias Endian = TIFFByteOrder
 
     private struct ParsedTag {
         let name: String
@@ -765,7 +739,9 @@ nonisolated enum FujifilmMakerNoteParser {
                 continue
             }
 
-            let byteCount = typeSize * count
+            guard let byteCount = TIFFReader.byteCount(typeSize: typeSize, count: count) else {
+                continue
+            }
             guard let valueData = valueData(in: data, entryOffset: entryOffset, byteCount: byteCount, endian: endian),
                   let parsed = parsedTag(tag, name: tagName, type: type, count: count, valueData: valueData, endian: endian) else {
                 continue
@@ -781,27 +757,18 @@ nonisolated enum FujifilmMakerNoteParser {
         guard byteCount > 0 else {
             return nil
         }
+        let reader = TIFFReader(data: data, byteOrder: endian)
 
         if byteCount <= 4 {
-            let range = entryOffset + 8..<(entryOffset + 8 + byteCount)
-            guard range.upperBound <= data.count else {
-                return nil
-            }
-
-            return data.subdata(in: range)
+            return TIFFReader.offset(base: entryOffset, relative: 8)
+                .flatMap { reader.bytes(at: $0, count: byteCount) }
         }
 
         guard let valueOffset = readUInt32(data, at: entryOffset + 8, endian: endian) else {
             return nil
         }
 
-        let start = Int(valueOffset)
-        let range = start..<(start + byteCount)
-        guard start >= 0, range.upperBound <= data.count else {
-            return nil
-        }
-
-        return data.subdata(in: range)
+        return reader.bytes(at: Int(valueOffset), count: byteCount)
     }
 
     private static func parsedTag(
@@ -1501,31 +1468,11 @@ nonisolated enum FujifilmMakerNoteParser {
     }
 
     private static func readUInt16(_ data: Data, at offset: Int, endian: Endian) -> UInt16? {
-        guard offset >= 0, offset + 2 <= data.count else {
-            return nil
-        }
-
-        let bytes = [data[offset], data[offset + 1]]
-        switch endian {
-        case .little:
-            return UInt16(bytes[0]) | (UInt16(bytes[1]) << 8)
-        case .big:
-            return (UInt16(bytes[0]) << 8) | UInt16(bytes[1])
-        }
+        TIFFReader(data: data, byteOrder: endian).uint16(at: offset)
     }
 
     private static func readUInt32(_ data: Data, at offset: Int, endian: Endian) -> UInt32? {
-        guard offset >= 0, offset + 4 <= data.count else {
-            return nil
-        }
-
-        let bytes = [data[offset], data[offset + 1], data[offset + 2], data[offset + 3]]
-        switch endian {
-        case .little:
-            return UInt32(bytes[0]) | (UInt32(bytes[1]) << 8) | (UInt32(bytes[2]) << 16) | (UInt32(bytes[3]) << 24)
-        case .big:
-            return (UInt32(bytes[0]) << 24) | (UInt32(bytes[1]) << 16) | (UInt32(bytes[2]) << 8) | UInt32(bytes[3])
-        }
+        TIFFReader(data: data, byteOrder: endian).uint32(at: offset)
     }
 
     private static func readInt16(_ data: Data, at offset: Int, endian: Endian) -> Int16? {

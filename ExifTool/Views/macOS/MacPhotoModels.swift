@@ -7,13 +7,13 @@ enum AppTab: Hashable {
     case settings
 }
 
-enum PhotoDetailState {
+nonisolated enum PhotoDetailState: Sendable {
     case loading
     case loaded(PhotoMetadata)
     case failed(String)
 }
 
-struct LocalPhotoFile {
+nonisolated struct LocalPhotoFile: Sendable {
     let id: String
     let fileURL: URL
     let fileName: String
@@ -24,7 +24,7 @@ struct LocalPhotoFile {
     let pixelHeight: Int
 }
 
-struct PhotoAsset: Identifiable, Hashable {
+nonisolated struct PhotoAsset: Identifiable, Hashable, Sendable {
     let id: String
     let localFile: LocalPhotoFile
     let creationDate: Date?

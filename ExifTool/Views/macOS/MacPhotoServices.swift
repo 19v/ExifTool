@@ -49,30 +49,31 @@ enum PhotoFileImporter {
 
 enum PhotoLoader {
     static func thumbnail(for asset: PhotoAsset, size: CGSize) async -> PlatformImage? {
-        thumbnail(from: asset.localFile, maxPixelLength: max(size.width, size.height))
+        await thumbnail(from: asset.localFile, maxPixelLength: max(size.width, size.height))
     }
 
     static func previewImage(for asset: PhotoAsset, size: CGSize) async -> PlatformImage? {
-        thumbnail(from: asset.localFile, maxPixelLength: max(size.width, size.height))
+        await thumbnail(from: asset.localFile, maxPixelLength: max(size.width, size.height))
     }
 
     static func metadata(for asset: PhotoAsset, allowNetwork: Bool) async -> PhotoDetailState {
-        .loaded(MetadataParser.parse(url: asset.localFile.fileURL, fallbackLocation: nil))
+        let fileURL = asset.localFile.fileURL
+        let metadata = await MediaProcessing.run {
+            MetadataParser.parse(url: fileURL, fallbackCoordinate: nil)
+        }
+        return .loaded(metadata)
     }
 
     static func shareablePhotoURL(for asset: PhotoAsset, allowNetwork: Bool) async throws -> URL {
         asset.localFile.fileURL
     }
 
-    private static func thumbnail(from file: LocalPhotoFile, maxPixelLength: CGFloat) -> PlatformImage? {
-        let options: [CFString: Any] = [
-            kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceThumbnailMaxPixelSize: max(1, Int(ceil(maxPixelLength)))
-        ]
-
-        guard let source = CGImageSourceCreateWithURL(file.fileURL as CFURL, nil),
-              let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
+    private static func thumbnail(from file: LocalPhotoFile, maxPixelLength: CGFloat) async -> PlatformImage? {
+        let fileURL = file.fileURL
+        let data = file.data
+        guard let cgImage = await MediaProcessing.run(operation: {
+            ImageThumbnailDecoder.decode(fileURL: fileURL, data: data, maxPixelLength: maxPixelLength)
+        }) else {
             return nil
         }
 

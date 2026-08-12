@@ -8,7 +8,7 @@
 import Foundation
 import ImageIO
 
-enum NikonMetadataExtractor {
+nonisolated enum NikonMetadataExtractor {
     private struct Field {
         let title: String
         let aliases: [String]
@@ -175,10 +175,7 @@ enum NikonMetadataExtractor {
 }
 
 nonisolated enum NikonMakerNoteParser {
-    private enum Endian {
-        case little
-        case big
-    }
+    private typealias Endian = TIFFByteOrder
 
     private struct IFDEntry {
         let tag: UInt16
@@ -399,7 +396,9 @@ nonisolated enum NikonMakerNoteParser {
                 continue
             }
 
-            let byteCount = valueCount * typeSize
+            guard let byteCount = TIFFReader.byteCount(typeSize: typeSize, count: valueCount) else {
+                continue
+            }
             guard let valueData = valueData(in: data, entryOffset: entryOffset, byteCount: byteCount, tiffStart: tiffStart, endian: endian) else {
                 continue
             }
@@ -411,26 +410,20 @@ nonisolated enum NikonMakerNoteParser {
     }
 
     private static func valueData(in data: Data, entryOffset: Int, byteCount: Int, tiffStart: Int, endian: Endian) -> Data? {
+        let reader = TIFFReader(data: data, byteOrder: endian)
         if byteCount <= 4 {
-            let range = entryOffset + 8..<(entryOffset + 8 + byteCount)
-            guard range.upperBound <= data.count else {
-                return nil
-            }
-
-            return data.subdata(in: range)
+            return TIFFReader.offset(base: entryOffset, relative: 8)
+                .flatMap { reader.bytes(at: $0, count: byteCount) }
         }
 
         guard let offsetValue = readUInt32(data, at: entryOffset + 8, endian: endian) else {
             return nil
         }
 
-        let start = tiffStart + Int(offsetValue)
-        let range = start..<(start + byteCount)
-        guard start >= 0, range.upperBound <= data.count else {
+        guard let start = TIFFReader.offset(base: tiffStart, relative: Int(offsetValue)) else {
             return nil
         }
-
-        return data.subdata(in: range)
+        return reader.bytes(at: start, count: byteCount)
     }
 
     private static func numericValues(_ entry: IFDEntry) -> [Int] {
@@ -880,18 +873,7 @@ nonisolated enum NikonMakerNoteParser {
     }
 
     private static func readUInt16(_ data: Data, at offset: Int, endian: Endian) -> UInt16? {
-        guard offset >= 0, offset + 2 <= data.count else {
-            return nil
-        }
-
-        let first = UInt16(data[offset])
-        let second = UInt16(data[offset + 1])
-        switch endian {
-        case .little:
-            return first | (second << 8)
-        case .big:
-            return (first << 8) | second
-        }
+        TIFFReader(data: data, byteOrder: endian).uint16(at: offset)
     }
 
     private static func readInt16(_ data: Data, at offset: Int, endian: Endian) -> Int16? {
@@ -899,20 +881,7 @@ nonisolated enum NikonMakerNoteParser {
     }
 
     private static func readUInt32(_ data: Data, at offset: Int, endian: Endian) -> UInt32? {
-        guard offset >= 0, offset + 4 <= data.count else {
-            return nil
-        }
-
-        let b0 = UInt32(data[offset])
-        let b1 = UInt32(data[offset + 1])
-        let b2 = UInt32(data[offset + 2])
-        let b3 = UInt32(data[offset + 3])
-        switch endian {
-        case .little:
-            return b0 | (b1 << 8) | (b2 << 16) | (b3 << 24)
-        case .big:
-            return (b0 << 24) | (b1 << 16) | (b2 << 8) | b3
-        }
+        TIFFReader(data: data, byteOrder: endian).uint32(at: offset)
     }
 
     private static func readInt32(_ data: Data, at offset: Int, endian: Endian) -> Int32? {

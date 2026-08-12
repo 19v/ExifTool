@@ -61,15 +61,65 @@ jobs:
             -scheme ExifTool \
             -configuration Debug \
             -destination 'platform=macOS' \
+            -derivedDataPath "$RUNNER_TEMP/derived-data/macos-debug" \
+            SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
+            GCC_TREAT_WARNINGS_AS_ERRORS=YES \
             CODE_SIGNING_ALLOWED=NO \
             test
 
-      - name: Build iOS app and share extension
+      - name: Build macOS Release
+        run: |
+          xcodebuild \
+            -project ExifTool.xcodeproj \
+            -scheme ExifTool \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -derivedDataPath "$RUNNER_TEMP/derived-data/macos-release" \
+            SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
+            GCC_TREAT_WARNINGS_AS_ERRORS=YES \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Build iOS Debug app and share extension
         run: |
           xcodebuild \
             -project ExifTool.xcodeproj \
             -scheme ExifTool \
             -configuration Debug \
             -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/derived-data/ios-debug" \
+            SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
+            GCC_TREAT_WARNINGS_AS_ERRORS=YES \
             CODE_SIGNING_ALLOWED=NO \
             build
+
+      - name: Verify Debug share extension embedding
+        shell: bash
+        run: |
+          set -euo pipefail
+          appex="$RUNNER_TEMP/derived-data/ios-debug/Build/Products/Debug-iphonesimulator/ExifTool.app/PlugIns/ExifToolShareExtension.appex"
+          test -d "$appex"
+          bundle_id="$(plutil -extract CFBundleIdentifier raw "$appex/Info.plist")"
+          test "$bundle_id" = "com.echopie.ExifTool.ShareExtension"
+
+      - name: Build iOS Release app and share extension
+        run: |
+          xcodebuild \
+            -project ExifTool.xcodeproj \
+            -scheme ExifTool \
+            -configuration Release \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/derived-data/ios-release" \
+            SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
+            GCC_TREAT_WARNINGS_AS_ERRORS=YES \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Verify Release share extension embedding
+        shell: bash
+        run: |
+          set -euo pipefail
+          appex="$RUNNER_TEMP/derived-data/ios-release/Build/Products/Release-iphonesimulator/ExifTool.app/PlugIns/ExifToolShareExtension.appex"
+          test -d "$appex"
+          bundle_id="$(plutil -extract CFBundleIdentifier raw "$appex/Info.plist")"
+          test "$bundle_id" = "com.echopie.ExifTool.ShareExtension"

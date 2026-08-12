@@ -31,7 +31,9 @@ struct MacPhotoDropTabView: View {
                         recentFiles: workspace.recentFiles,
                         onPickFiles: { isImporterPresented = true },
                         onOpenRecentFile: { url in
-                            _ = workspace.openRecentFile(url)
+                            Task {
+                                _ = await workspace.openRecentFile(url)
+                            }
                         },
                         onClearRecentFiles: {
                             workspace.clearRecentFiles()
@@ -102,7 +104,9 @@ struct MacPhotoDropTabView: View {
                         Menu("最近打开") {
                             ForEach(workspace.recentFiles, id: \.self) { url in
                                 Button(url.lastPathComponent) {
-                                    _ = workspace.openRecentFile(url)
+                                    Task {
+                                        _ = await workspace.openRecentFile(url)
+                                    }
                                 }
                             }
 
@@ -153,7 +157,13 @@ struct MacPhotoDropTabView: View {
             }
         }
         .dropDestination(for: URL.self) { urls, _ in
-            workspace.importFiles(from: urls)
+            guard !urls.isEmpty else {
+                return false
+            }
+            Task {
+                _ = await workspace.importFiles(from: urls)
+            }
+            return true
         } isTargeted: { isTargeted in
             isDropTargeted = isTargeted
         }
@@ -166,7 +176,9 @@ struct MacPhotoDropTabView: View {
                 return
             }
 
-            _ = workspace.importFiles(from: urls)
+            Task {
+                _ = await workspace.importFiles(from: urls)
+            }
         }
         .onMoveCommand { direction in
             switch direction {
