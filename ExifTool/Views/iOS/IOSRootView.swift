@@ -103,9 +103,7 @@ struct IOSRootView: View {
                 return
             }
 
-            Task {
-                await library.refresh()
-            }
+            library.applicationDidBecomeActive()
         }
     }
 

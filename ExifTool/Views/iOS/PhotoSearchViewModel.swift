@@ -2,6 +2,7 @@
 
 import Foundation
 import Observation
+import os
 
 @MainActor
 @Observable
@@ -30,6 +31,9 @@ final class PhotoSearchViewModel {
     }
 
     func setSourceAssets(_ assets: [PhotoAsset]) {
+        let signpostID = PerformanceInstrumentation.signposter.makeSignpostID()
+        let interval = PerformanceInstrumentation.signposter.beginInterval("UpdateSearchIndex", id: signpostID)
+        defer { PerformanceInstrumentation.signposter.endInterval("UpdateSearchIndex", interval) }
         indexTask?.cancel()
         debounceTask?.cancel()
         filterTask?.cancel()
@@ -53,7 +57,10 @@ final class PhotoSearchViewModel {
         }
         indexTask = Task { [weak self] in
             let builtDocuments = await Task.detached(priority: .userInitiated) {
-                Dictionary(uniqueKeysWithValues: seeds.map { seed in
+                let signpostID = PerformanceInstrumentation.signposter.makeSignpostID()
+                let interval = PerformanceInstrumentation.signposter.beginInterval("BuildSearchDocuments", id: signpostID)
+                defer { PerformanceInstrumentation.signposter.endInterval("BuildSearchDocuments", interval) }
+                return Dictionary(uniqueKeysWithValues: seeds.map { seed in
                     let document = PhotoSearchIndex.document(for: seed)
                     return (document.assetID, document)
                 })

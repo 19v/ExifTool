@@ -11,11 +11,17 @@ import ImageIO
 
 nonisolated enum MetadataParser {
     static func parse(url: URL, fallbackCoordinate: CLLocationCoordinate2D?) -> PhotoMetadata {
-        guard let data = try? Data(contentsOf: url, options: .mappedIfSafe) else {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [String: Any] else {
             return PhotoMetadata(sections: [], coordinate: fallbackCoordinate)
         }
 
-        return parse(data: data, fallbackCoordinate: fallbackCoordinate)
+        let mappedData = try? Data(contentsOf: url, options: .mappedIfSafe)
+        return parse(
+            properties: properties,
+            imageData: mappedData,
+            fallbackCoordinate: fallbackCoordinate
+        )
     }
 
     static func parse(data: Data, fallbackCoordinate: CLLocationCoordinate2D?) -> PhotoMetadata {
@@ -23,12 +29,19 @@ nonisolated enum MetadataParser {
             return PhotoMetadata(sections: [], coordinate: fallbackCoordinate)
         }
 
-        guard
-            let source = CGImageSourceCreateWithData(data as CFData, nil),
-            let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [String: Any]
-        else {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [String: Any] else {
             return PhotoMetadata(sections: [], coordinate: fallbackCoordinate)
         }
+
+        return parse(properties: properties, imageData: data, fallbackCoordinate: fallbackCoordinate)
+    }
+
+    private static func parse(
+        properties: [String: Any],
+        imageData: Data?,
+        fallbackCoordinate: CLLocationCoordinate2D?
+    ) -> PhotoMetadata {
 
         let coordinate = parseCoordinate(from: properties) ?? fallbackCoordinate
         var sections = properties.compactMap { key, value -> MetadataSection? in
@@ -54,7 +67,7 @@ nonisolated enum MetadataParser {
         guard !Task.isCancelled else {
             return PhotoMetadata(sections: sections, coordinate: coordinate)
         }
-        sections.append(contentsOf: CameraMetadataSectionBuilder.sections(from: properties, imageData: data))
+        sections.append(contentsOf: CameraMetadataSectionBuilder.sections(from: properties, imageData: imageData))
         guard !Task.isCancelled else {
             return PhotoMetadata(sections: sections, coordinate: coordinate)
         }

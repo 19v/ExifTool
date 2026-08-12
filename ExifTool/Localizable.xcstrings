@@ -1671,18 +1671,18 @@
         }
       }
     },
-    "可以搜索日期、尺寸或照片标识符。" : {
+    "可以搜索文件名、日期、尺寸或照片标识符。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search by date, dimensions, or photo identifier."
+            "value" : "Search by file name, date, dimensions, or photo identifier."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "可以搜索日期、尺寸或照片标识符。"
+            "value" : "可以搜索文件名、日期、尺寸或照片标识符。"
           }
         }
       }

@@ -30,7 +30,8 @@ final class MakerNoteParserTests: XCTestCase {
     @MainActor
     func testReducedRAWFixturesMatchPinnedExifToolCameraMetadata() throws {
         let fixtures = [
-            (fileName: "Nikon_D70", extension: "nef", sectionID: "nikon-parameters", make: "NIKON CORPORATION", model: "NIKON D70")
+            (fileName: "Nikon_D70", extension: "nef", sectionID: "nikon-parameters", make: "NIKON CORPORATION", model: "NIKON D70"),
+            (fileName: "Sony_ILCE-1M2", extension: "arw", sectionID: "sony-parameters", make: "SONY", model: "ILCE-1M2")
         ]
 
         for fixture in fixtures {

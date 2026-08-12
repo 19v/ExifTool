@@ -9,11 +9,18 @@
 
 import Foundation
 import Observation
+import os
 import Photos
 
 @MainActor
 @Observable
 final class PhotoLibraryViewModel: NSObject {
+    nonisolated private static func photoAsset(from asset: PHAsset) -> PhotoAsset {
+        let fileName = PHAssetResource.assetResources(for: asset)
+            .first(where: { $0.type == .photo || $0.type == .fullSizePhoto })?
+            .originalFilename
+        return PhotoAsset(asset: asset, displayName: fileName)
+    }
     private nonisolated struct PhotoAssetFetchSnapshot: @unchecked Sendable {
         let result: PHFetchResult<PHAsset>
         let assets: [PhotoAsset]
@@ -61,6 +68,7 @@ final class PhotoLibraryViewModel: NSObject {
     private(set) var localOnlyAssetIDs: Set<String> = []
     private(set) var showsOnlyLocalAssets = false
     private(set) var searchableAssetsRevision = 0
+    private(set) var albumContentRevision = 0
     private(set) var isFilteringLocalAssets = false
     private(set) var hasMoreLocalAssets = false
     private(set) var isBuildingLocalAlbumStats = false
@@ -183,9 +191,10 @@ final class PhotoLibraryViewModel: NSObject {
     @ObservationIgnored private var albumStatsTask: Task<Void, Never>?
     @ObservationIgnored private var albumMembershipTask: Task<PhotoAlbumMembershipIndex, Never>?
     @ObservationIgnored private var libraryChangeTask: Task<Void, Never>?
+    @ObservationIgnored private var albumRefreshTask: Task<Void, Never>?
     @ObservationIgnored private let photoLibrary: PHPhotoLibrary
     @ObservationIgnored private var assetFetchResult: PHFetchResult<PHAsset>?
-    private var allFetchedAssets: [PhotoAsset] = []
+    @ObservationIgnored private var allFetchedAssets: [PhotoAsset] = []
     @ObservationIgnored private var nextLocalOnlyScanIndex = 0
     @ObservationIgnored private var isLoadingNextLocalOnlyPage = false
     @ObservationIgnored private var refreshGeneration = UUID()
@@ -214,6 +223,20 @@ final class PhotoLibraryViewModel: NSObject {
         loadAssets(for: status)
     }
 
+    func applicationDidBecomeActive() {
+        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        let expectedScope: AccessScope = switch status {
+        case .authorized: .full
+        case .limited: .limited
+        case .denied, .restricted: .denied
+        case .notDetermined: .unknown
+        @unknown default: .denied
+        }
+        if expectedScope != accessScope || assetFetchResult == nil {
+            loadAssets(for: status)
+        }
+    }
+
     func requestAccess(showingOnlyLocalAssets: Bool) async {
         updateShowsOnlyLocalAssets(showingOnlyLocalAssets)
 
@@ -237,6 +260,7 @@ final class PhotoLibraryViewModel: NSObject {
         refreshTask?.cancel()
         albumStatsTask?.cancel()
         albumMembershipTask?.cancel()
+        albumRefreshTask?.cancel()
         refreshGeneration = UUID()
         localOnlySessionID = refreshGeneration
         localAvailabilityIndex.invalidate()
@@ -336,7 +360,7 @@ final class PhotoLibraryViewModel: NSObject {
         var fetchedAssets: [PhotoAsset] = []
         fetchedAssets.reserveCapacity(result.count)
         result.enumerateObjects { asset, _, _ in
-            fetchedAssets.append(PhotoAsset(asset: asset))
+            fetchedAssets.append(photoAsset(from: asset))
         }
         
         return fetchedAssets
@@ -354,28 +378,35 @@ final class PhotoLibraryViewModel: NSObject {
     }
 
     nonisolated static func fetchImageAssetsOffMain(in collection: PHAssetCollection? = nil) async -> [PhotoAsset] {
-        await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                let assets = Self.fetchImageAssets(in: collection)
-                continuation.resume(returning: assets)
+        await PhotoLibraryQueryService.run { cancellation in
+            let options = PHFetchOptions()
+            options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+            options.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.image.rawValue)
+            let result = collection.map { PHAsset.fetchAssets(in: $0, options: options) }
+                ?? PHAsset.fetchAssets(with: options)
+            var assets: [PhotoAsset] = []
+            assets.reserveCapacity(result.count)
+            result.enumerateObjects { asset, _, stop in
+                guard !cancellation.isCancelled else { stop.pointee = true; return }
+                assets.append(photoAsset(from: asset))
             }
+            return assets
         }
     }
 
     nonisolated private static func fetchImageAssetSnapshotOffMain() async -> PhotoAssetFetchSnapshot {
-        await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
+        await PhotoLibraryQueryService.run { cancellation in
                 let options = PHFetchOptions()
                 options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
                 options.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.image.rawValue)
                 let result = PHAsset.fetchAssets(with: options)
                 var assets: [PhotoAsset] = []
                 assets.reserveCapacity(result.count)
-                result.enumerateObjects { asset, _, _ in
-                    assets.append(PhotoAsset(asset: asset))
+                result.enumerateObjects { asset, _, stop in
+                    guard !cancellation.isCancelled else { stop.pointee = true; return }
+                    assets.append(photoAsset(from: asset))
                 }
-                continuation.resume(returning: PhotoAssetFetchSnapshot(result: result, assets: assets))
-            }
+                return PhotoAssetFetchSnapshot(result: result, assets: assets)
         }
     }
 
@@ -438,6 +469,7 @@ final class PhotoLibraryViewModel: NSObject {
     private func resetLoadedContent() {
         albumStatsTask?.cancel()
         albumMembershipTask?.cancel()
+        albumRefreshTask?.cancel()
         assetFetchResult = nil
         allFetchedAssets = []
         nextLocalOnlyScanIndex = 0
@@ -479,30 +511,50 @@ final class PhotoLibraryViewModel: NSObject {
     }
 
     private func applyLibraryChange(_ change: PHChange) {
+        let signpostID = PerformanceInstrumentation.signposter.makeSignpostID()
+        let interval = PerformanceInstrumentation.signposter.beginInterval("ApplyPhotoLibraryChange", id: signpostID)
+        defer { PerformanceInstrumentation.signposter.endInterval("ApplyPhotoLibraryChange", interval) }
         guard let assetFetchResult,
               let details = change.changeDetails(for: assetFetchResult) else {
             Task { await refresh() }
             return
         }
 
-        let previousAssets = allFetchedAssets
-        let updatedResult = details.fetchResultAfterChanges
-        var updatedAssets: [PhotoAsset] = []
-        updatedAssets.reserveCapacity(updatedResult.count)
-        updatedResult.enumerateObjects { asset, _, _ in
-            updatedAssets.append(PhotoAsset(asset: asset))
-        }
-        self.assetFetchResult = updatedResult
+        refreshAlbumsAfterLibraryChange()
+        albumContentRevision &+= 1
 
-        guard updatedAssets != previousAssets else {
+        guard details.hasIncrementalChanges else {
+            Task { await refresh() }
             return
         }
 
-        let previousIDs = Set(previousAssets.map(\.id))
-        let updatedIDs = Set(updatedAssets.map(\.id))
-        let removedIDs = previousIDs.subtracting(updatedIDs)
-        let insertedIDs = updatedIDs.subtracting(previousIDs)
+        let updatedResult = details.fetchResultAfterChanges
+        var updatedAssets = allFetchedAssets
+        var didMoveAsset = false
+        for index in (details.removedIndexes ?? []).sorted(by: >) where index < updatedAssets.count {
+            updatedAssets.remove(at: index)
+        }
+        for index in (details.insertedIndexes ?? []).sorted() where index <= updatedAssets.count {
+            updatedAssets.insert(Self.photoAsset(from: updatedResult.object(at: index)), at: index)
+        }
+        details.enumerateMoves { fromIndex, toIndex in
+            let movedID = assetFetchResult.object(at: fromIndex).localIdentifier
+            guard let currentIndex = updatedAssets.firstIndex(where: { $0.id == movedID }) else { return }
+            let movedAsset = updatedAssets.remove(at: currentIndex)
+            updatedAssets.insert(movedAsset, at: min(toIndex, updatedAssets.count))
+            didMoveAsset = true
+        }
+        for index in details.changedIndexes ?? [] where index < updatedAssets.count {
+            updatedAssets[index] = Self.photoAsset(from: updatedResult.object(at: index))
+        }
+        self.assetFetchResult = updatedResult
+
+        let removedIDs = Set(details.removedObjects.map(\.localIdentifier))
+        let insertedIDs = Set(details.insertedObjects.map(\.localIdentifier))
         let changedIDs = Set(details.changedObjects.map(\.localIdentifier))
+        guard !removedIDs.isEmpty || !insertedIDs.isEmpty || !changedIDs.isEmpty || didMoveAsset else {
+            return
+        }
         let affectedIDs = insertedIDs.union(changedIDs)
 
         allFetchedAssets = updatedAssets
@@ -540,6 +592,16 @@ final class PhotoLibraryViewModel: NSObject {
             self.authorizationState = self.assets.isEmpty && !self.hasMoreLocalAssets
                 ? .empty
                 : self.authorizationStateForCurrentScope
+        }
+    }
+
+    private func refreshAlbumsAfterLibraryChange() {
+        guard !showsOnlyLocalAssets else { return }
+        albumRefreshTask?.cancel()
+        albumRefreshTask = Task { [weak self] in
+            let refreshedAlbums = await Self.fetchImageAlbumsOffMain()
+            guard let self, !Task.isCancelled else { return }
+            self.albums = refreshedAlbums
         }
     }
 
@@ -672,14 +734,14 @@ final class PhotoLibraryViewModel: NSObject {
     }
 
     nonisolated private static func fetchPhotoAlbumMembershipIndexOffMain() async -> PhotoAlbumMembershipIndex {
-        await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                continuation.resume(returning: fetchPhotoAlbumMembershipIndex())
-            }
+        await PhotoLibraryQueryService.run { cancellation in
+            fetchPhotoAlbumMembershipIndex(cancellation: cancellation)
         }
     }
 
-    nonisolated private static func fetchPhotoAlbumMembershipIndex() -> PhotoAlbumMembershipIndex {
+    nonisolated private static func fetchPhotoAlbumMembershipIndex(
+        cancellation: PhotoLibraryQueryCancellation
+    ) -> PhotoAlbumMembershipIndex {
         let imageOptions = PHFetchOptions()
         imageOptions.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.image.rawValue)
         var collections: [PHAssetCollection] = []
@@ -687,7 +749,8 @@ final class PhotoLibraryViewModel: NSObject {
         var albumIDsByAssetID: [String: [String]] = [:]
 
         func appendCollections(from result: PHFetchResult<PHAssetCollection>) {
-            result.enumerateObjects { collection, _, _ in
+            result.enumerateObjects { collection, _, stop in
+                guard !cancellation.isCancelled else { stop.pointee = true; return }
                 let albumID = collection.localIdentifier
                 guard seenCollectionIDs.insert(albumID).inserted else {
                     return
@@ -698,7 +761,8 @@ final class PhotoLibraryViewModel: NSObject {
                     return
                 }
                 collections.append(collection)
-                fetchedAssets.enumerateObjects { asset, _, _ in
+                fetchedAssets.enumerateObjects { asset, _, stop in
+                    guard !cancellation.isCancelled else { stop.pointee = true; return }
                     albumIDsByAssetID[asset.localIdentifier, default: []].append(albumID)
                 }
             }
@@ -709,16 +773,15 @@ final class PhotoLibraryViewModel: NSObject {
         return PhotoAlbumMembershipIndex(collections: collections, albumIDsByAssetID: albumIDsByAssetID)
     }
 
-    nonisolated private static func fetchImageAlbumsOffMain(filteringTo assetIDs: Set<String>? = nil) async -> [PhotoAlbum] {
-        await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                let albums = Self.fetchImageAlbums(filteringTo: assetIDs)
-                continuation.resume(returning: albums)
-            }
+    nonisolated private static func fetchImageAlbumsOffMain() async -> [PhotoAlbum] {
+        await PhotoLibraryQueryService.run { cancellation in
+            Self.fetchImageAlbums(cancellation: cancellation)
         }
     }
 
-    nonisolated private static func fetchImageAlbums(filteringTo assetIDs: Set<String>? = nil) -> [PhotoAlbum] {
+    nonisolated private static func fetchImageAlbums(
+        cancellation: PhotoLibraryQueryCancellation
+    ) -> [PhotoAlbum] {
         let imageOptions = PHFetchOptions()
         imageOptions.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.image.rawValue)
         
@@ -726,24 +789,14 @@ final class PhotoLibraryViewModel: NSObject {
         var seenIdentifiers = Set<String>()
         
         func appendAlbums(from result: PHFetchResult<PHAssetCollection>) {
-            result.enumerateObjects { collection, _, _ in
+            result.enumerateObjects { collection, _, stop in
+                guard !cancellation.isCancelled else { stop.pointee = true; return }
                 guard !seenIdentifiers.contains(collection.localIdentifier) else {
                     return
                 }
                 
                 let fetchedAssets = PHAsset.fetchAssets(in: collection, options: imageOptions)
-                let count: Int
-                if let assetIDs {
-                    var matchedCount = 0
-                    fetchedAssets.enumerateObjects { asset, _, _ in
-                        if assetIDs.contains(asset.localIdentifier) {
-                            matchedCount += 1
-                        }
-                    }
-                    count = matchedCount
-                } else {
-                    count = fetchedAssets.count
-                }
+                let count = fetchedAssets.count
 
                 guard count > 0 else {
                     return

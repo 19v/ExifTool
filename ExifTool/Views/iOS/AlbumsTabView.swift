@@ -20,6 +20,7 @@ struct AlbumsTabView: View {
                     albums: library.albums,
                     readOnlyMode: readOnlyMode,
                     showsOnlyLocalAssets: library.showsOnlyLocalAssets,
+                    albumContentRevision: library.albumContentRevision,
                     onRefresh: library.refresh
                 )
             }
@@ -64,6 +65,7 @@ struct AlbumDetailView: View {
     let album: PhotoAlbum
     let readOnlyMode: Bool
     let showsOnlyLocalAssets: Bool
+    let albumContentRevision: Int
 
     @State private var pager = LocalAssetPagingViewModel()
     @State private var allAssets: [PhotoAsset] = []
@@ -78,7 +80,7 @@ struct AlbumDetailView: View {
         )
         .navigationTitle(album.title)
         .platformInlineNavigationTitle()
-        .task(id: album.id) {
+        .task(id: AlbumLoadRevision(albumID: album.id, contentRevision: albumContentRevision)) {
             let fetchedAssets = await PhotoLibraryViewModel.fetchImageAssetsOffMain(in: album.collection)
             allAssets = fetchedAssets
             if showsOnlyLocalAssets {
@@ -96,6 +98,11 @@ struct AlbumDetailView: View {
     private var assetAppearHandler: ((String?) -> Void)? {
         showsOnlyLocalAssets ? { pager.loadMoreIfNeeded(currentAssetID: $0) } : nil
     }
+}
+
+private struct AlbumLoadRevision: Equatable {
+    let albumID: String
+    let contentRevision: Int
 }
 
 #endif

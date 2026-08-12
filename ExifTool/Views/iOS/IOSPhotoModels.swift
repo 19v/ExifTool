@@ -45,7 +45,7 @@ struct PhotoAsset: Identifiable, Hashable {
     let location: CLLocation?
     let displayName: String?
 
-    nonisolated init(asset: PHAsset) {
+    nonisolated init(asset: PHAsset, displayName: String? = nil) {
         self.id = asset.localIdentifier
         self.source = .photoLibrary(asset)
         self.creationDate = asset.creationDate
@@ -53,7 +53,7 @@ struct PhotoAsset: Identifiable, Hashable {
         self.pixelWidth = asset.pixelWidth
         self.pixelHeight = asset.pixelHeight
         self.location = asset.location
-        self.displayName = nil
+        self.displayName = displayName
     }
 
     nonisolated init(file: LocalPhotoFile) {

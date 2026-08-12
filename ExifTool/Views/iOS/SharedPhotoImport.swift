@@ -9,7 +9,7 @@
 
 import Foundation
 
-enum SharedPhotoImport {
+nonisolated enum SharedPhotoImport {
     static let appGroupIdentifier = "group.com.echopie.ExifTool"
     static let urlScheme = "exiftool"
     static let urlHost = "shared-photo"

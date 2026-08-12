@@ -33,4 +33,17 @@ final class PhotoSearchMatcherTests: XCTestCase {
             PhotoSearchMatcher.matchingAssetIDs(query: "  \n ", documents: documents).isEmpty
         )
     }
+
+    func testLargeSearchIndexPerformance() {
+        let documents = (0..<100_000).map {
+            PhotoSearchDocument(assetID: "asset-\($0)", text: "IMG_\($0).HEIC 4032x3024")
+        }
+
+        measure {
+            XCTAssertEqual(
+                PhotoSearchMatcher.matchingAssetIDs(query: "IMG_99999", documents: documents),
+                ["asset-99999"]
+            )
+        }
+    }
 }

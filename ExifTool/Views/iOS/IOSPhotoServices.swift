@@ -56,14 +56,18 @@ private enum PhotoLibraryImageManager {
 final class PhotoThumbnailPreheater {
     private var targetSize = CGSize(width: 360, height: 360)
     private var cachedAssetsByID: [String: PHAsset] = [:]
+    private var assetIndexByID: [String: Int] = [:]
 
     func update(around assetID: String, in assets: [PhotoAsset], pixelLength: CGFloat) {
-        let newTargetSize = Self.targetSize(for: pixelLength)
+        let newTargetSize = ThumbnailSizeBucket.targetSize(for: pixelLength)
         if newTargetSize != targetSize {
             reset()
             targetSize = newTargetSize
         }
-        guard let index = assets.firstIndex(where: { $0.id == assetID }) else {
+        if assetIndexByID[assetID].map({ $0 >= assets.count || assets[$0].id != assetID }) ?? true {
+            assetIndexByID = Dictionary(uniqueKeysWithValues: assets.enumerated().map { ($0.element.id, $0.offset) })
+        }
+        guard let index = assetIndexByID[assetID] else {
             return
         }
 
@@ -98,16 +102,16 @@ final class PhotoThumbnailPreheater {
     }
 
     func reset() {
-        guard !cachedAssetsByID.isEmpty else {
-            return
+        if !cachedAssetsByID.isEmpty {
+            PhotoLibraryImageManager.shared.stopCachingImages(
+                for: Array(cachedAssetsByID.values),
+                targetSize: targetSize,
+                contentMode: .aspectFill,
+                options: requestOptions
+            )
         }
-        PhotoLibraryImageManager.shared.stopCachingImages(
-            for: Array(cachedAssetsByID.values),
-            targetSize: targetSize,
-            contentMode: .aspectFill,
-            options: requestOptions
-        )
         cachedAssetsByID.removeAll(keepingCapacity: true)
+        assetIndexByID.removeAll(keepingCapacity: true)
     }
 
     func handleMemoryPressure() {
@@ -116,25 +120,27 @@ final class PhotoThumbnailPreheater {
         LocalThumbnailMemoryCache.shared.removeAllImages()
     }
 
-    private static func targetSize(for pixelLength: CGFloat) -> CGSize {
-        let normalizedLength: CGFloat
-        switch pixelLength {
-        case ...360:
-            normalizedLength = 360
-        case ...720:
-            normalizedLength = 720
-        default:
-            normalizedLength = 1_080
-        }
-        return CGSize(width: normalizedLength, height: normalizedLength)
-    }
-
     private var requestOptions: PHImageRequestOptions {
         let options = PHImageRequestOptions()
         options.deliveryMode = .highQualityFormat
         options.resizeMode = .exact
         options.isNetworkAccessAllowed = false
         return options
+    }
+}
+
+nonisolated enum ThumbnailSizeBucket {
+    static func pixelLength(for requestedLength: CGFloat) -> CGFloat {
+        switch requestedLength {
+        case ...360: 360
+        case ...720: 720
+        default: 1_080
+        }
+    }
+
+    static func targetSize(for requestedLength: CGFloat) -> CGSize {
+        let length = pixelLength(for: requestedLength)
+        return CGSize(width: length, height: length)
     }
 }
 

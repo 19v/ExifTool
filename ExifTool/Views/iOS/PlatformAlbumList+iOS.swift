@@ -13,17 +13,20 @@ struct PlatformAlbumList: View {
     let albums: [PhotoAlbum]
     let readOnlyMode: Bool
     let showsOnlyLocalAssets: Bool
+    let albumContentRevision: Int
     let onRefresh: (() async -> Void)?
 
     init(
         albums: [PhotoAlbum],
         readOnlyMode: Bool,
         showsOnlyLocalAssets: Bool = false,
+        albumContentRevision: Int = 0,
         onRefresh: (() async -> Void)? = nil
     ) {
         self.albums = albums
         self.readOnlyMode = readOnlyMode
         self.showsOnlyLocalAssets = showsOnlyLocalAssets
+        self.albumContentRevision = albumContentRevision
         self.onRefresh = onRefresh
     }
 
@@ -33,7 +36,8 @@ struct PlatformAlbumList: View {
                 AlbumDetailView(
                     album: album,
                     readOnlyMode: readOnlyMode,
-                    showsOnlyLocalAssets: showsOnlyLocalAssets
+                    showsOnlyLocalAssets: showsOnlyLocalAssets,
+                    albumContentRevision: albumContentRevision
                 )
             } label: {
                 AlbumRowView(album: album)
@@ -47,4 +51,3 @@ struct PlatformAlbumList: View {
 }
 
 #endif
-

@@ -131,7 +131,7 @@ private struct SearchResultsContent: View {
             ContentUnavailableView(
                 "搜索照片",
                 systemImage: "magnifyingglass",
-                description: Text("可以搜索日期、尺寸或照片标识符。")
+                description: Text("可以搜索文件名、日期、尺寸或照片标识符。")
             )
         } else if assets.isEmpty && isSearching {
             ProgressView("正在搜索")

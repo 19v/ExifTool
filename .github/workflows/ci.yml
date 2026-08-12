@@ -60,6 +60,23 @@ jobs:
           set -euo pipefail
           plutil -lint ExifTool/PrivacyInfo.xcprivacy
           plutil -lint ShareExtension/PrivacyInfo.xcprivacy
+          plutil -convert json -o - ExifTool/PrivacyInfo.xcprivacy | jq -e '
+            (.NSPrivacyTracking == false) and
+            (.NSPrivacyCollectedDataTypes == []) and
+            any(.NSPrivacyAccessedAPITypes[];
+              .NSPrivacyAccessedAPIType == "NSPrivacyAccessedAPICategoryUserDefaults" and
+              (.NSPrivacyAccessedAPITypeReasons | contains(["CA92.1"]))) and
+            any(.NSPrivacyAccessedAPITypes[];
+              .NSPrivacyAccessedAPIType == "NSPrivacyAccessedAPICategoryFileTimestamp" and
+              (.NSPrivacyAccessedAPITypeReasons | contains(["3B52.1", "C617.1"])))
+          ' > /dev/null
+          plutil -convert json -o - ShareExtension/PrivacyInfo.xcprivacy | jq -e '
+            (.NSPrivacyTracking == false) and
+            (.NSPrivacyCollectedDataTypes == []) and
+            any(.NSPrivacyAccessedAPITypes[];
+              .NSPrivacyAccessedAPIType == "NSPrivacyAccessedAPICategoryFileTimestamp" and
+              (.NSPrivacyAccessedAPITypeReasons | contains(["C617.1"])))
+          ' > /dev/null
 
       - name: Run macOS tests
         run: |
@@ -153,6 +170,8 @@ jobs:
           test -d "$appex"
           test -f "$app/PrivacyInfo.xcprivacy"
           test -f "$appex/PrivacyInfo.xcprivacy"
+          cmp ExifTool/PrivacyInfo.xcprivacy "$app/PrivacyInfo.xcprivacy"
+          cmp ShareExtension/PrivacyInfo.xcprivacy "$appex/PrivacyInfo.xcprivacy"
           bundle_id="$(plutil -extract CFBundleIdentifier raw "$appex/Info.plist")"
           test "$bundle_id" = "com.echopie.ExifTool.ShareExtension"
           grep -q 'group.com.echopie.ExifTool' ExifTool/ExifTool.entitlements

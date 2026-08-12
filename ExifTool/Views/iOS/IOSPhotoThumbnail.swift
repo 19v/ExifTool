@@ -40,7 +40,7 @@ struct PhotoThumbnail: View {
                     return
                 }
 
-                let pixelLength = max(360, ceil(proxy.size.width * displayScale))
+                let pixelLength = ThumbnailSizeBucket.pixelLength(for: ceil(proxy.size.width * displayScale))
                 image = await PhotoLoader.thumbnail(for: asset, size: CGSize(width: pixelLength, height: pixelLength))
             }
         }
@@ -49,11 +49,10 @@ struct PhotoThumbnail: View {
     }
 
     private func thumbnailTaskID(width: CGFloat) -> String {
-        "\(asset.id)-\(Int(ceil(width * displayScale)))"
+        "\(asset.id)-\(Int(ThumbnailSizeBucket.pixelLength(for: ceil(width * displayScale))))"
     }
 }
 
 #endif
-
 
 

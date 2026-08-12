@@ -38,7 +38,10 @@ struct MacPhotoCompareDetailView: View {
 
     private var candidateOptions: [MacComparisonCandidate] {
         compareCandidates.map {
-            MacComparisonCandidate(id: $0.id, title: $0.displayName ?? "照片")
+            MacComparisonCandidate(
+                id: $0.id,
+                title: $0.displayName ?? String(localized: "照片")
+            )
         }
     }
 

@@ -113,6 +113,21 @@ final class TIFFReaderTests: XCTestCase {
             _ = NikonMakerNoteParser.parse(data)
         }
     }
+
+    func testMakerNoteMutationPerformance() {
+        var generator = DeterministicGenerator(state: 0x5045_5246_5445_5354)
+        let samples = (0..<1_000).map { _ in
+            Data((0..<256).map { _ in UInt8(truncatingIfNeeded: generator.next()) })
+        }
+
+        measure {
+            for data in samples {
+                _ = FujifilmMakerNoteParser.parse(data)
+                _ = NikonMakerNoteParser.parse(data)
+                _ = SonyMakerNoteParser.parse(data)
+            }
+        }
+    }
 }
 
 private struct DeterministicGenerator {
