@@ -65,7 +65,7 @@ xcodebuild \
 
 ## 测试
 
-测试覆盖厂商 MakerNote 解析、照片搜索、元数据显示投影和 macOS 元数据对比。运行 macOS 测试：
+测试覆盖厂商 MakerNote 解析、照片搜索、增量图库更新、异步取消与缓存、元数据显示投影和 macOS 元数据对比，并记录大型搜索与增量集合更新的耗时和内存指标。运行 macOS 测试：
 
 ```sh
 xcodebuild \
@@ -77,7 +77,7 @@ xcodebuild \
   test
 ```
 
-GitHub Actions 会验证中英文字符串目录、运行 macOS 测试，并构建包含 Share Extension 的 iOS 应用。
+GitHub Actions 会验证中英文字符串目录、隐私清单与 RAW 测试样本校验和，运行 macOS/iOS 测试，并构建和归档包含 Share Extension 的应用。
 
 ## 项目结构
 

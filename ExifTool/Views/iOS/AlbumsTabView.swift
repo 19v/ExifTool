@@ -20,7 +20,7 @@ struct AlbumsTabView: View {
                     albums: library.albums,
                     readOnlyMode: readOnlyMode,
                     showsOnlyLocalAssets: library.showsOnlyLocalAssets,
-                    albumContentRevision: library.albumContentRevision,
+                    albumContentRevisions: library.albumContentRevisions,
                     onRefresh: library.refresh
                 )
             }

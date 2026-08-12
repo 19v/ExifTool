@@ -48,24 +48,13 @@ struct MacPhotoDetailPage: View {
                 MacPhotoPreview(asset: asset)
                 ReadOnlyStatusBanner(isReadOnly: readOnlyMode)
 
-                switch displayedDetail {
-                case .loading:
-                    ProgressView("正在读取 Exif")
-                        .frame(maxWidth: .infinity, minHeight: 120)
-                case .loaded(let metadata):
-                    MacPhotoMetadataContent(
-                        metadata: metadata,
-                        showsChineseKeys: showsChineseKeys,
-                        highlightedMetadataKeys: highlightedMetadataKeys,
-                        visibleMetadataKeys: visibleMetadataKeys
-                    )
-                case .failed(let message):
-                    ContentUnavailableView(
-                        "无法读取 Exif",
-                        systemImage: "exclamationmark.triangle",
-                        description: Text(message)
-                    )
-                }
+                MacPhotoDetailStateContent(
+                    detail: displayedDetail,
+                    showsChineseKeys: showsChineseKeys,
+                    highlightedMetadataKeys: highlightedMetadataKeys,
+                    visibleMetadataKeys: visibleMetadataKeys
+                )
+                .equatable()
             }
             .padding()
         }
@@ -168,6 +157,34 @@ struct MacPhotoDetailPage: View {
         return error.localizedDescription
     }
 
+}
+
+private struct MacPhotoDetailStateContent: Equatable, View {
+    let detail: PhotoDetailState
+    let showsChineseKeys: Bool
+    let highlightedMetadataKeys: Set<String>
+    let visibleMetadataKeys: Set<String>?
+
+    var body: some View {
+        switch detail {
+        case .loading:
+            ProgressView("正在读取 Exif")
+                .frame(maxWidth: .infinity, minHeight: 120)
+        case .loaded(let metadata):
+            MacPhotoMetadataContent(
+                metadata: metadata,
+                showsChineseKeys: showsChineseKeys,
+                highlightedMetadataKeys: highlightedMetadataKeys,
+                visibleMetadataKeys: visibleMetadataKeys
+            )
+        case .failed(let message):
+            ContentUnavailableView(
+                "无法读取 Exif",
+                systemImage: "exclamationmark.triangle",
+                description: Text(message)
+            )
+        }
+    }
 }
 
 struct ActivityShareItem: Identifiable {

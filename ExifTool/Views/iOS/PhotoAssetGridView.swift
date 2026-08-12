@@ -48,8 +48,17 @@ struct PhotoAssetGridView: View {
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 3) {
                     ForEach(assets) { asset in
-                        PhotoAssetGridCell(asset: asset)
-                            .id(asset.id)
+                        NavigationLink {
+                            PhotoDetailView(
+                                assets: assets,
+                                initialAssetID: asset.id,
+                                readOnlyMode: readOnlyMode
+                            )
+                        } label: {
+                            PhotoAssetGridCell(asset: asset)
+                        }
+                        .buttonStyle(.plain)
+                        .id(asset.id)
                             .onAppear {
                                 onAssetAppear?(asset.id)
                                 thumbnailPreheater.update(
@@ -79,13 +88,6 @@ struct PhotoAssetGridView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
             thumbnailPreheater.handleMemoryPressure()
         }
-        .navigationDestination(for: PhotoAssetRoute.self) { route in
-            PhotoDetailView(
-                assets: assets,
-                initialAssetID: route.assetID,
-                readOnlyMode: readOnlyMode
-            )
-        }
         .overlay(alignment: .bottom) {
             if showsReadOnlyOverlay && readOnlyMode {
                 Text("只读模式已开启")
@@ -107,18 +109,11 @@ struct PhotoAssetGridView: View {
 
 }
 
-private struct PhotoAssetRoute: Hashable {
-    let assetID: String
-}
-
 private struct PhotoAssetGridCell: View {
     let asset: PhotoAsset
 
     var body: some View {
-        NavigationLink(value: PhotoAssetRoute(assetID: asset.id)) {
-            PhotoThumbnail(asset: asset)
-        }
-        .buttonStyle(.plain)
+        PhotoThumbnail(asset: asset)
     }
 }
 

@@ -31,6 +31,8 @@ final class MakerNoteParserTests: XCTestCase {
     func testReducedRAWFixturesMatchPinnedExifToolCameraMetadata() throws {
         let fixtures = [
             (fileName: "Nikon_D70", extension: "nef", sectionID: "nikon-parameters", make: "NIKON CORPORATION", model: "NIKON D70"),
+            (fileName: "Nikon_Z8", extension: "nef", sectionID: "nikon-parameters", make: "NIKON CORPORATION", model: "NIKON Z 8"),
+            (fileName: "Fujifilm_X-T5", extension: "raf", sectionID: "fujifilm-parameters", make: "FUJIFILM", model: "X-T5"),
             (fileName: "Sony_ILCE-1M2", extension: "arw", sectionID: "sony-parameters", make: "SONY", model: "ILCE-1M2")
         ]
 
@@ -45,6 +47,32 @@ final class MakerNoteParserTests: XCTestCase {
                 metadata.sections.first { $0.id == fixture.sectionID },
                 "Expected vendor MakerNote section for \(fixture.fileName)"
             )
+        }
+    }
+
+    @MainActor
+    func testModernRAWFixturesMatchGoldenVendorProjection() throws {
+        let fixtures = [
+            (rawName: "Nikon_Z8", rawExtension: "nef", goldenName: "Nikon_Z8.vendor"),
+            (rawName: "Fujifilm_X-T5", rawExtension: "raf", goldenName: "Fujifilm_X-T5.vendor")
+        ]
+
+        for fixture in fixtures {
+            let rawURL = try XCTUnwrap(
+                Bundle(for: Self.self).url(forResource: fixture.rawName, withExtension: fixture.rawExtension)
+            )
+            let goldenURL = try XCTUnwrap(
+                Bundle(for: Self.self).url(forResource: fixture.goldenName, withExtension: "json")
+            )
+            let golden = try JSONDecoder().decode(
+                GoldenVendorProjection.self,
+                from: Data(contentsOf: goldenURL)
+            )
+            let metadata = MetadataParser.parse(url: rawURL, fallbackCoordinate: nil)
+            let section = try XCTUnwrap(metadata.sections.first { $0.id == golden.sectionID })
+            let actualItems = Dictionary(uniqueKeysWithValues: section.items.map { ($0.key, $0.value) })
+
+            XCTAssertEqual(actualItems, golden.items, "Vendor projection changed for \(fixture.rawName)")
         }
     }
 
@@ -181,6 +209,11 @@ final class MakerNoteParserTests: XCTestCase {
 }
 
 private extension MakerNoteParserTests {
+    struct GoldenVendorProjection: Decodable {
+        let sectionID: String
+        let items: [String: String]
+    }
+
     enum Endian {
         case little
         case big

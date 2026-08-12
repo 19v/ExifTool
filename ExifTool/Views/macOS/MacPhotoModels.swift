@@ -7,7 +7,7 @@ enum AppTab: Hashable {
     case settings
 }
 
-nonisolated enum PhotoDetailState: Sendable {
+nonisolated enum PhotoDetailState: Equatable, Sendable {
     case loading
     case loaded(PhotoMetadata)
     case failed(String)

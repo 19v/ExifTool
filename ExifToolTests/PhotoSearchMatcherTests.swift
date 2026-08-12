@@ -26,6 +26,29 @@ final class PhotoSearchMatcherTests: XCTestCase {
         )
     }
 
+    func testMatchesWidthInsensitiveTextFromPrecomputedDocument() {
+        let document = PhotoSearchDocument(assetID: "wide", text: "ＩＭＧ＿０００１．ＪＰＧ")
+
+        XCTAssertEqual(
+            PhotoSearchMatcher.matchingAssetIDs(query: "img_0001.jpg", documents: [document]),
+            ["wide"]
+        )
+        XCTAssertEqual(document.normalizedText, "img_0001.jpg")
+    }
+
+    func testNormalizedQueryEntryPointMatchesPublicEntryPoint() {
+        let documents = [
+            PhotoSearchDocument(assetID: "first", text: "Café 4032x3024"),
+            PhotoSearchDocument(assetID: "second", text: "Landscape 6000x4000")
+        ]
+        let normalizedQuery = PhotoSearchMatcher.normalized(" CAFÉ ")
+
+        XCTAssertEqual(
+            PhotoSearchMatcher.matchingAssetIDs(normalizedQuery: normalizedQuery, documents: documents),
+            PhotoSearchMatcher.matchingAssetIDs(query: " CAFÉ ", documents: documents)
+        )
+    }
+
     func testWhitespaceOnlyQueryReturnsNoResults() {
         let documents = [PhotoSearchDocument(assetID: "photo", text: "photo.jpg")]
 

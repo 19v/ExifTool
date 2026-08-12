@@ -12,7 +12,7 @@ enum AppTab: Hashable {
     case search
 }
 
-enum PhotoDetailState {
+enum PhotoDetailState: Equatable {
     case loading
     case loaded(PhotoMetadata)
     case needsDownload(String)
@@ -89,7 +89,7 @@ struct PhotoAsset: Identifiable, Hashable {
         hasher.combine(displayName)
     }
 
-    var photoLibraryAsset: PHAsset? {
+    nonisolated var photoLibraryAsset: PHAsset? {
         guard case .photoLibrary(let asset) = source else {
             return nil
         }
@@ -97,7 +97,7 @@ struct PhotoAsset: Identifiable, Hashable {
         return asset
     }
 
-    var localFile: LocalPhotoFile? {
+    nonisolated var localFile: LocalPhotoFile? {
         guard case .file(let file) = source else {
             return nil
         }

@@ -8,6 +8,7 @@ import Observation
 final class IOSPhotoDetailModel {
     private(set) var detail = PhotoDetailState.loading
     private(set) var isDownloadingOriginal = false
+    private(set) var resolvedDisplayName: String?
     var showsICloudDownloadExplanation = false
     var activityShareItem: ActivityShareItem?
     private(set) var isPreparingPhotoShare = false
@@ -42,12 +43,15 @@ final class IOSPhotoDetailModel {
             isDownloadingOriginal = false
         }
 
-        let newDetail = await PhotoLoader.metadata(for: asset, allowNetwork: allowNetwork)
+        async let detailResult = PhotoLoader.metadata(for: asset, allowNetwork: allowNetwork)
+        async let displayName = PhotoLoader.displayName(for: asset)
+        let (newDetail, newDisplayName) = await (detailResult, displayName)
         guard !Task.isCancelled, requestID == metadataRequestID else {
             return
         }
 
         detail = newDetail
+        resolvedDisplayName = newDisplayName
         isDownloadingOriginal = false
     }
 
@@ -89,6 +93,7 @@ final class IOSPhotoDetailModel {
 
         let text = MetadataShareFormatter.text(
             for: asset,
+            displayName: resolvedDisplayName,
             metadata: metadata,
             showsChineseKeys: showsChineseKeys,
             visibleMetadataKeys: visibleMetadataKeys

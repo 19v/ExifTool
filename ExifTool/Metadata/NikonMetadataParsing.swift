@@ -152,7 +152,8 @@ nonisolated enum NikonMetadataExtractor {
             return parentKey.isEmpty ? [] : [Candidate(key: parentKey, value: value)]
         }
 
-        return dictionary.flatMap { key, nestedValue -> [Candidate] in
+        return dictionary.keys.sorted().flatMap { key -> [Candidate] in
+            guard let nestedValue = dictionary[key] else { return [] }
             let readableKey = key
                 .replacingOccurrences(of: "{Exif}", with: "")
                 .replacingOccurrences(of: "{TIFF}", with: "")

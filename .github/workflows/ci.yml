@@ -78,6 +78,13 @@ jobs:
               (.NSPrivacyAccessedAPITypeReasons | contains(["C617.1"])))
           ' > /dev/null
 
+      - name: Validate RAW test fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '51b7953e8b263c4b92be90318079ec1be111b4af6a23f0719310311150fbaeb6  ExifToolTests/Fixtures/MakerNotes/Nikon_Z8.nef' | shasum -a 256 -c -
+          echo '7740a5666cff3127f81397b15e0ee507ff7e6161dd8576d7cfbb4eabe22882b0  ExifToolTests/Fixtures/MakerNotes/Fujifilm_X-T5.raf' | shasum -a 256 -c -
+
       - name: Run macOS tests
         run: |
           xcodebuild \

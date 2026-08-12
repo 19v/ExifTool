@@ -54,6 +54,7 @@ struct PhotoDetailPage: View {
                     visibleMetadataKeys: visibleMetadataKeys,
                     onDownload: requestOriginalDownload
                 )
+                .equatable()
             }
             .padding()
         }
@@ -122,13 +123,21 @@ struct PhotoDetailPage: View {
 
 }
 
-private struct IOSPhotoDetailStateContent: View {
+private struct IOSPhotoDetailStateContent: Equatable, View {
     let detail: PhotoDetailState
     let isDownloadingOriginal: Bool
     let showsChineseKeys: Bool
     let highlightedMetadataKeys: Set<String>
     let visibleMetadataKeys: Set<String>?
     let onDownload: () -> Void
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.detail == rhs.detail &&
+        lhs.isDownloadingOriginal == rhs.isDownloadingOriginal &&
+        lhs.showsChineseKeys == rhs.showsChineseKeys &&
+        lhs.highlightedMetadataKeys == rhs.highlightedMetadataKeys &&
+        lhs.visibleMetadataKeys == rhs.visibleMetadataKeys
+    }
 
     var body: some View {
         switch detail {
@@ -212,6 +221,7 @@ struct ActivityShareItem: Identifiable {
 enum MetadataShareFormatter {
     static func text(
         for asset: PhotoAsset,
+        displayName: String? = nil,
         metadata: PhotoMetadata,
         showsChineseKeys: Bool,
         visibleMetadataKeys: Set<String>?
@@ -223,7 +233,7 @@ enum MetadataShareFormatter {
         )
         var lines = [AppLocalization.string("metadataShare.title")]
 
-        if let displayName = asset.displayName {
+        if let displayName = displayName ?? asset.displayName {
             lines.append("\(AppLocalization.string("metadataShare.fileName")): \(displayName)")
         }
         lines.append("\(AppLocalization.string("metadataShare.dimensions")): \(asset.pixelWidth)x\(asset.pixelHeight)")

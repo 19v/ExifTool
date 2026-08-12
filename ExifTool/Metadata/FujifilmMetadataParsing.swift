@@ -437,7 +437,8 @@ nonisolated enum FujifilmMetadataExtractor {
             return parentKey.isEmpty ? [] : [Candidate(key: parentKey, value: value)]
         }
 
-        return dictionary.flatMap { key, nestedValue -> [Candidate] in
+        return dictionary.keys.sorted().flatMap { key -> [Candidate] in
+            guard let nestedValue = dictionary[key] else { return [] }
             let readableKey = key
                 .replacingOccurrences(of: "{MakerFuji}", with: "")
                 .replacingOccurrences(of: "{Exif}", with: "")

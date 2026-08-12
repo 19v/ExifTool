@@ -8,12 +8,18 @@
 import CoreLocation
 import Foundation
 
-nonisolated struct PhotoMetadata: Sendable {
+nonisolated struct PhotoMetadata: Equatable, Sendable {
     let sections: [MetadataSection]
     let coordinate: CLLocationCoordinate2D?
+
+    static func == (lhs: PhotoMetadata, rhs: PhotoMetadata) -> Bool {
+        lhs.sections == rhs.sections &&
+        lhs.coordinate?.latitude == rhs.coordinate?.latitude &&
+        lhs.coordinate?.longitude == rhs.coordinate?.longitude
+    }
 }
 
-nonisolated struct MetadataSection: Identifiable, Sendable {
+nonisolated struct MetadataSection: Equatable, Identifiable, Sendable {
     let id: String
     let title: String
     let items: [MetadataItem]
@@ -27,13 +33,13 @@ nonisolated struct MetadataSection: Identifiable, Sendable {
     }
 }
 
-nonisolated struct MetadataItemGroup: Identifiable, Sendable {
+nonisolated struct MetadataItemGroup: Equatable, Identifiable, Sendable {
     let id: String
     let title: String
     let items: [MetadataItem]
 }
 
-nonisolated struct MetadataItem: Identifiable, Sendable {
+nonisolated struct MetadataItem: Equatable, Identifiable, Sendable {
     let id: String
     let key: String
     let value: String

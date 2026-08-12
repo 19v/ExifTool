@@ -152,13 +152,48 @@ nonisolated struct PhotoSearchSeed: Sendable {
     let creationDate: Date?
     let modificationDate: Date?
 
-    init(asset: PhotoAsset) {
+    init(asset: PhotoAsset, displayName: String? = nil) {
         assetID = asset.id
         pixelWidth = asset.pixelWidth
         pixelHeight = asset.pixelHeight
-        displayName = asset.displayName
+        self.displayName = displayName ?? asset.displayName
         creationDate = asset.creationDate
         modificationDate = asset.modificationDate
+    }
+}
+
+nonisolated struct PhotoLibraryFilenameSeed: @unchecked Sendable {
+    let assetID: String
+    let asset: PHAsset
+
+    init?(asset: PhotoAsset) {
+        guard let photoLibraryAsset = asset.photoLibraryAsset else {
+            return nil
+        }
+        assetID = asset.id
+        self.asset = photoLibraryAsset
+    }
+}
+
+nonisolated enum PhotoLibraryFilenameResolver {
+    static func resolve(_ seeds: [PhotoLibraryFilenameSeed]) async -> [String: String] {
+        await PhotoLibraryQueryService.run { cancellation in
+            var namesByID: [String: String] = [:]
+            namesByID.reserveCapacity(seeds.count)
+
+            for seed in seeds {
+                guard !cancellation.isCancelled else {
+                    break
+                }
+                guard let fileName = PHAssetResource.assetResources(for: seed.asset)
+                    .first(where: { $0.type == .photo || $0.type == .fullSizePhoto })?
+                    .originalFilename else {
+                    continue
+                }
+                namesByID[seed.assetID] = fileName
+            }
+            return namesByID
+        }
     }
 }
 
@@ -268,10 +303,12 @@ enum PhotoFileImporter {
 enum PhotoTemporaryFileStore {
     nonisolated static let importsDirectoryName = "ExifTool-Imports"
     nonisolated static let metadataDirectoryName = "ExifTool-Metadata"
+    nonisolated static let originalCacheDirectoryName = "ExifTool-OriginalCache"
     nonisolated static let shareDirectoryName = "ExifTool-Share"
     nonisolated private static let managedDirectoryNames = [
         importsDirectoryName,
         metadataDirectoryName,
+        originalCacheDirectoryName,
         shareDirectoryName
     ]
 
@@ -318,189 +355,55 @@ enum PhotoTemporaryFileStore {
     }
 }
 
-final class CancellablePhotoRequestState<Value: Sendable, RequestToken: Sendable>: @unchecked Sendable {
-    private enum Completion {
-        case pending
-        case finished(Value)
-    }
-
-    private let lock = NSLock()
-    private let cancellationValue: Value
-    private let cancelRequest: @Sendable (RequestToken) -> Void
-    nonisolated(unsafe) private var completion: Completion = .pending
-    nonisolated(unsafe) private var continuation: CheckedContinuation<Value, Never>?
-    nonisolated(unsafe) private var requestToken: RequestToken?
-    nonisolated(unsafe) private var cancellationRequested = false
-
-    nonisolated init(
-        cancellationValue: Value,
-        cancelRequest: @escaping @Sendable (RequestToken) -> Void
-    ) {
-        self.cancellationValue = cancellationValue
-        self.cancelRequest = cancelRequest
-    }
-
-    nonisolated var shouldStartRequest: Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        if case .pending = completion {
-            return true
-        }
-        return false
-    }
-
-    nonisolated var isFinished: Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        if case .finished = completion {
-            return true
-        }
-        return false
-    }
-
-    nonisolated func install(_ continuation: CheckedContinuation<Value, Never>) {
-        let completionToResume: Completion
-        lock.lock()
-        switch completion {
-        case .pending:
-            self.continuation = continuation
-            completionToResume = .pending
-        case .finished(let value):
-            completionToResume = .finished(value)
-        }
-        lock.unlock()
-
-        if case .finished(let value) = completionToResume {
-            continuation.resume(returning: value)
-        }
-    }
-
-    nonisolated func register(requestToken: RequestToken) {
-        lock.lock()
-        self.requestToken = requestToken
-        let shouldCancel = cancellationRequested
-        lock.unlock()
-
-        if shouldCancel {
-            cancelRequest(requestToken)
-        }
-    }
-
-    nonisolated func finish(returning value: Value) {
-        let continuationToResume: CheckedContinuation<Value, Never>?
-        lock.lock()
-        guard case .pending = completion else {
-            lock.unlock()
-            return
-        }
-        completion = .finished(value)
-        continuationToResume = continuation
-        continuation = nil
-        lock.unlock()
-
-        continuationToResume?.resume(returning: value)
-    }
-
-    nonisolated func cancel() {
-        let requestTokenToCancel: RequestToken?
-        let continuationToResume: CheckedContinuation<Value, Never>?
-        lock.lock()
-        guard case .pending = completion else {
-            lock.unlock()
-            return
-        }
-        cancellationRequested = true
-        completion = .finished(cancellationValue)
-        requestTokenToCancel = requestToken
-        continuationToResume = continuation
-        continuation = nil
-        lock.unlock()
-
-        if let requestTokenToCancel {
-            cancelRequest(requestTokenToCancel)
-        }
-        continuationToResume?.resume(returning: cancellationValue)
-    }
-}
-
-private final class PhotoResourceDataRequestState: @unchecked Sendable {
-    private let lock = NSLock()
-    nonisolated(unsafe) private var requestID: PHAssetResourceDataRequestID?
-    nonisolated(unsafe) private var cancellationRequested = false
-    nonisolated(unsafe) private var writeError: Error?
-
-    nonisolated init() { }
-
-    nonisolated var shouldStartRequest: Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        return !cancellationRequested
-    }
-
-    nonisolated var shouldAcceptData: Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        return !cancellationRequested && writeError == nil
-    }
-
-    nonisolated func register(requestID: PHAssetResourceDataRequestID) {
-        lock.lock()
-        self.requestID = requestID
-        let shouldCancel = cancellationRequested || writeError != nil
-        lock.unlock()
-
-        if shouldCancel {
-            PHAssetResourceManager.default().cancelDataRequest(requestID)
-        }
-    }
-
-    nonisolated func recordWriteError(_ error: Error) {
-        let requestIDToCancel: PHAssetResourceDataRequestID?
-        lock.lock()
-        if writeError == nil {
-            writeError = error
-        }
-        requestIDToCancel = requestID
-        lock.unlock()
-
-        if let requestIDToCancel {
-            PHAssetResourceManager.default().cancelDataRequest(requestIDToCancel)
-        }
-    }
-
-    nonisolated func cancel() {
-        let requestIDToCancel: PHAssetResourceDataRequestID?
-        lock.lock()
-        cancellationRequested = true
-        requestIDToCancel = requestID
-        lock.unlock()
-
-        if let requestIDToCancel {
-            PHAssetResourceManager.default().cancelDataRequest(requestIDToCancel)
-        }
-    }
-
-    nonisolated func result(frameworkError: Error?, closeError: Error?) -> Result<Void, Error> {
-        lock.lock()
-        defer { lock.unlock() }
-        if cancellationRequested {
-            return .failure(CancellationError())
-        }
-        if let writeError {
-            return .failure(writeError)
-        }
-        if let closeError {
-            return .failure(closeError)
-        }
-        if let frameworkError {
-            return .failure(frameworkError)
-        }
-        return .success(())
-    }
-}
-
 private enum PhotoResourceFileWriter {
+    nonisolated private struct CacheKey: Hashable, Sendable {
+        let assetID: String
+        let fileName: String
+        let allowsNetwork: Bool
+    }
+
+    nonisolated private struct ResourceReference: @unchecked Sendable {
+        let resource: PHAssetResource
+    }
+
+    nonisolated private static let originalCache = AsyncValueCache<CacheKey, URL>()
+
     nonisolated static func write(
+        resource: PHAssetResource,
+        allowNetwork: Bool,
+        directoryName: String,
+        fileName: String
+    ) async throws -> URL {
+        let cacheKey = CacheKey(
+            assetID: resource.assetLocalIdentifier,
+            fileName: resource.originalFilename,
+            allowsNetwork: allowNetwork
+        )
+        let reference = ResourceReference(resource: resource)
+        let cachedURL = try await originalCache.value(for: cacheKey) {
+            try await download(
+                resource: reference.resource,
+                allowNetwork: allowNetwork,
+                directoryName: PhotoTemporaryFileStore.originalCacheDirectoryName,
+                fileName: fileName
+            )
+        }
+        try Task.checkCancellation()
+        let destinationURL = try makeDestinationURL(directoryName: directoryName, fileName: fileName)
+        do {
+            do {
+                try FileManager.default.linkItem(at: cachedURL, to: destinationURL)
+            } catch {
+                try FileManager.default.copyItem(at: cachedURL, to: destinationURL)
+            }
+            return destinationURL
+        } catch {
+            try? FileManager.default.removeItem(at: destinationURL)
+            throw error
+        }
+    }
+
+    nonisolated private static func download(
         resource: PHAssetResource,
         allowNetwork: Bool,
         directoryName: String,
@@ -515,13 +418,16 @@ private enum PhotoResourceFileWriter {
                 throw CocoaError(.fileWriteUnknown)
             }
             let fileHandle = try FileHandle(forWritingTo: destinationURL)
-            let state = PhotoResourceDataRequestState()
+            let state = CancellablePhotoRequestState<Result<Void, Error>, PHAssetResourceDataRequestID>(
+                cancellationValue: .failure(CancellationError()),
+                cancelRequest: { PHAssetResourceManager.default().cancelDataRequest($0) }
+            )
 
             let result: Result<Void, Error> = await withTaskCancellationHandler {
                 await withCheckedContinuation { continuation in
+                    state.install(continuation)
                     guard state.shouldStartRequest else {
                         try? fileHandle.close()
-                        continuation.resume(returning: .failure(CancellationError()))
                         return
                     }
 
@@ -529,13 +435,13 @@ private enum PhotoResourceFileWriter {
                         for: resource,
                         options: options,
                         dataReceivedHandler: { data in
-                            guard state.shouldAcceptData else {
+                            guard !state.isFinished else {
                                 return
                             }
                             do {
                                 try fileHandle.write(contentsOf: data)
                             } catch {
-                                state.recordWriteError(error)
+                                state.finish(returning: .failure(error), cancellingRequest: true)
                             }
                         },
                         completionHandler: { error in
@@ -546,10 +452,13 @@ private enum PhotoResourceFileWriter {
                             } catch {
                                 closeError = error
                             }
-                            continuation.resume(returning: state.result(frameworkError: error, closeError: closeError))
+                            let result = closeError.map(Result.failure)
+                                ?? error.map(Result.failure)
+                                ?? .success(())
+                            state.finish(returning: result)
                         }
                     )
-                    state.register(requestID: requestID)
+                    state.register(requestToken: requestID)
                 }
             } onCancel: {
                 state.cancel()
@@ -833,6 +742,16 @@ enum PhotosPickerPhotoImporter {
 #endif
 
 enum PhotoLoader {
+    static func displayName(for asset: PhotoAsset) async -> String? {
+        if let displayName = asset.displayName {
+            return displayName
+        }
+        guard let seed = PhotoLibraryFilenameSeed(asset: asset) else {
+            return nil
+        }
+        return await PhotoLibraryFilenameResolver.resolve([seed])[asset.id]
+    }
+
     static func thumbnail(for asset: PhotoAsset, size: CGSize) async -> PlatformImage? {
         switch asset.source {
         case .photoLibrary(let photoLibraryAsset):
