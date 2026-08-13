@@ -251,6 +251,21 @@ final class PhotoLibraryViewModel: NSObject {
         updateShowsOnlyLocalAssets(enabled)
         await refresh()
     }
+
+    func surpriseAsset(on date: Date = Date()) async -> PhotoAsset? {
+        let anniversaryCandidates = PhotoAssetSurprisePicker.anniversaryCandidates(
+            in: allFetchedAssets,
+            on: date
+        )
+
+        if let anniversaryAsset = await randomAvailableAsset(in: anniversaryCandidates) {
+            return anniversaryAsset
+        }
+
+        let anniversaryIDs = Set(anniversaryCandidates.map(\.id))
+        let fallbackCandidates = allFetchedAssets.filter { !anniversaryIDs.contains($0.id) }
+        return await randomAvailableAsset(in: fallbackCandidates)
+    }
     
     @discardableResult
     private func loadAssets(for status: PHAuthorizationStatus) -> Task<Void, Never>? {
@@ -517,6 +532,29 @@ final class PhotoLibraryViewModel: NSObject {
 
     private func updateAvailableYears() {
         availableYears = PhotoAssetYearIndex.years(in: allFetchedAssets)
+    }
+
+    private func randomAvailableAsset(in candidates: [PhotoAsset]) async -> PhotoAsset? {
+        guard showsOnlyLocalAssets else {
+            return candidates.randomElement()
+        }
+
+        let shuffledCandidates = candidates.shuffled()
+        let batchSize = 48
+        var startIndex = shuffledCandidates.startIndex
+        while startIndex < shuffledCandidates.endIndex {
+            guard !Task.isCancelled else {
+                return nil
+            }
+            let endIndex = min(startIndex + batchSize, shuffledCandidates.endIndex)
+            let batch = Array(shuffledCandidates[startIndex..<endIndex])
+            let localIDs = await localAvailabilityIndex.locallyAvailableIDs(in: batch)
+            if let asset = batch.first(where: { localIDs.contains($0.id) }) {
+                return asset
+            }
+            startIndex = endIndex
+        }
+        return nil
     }
 
     private func scheduleLibraryChangeRefresh(_ change: PhotoLibraryChange) {

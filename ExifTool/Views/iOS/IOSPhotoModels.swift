@@ -106,6 +106,31 @@ enum PhotoAssetYearIndex {
     }
 }
 
+enum PhotoAssetSurprisePicker {
+    static func anniversaryCandidates(
+        in assets: [PhotoAsset],
+        on date: Date,
+        calendar: Calendar = .current
+    ) -> [PhotoAsset] {
+        let target = calendar.dateComponents([.year, .month, .day], from: date)
+        guard let targetYear = target.year,
+              let targetMonth = target.month,
+              let targetDay = target.day else {
+            return []
+        }
+
+        return assets.filter { asset in
+            guard let creationDate = asset.creationDate else {
+                return false
+            }
+            let components = calendar.dateComponents([.year, .month, .day], from: creationDate)
+            return components.year.map { $0 < targetYear } == true &&
+                components.month == targetMonth &&
+                components.day == targetDay
+        }
+    }
+}
+
 struct PhotoAlbum: Identifiable, Hashable {
     let id: String
     let title: String

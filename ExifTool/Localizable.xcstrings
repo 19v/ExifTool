@@ -1384,6 +1384,38 @@
         }
       }
     },
+    "没有可随机展示的照片" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Photos Available to Show"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有可随机展示的照片"
+          }
+        }
+      }
+    },
+    "随机照片" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Surprise Photo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "随机照片"
+          }
+        }
+      }
+    },
     "全部照片" : {
       "localizations" : {
         "en" : {

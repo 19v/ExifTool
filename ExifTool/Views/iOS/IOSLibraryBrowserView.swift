@@ -12,6 +12,9 @@ struct IOSLibraryBrowserView: View {
     @State private var filter: LibraryFilter = .all
     @State private var filteredAssets: [PhotoAsset] = []
     @State private var isLoadingFilter = false
+    @State private var surpriseAsset: PhotoAsset?
+    @State private var isLoadingSurprise = false
+    @State private var showsNoSurprisePhotoAlert = false
     @State private var pager: LocalAssetPagingViewModel
 
     init(
@@ -47,6 +50,17 @@ struct IOSLibraryBrowserView: View {
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(action: showSurprisePhoto) {
+                        if isLoadingSurprise {
+                            ProgressView()
+                        } else {
+                            Label("随机照片", systemImage: "dice")
+                        }
+                    }
+                    .disabled(!showsLibrary || isLoadingSurprise)
+                }
+
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     LibraryFilterMenu(
                         filter: $filter,
@@ -66,6 +80,16 @@ struct IOSLibraryBrowserView: View {
                 if let statusSnapshot {
                     LocalPhotosStatusBanner(snapshot: statusSnapshot, emphasis: .floating)
                 }
+            }
+            .navigationDestination(item: $surpriseAsset) { asset in
+                PhotoDetailView(
+                    assets: [asset],
+                    initialAssetID: asset.id,
+                    readOnlyMode: readOnlyMode
+                )
+            }
+            .alert("没有可随机展示的照片", isPresented: $showsNoSurprisePhotoAlert) {
+                Button("好", role: .cancel) { }
             }
             .task(id: reloadRevision) {
                 await reloadFilteredAssets()
@@ -192,6 +216,22 @@ struct IOSLibraryBrowserView: View {
             pager.reset()
         }
         isLoadingFilter = false
+    }
+
+    private func showSurprisePhoto() {
+        guard !isLoadingSurprise else {
+            return
+        }
+        isLoadingSurprise = true
+        Task {
+            let asset = await library.surpriseAsset()
+            isLoadingSurprise = false
+            if let asset {
+                surpriseAsset = asset
+            } else {
+                showsNoSurprisePhotoAlert = true
+            }
+        }
     }
 
     private func yearInterval(for year: Int) -> DateInterval? {
