@@ -46,6 +46,8 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>用于展示手机照片并读取本机 Exif 信息。</string>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
