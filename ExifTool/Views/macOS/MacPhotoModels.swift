@@ -2,11 +2,6 @@
 
 import Foundation
 
-enum AppTab: Hashable {
-    case photos
-    case settings
-}
-
 nonisolated enum PhotoDetailState: Equatable, Sendable {
     case loading
     case loaded(PhotoMetadata)

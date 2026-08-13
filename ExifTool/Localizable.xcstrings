@@ -549,6 +549,7 @@
       }
     },
     "mac.openPanel.title" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -613,6 +614,7 @@
       }
     },
     "mac.window.defaultTitle" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {

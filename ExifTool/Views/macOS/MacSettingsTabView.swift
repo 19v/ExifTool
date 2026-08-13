@@ -3,7 +3,7 @@
 import SwiftUI
 
 struct MacSettingsTabView: View {
-    @Binding var readOnlyMode: Bool
+    @AppStorage("readOnlyMode") private var readOnlyMode = true
 
     var body: some View {
         NavigationStack {
@@ -13,6 +13,7 @@ struct MacSettingsTabView: View {
             }
             .navigationTitle("设置")
         }
+        .frame(width: 480)
     }
 }
 

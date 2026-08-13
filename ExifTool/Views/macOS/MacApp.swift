@@ -1,9 +1,18 @@
 #if os(macOS)
 
+import AppKit
 import SwiftUI
+
+@MainActor
+final class MacAppDelegate: NSObject, NSApplicationDelegate {
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        true
+    }
+}
 
 @main
 struct ExifToolApp: App {
+    @NSApplicationDelegateAdaptor(MacAppDelegate.self) private var appDelegate
     @FocusedValue(\.macPhotoWorkspace) private var workspace
     @Environment(\.openWindow) private var openWindow
 
@@ -19,6 +28,10 @@ struct ExifToolApp: App {
                         [URL(fileURLWithPath: $0)]
                     } ?? []
                 )
+            }
+
+            Settings {
+                MacSettingsTabView()
             }
         }
         .commands {

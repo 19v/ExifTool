@@ -109,7 +109,13 @@ final class MacPhotoWorkspace {
     }
 
     var windowTitle: String {
-        currentAsset?.displayName ?? AppLocalization.string("mac.window.defaultTitle")
+        currentAsset?.displayName ?? Self.appDisplayName
+    }
+
+    private static var appDisplayName: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
+            ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
+            ?? "Exif Tool"
     }
 
     private static func restoreRecentFiles() -> (urls: [URL], activeURLs: [String: URL]) {
@@ -189,7 +195,7 @@ final class MacPhotoWorkspace {
 
     func pickFiles() {
         let panel = NSOpenPanel()
-        panel.title = AppLocalization.string("mac.openPanel.title")
+        panel.title = Self.appDisplayName
         panel.message = AppLocalization.string("mac.openPanel.message")
         panel.prompt = AppLocalization.string("mac.openPanel.prompt")
         panel.allowsMultipleSelection = true

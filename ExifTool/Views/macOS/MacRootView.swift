@@ -4,7 +4,6 @@ import SwiftUI
 
 struct MacRootView: View {
     @State private var workspace: MacPhotoWorkspace
-    @State private var selectedTab = AppTab.photos
     @AppStorage("readOnlyMode") private var readOnlyMode = true
 
     init(initialFileURLs: [URL] = []) {
@@ -12,15 +11,7 @@ struct MacRootView: View {
     }
 
     var body: some View {
-        TabView(selection: $selectedTab) {
-            Tab("照片", systemImage: "photo.on.rectangle", value: AppTab.photos) {
-                MacPhotoDropTabView(readOnlyMode: readOnlyMode)
-            }
-
-            Tab("设置", systemImage: "gearshape", value: AppTab.settings) {
-                MacSettingsTabView(readOnlyMode: $readOnlyMode)
-            }
-        }
+        MacPhotoDropTabView(readOnlyMode: readOnlyMode)
         .environment(workspace)
         .focusedSceneValue(\.macPhotoWorkspace, workspace)
         .onOpenURL { url in

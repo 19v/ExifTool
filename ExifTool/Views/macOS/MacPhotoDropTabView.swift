@@ -70,10 +70,6 @@ struct MacPhotoDropTabView: View {
             .navigationTitle(workspace.windowTitle)
             .toolbar {
                 ToolbarItemGroup(placement: .primaryAction) {
-                    Button("选择文件") {
-                        workspace.pickFiles()
-                    }
-
                     if !workspace.sortedAssets.isEmpty {
                         Button {
                             workspace.selectPreviousAsset()
