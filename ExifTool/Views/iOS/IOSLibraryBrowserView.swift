@@ -61,20 +61,15 @@ struct IOSLibraryBrowserView: View {
                     .disabled(!showsLibrary || isLoadingSurprise)
                 }
 
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    LibraryFilterMenu(
-                        filter: $filter,
-                        years: library.availableYears,
-                        albums: library.albums,
-                        isEnabled: showsLibrary,
-                        showsLimitedLibraryAction: library.accessScope == .limited,
-                        onPresentLimitedLibraryPicker: onPresentLimitedLibraryPicker
-                    )
-
-                    Button(action: onPresentSettings) {
-                        Label("设置", systemImage: "gearshape")
-                    }
-                }
+                LibraryActionsToolbarContent(
+                    filter: $filter,
+                    years: library.availableYears,
+                    albums: library.albums,
+                    isFilterEnabled: showsLibrary,
+                    showsLimitedLibraryAction: library.accessScope == .limited,
+                    onPresentLimitedLibraryPicker: onPresentLimitedLibraryPicker,
+                    onPresentSettings: onPresentSettings
+                )
             }
             .safeAreaInset(edge: .bottom) {
                 if let statusSnapshot {
@@ -312,6 +307,62 @@ private struct IOSLibraryBrowserContent: View {
                 authorizationState: library.authorizationState,
                 onRequestPhotoPermission: onRequestPhotoPermission
             )
+        }
+    }
+}
+
+private struct LibraryActionsToolbarContent: ToolbarContent {
+    @Binding var filter: LibraryFilter
+    let years: [Int]
+    let albums: [PhotoAlbum]
+    let isFilterEnabled: Bool
+    let showsLimitedLibraryAction: Bool
+    let onPresentLimitedLibraryPicker: (() -> Void)?
+    let onPresentSettings: () -> Void
+
+    var body: some ToolbarContent {
+        if #available(iOS 26.0, *) {
+            ToolbarItem(placement: .topBarTrailing) {
+                LibraryFilterMenu(
+                    filter: $filter,
+                    years: years,
+                    albums: albums,
+                    isEnabled: isFilterEnabled,
+                    showsLimitedLibraryAction: showsLimitedLibraryAction,
+                    onPresentLimitedLibraryPicker: onPresentLimitedLibraryPicker
+                )
+            }
+
+            ToolbarSpacer(.fixed, placement: .topBarTrailing)
+
+            ToolbarItem(placement: .topBarTrailing) {
+                SettingsToolbarButton(action: onPresentSettings)
+            }
+        } else {
+            ToolbarItem(placement: .topBarTrailing) {
+                LibraryFilterMenu(
+                    filter: $filter,
+                    years: years,
+                    albums: albums,
+                    isEnabled: isFilterEnabled,
+                    showsLimitedLibraryAction: showsLimitedLibraryAction,
+                    onPresentLimitedLibraryPicker: onPresentLimitedLibraryPicker
+                )
+            }
+
+            ToolbarItem(placement: .topBarTrailing) {
+                SettingsToolbarButton(action: onPresentSettings)
+            }
+        }
+    }
+}
+
+private struct SettingsToolbarButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label("设置", systemImage: "gearshape")
         }
     }
 }
