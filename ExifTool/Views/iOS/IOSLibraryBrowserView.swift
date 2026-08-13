@@ -48,7 +48,18 @@ struct IOSLibraryBrowserView: View {
                 onRequestPhotoPermission: onRequestPhotoPermission
             )
             .navigationTitle(navigationTitle)
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleMenu {
+                if showsLibrary {
+                    LibraryFilterMenuContent(
+                        filter: $filter,
+                        years: library.availableYears,
+                        albums: library.albums,
+                        showsLimitedLibraryAction: library.accessScope == .limited,
+                        onPresentLimitedLibraryPicker: onPresentLimitedLibraryPicker
+                    )
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(action: showSurprisePhoto) {
@@ -61,15 +72,9 @@ struct IOSLibraryBrowserView: View {
                     .disabled(!showsLibrary || isLoadingSurprise)
                 }
 
-                LibraryActionsToolbarContent(
-                    filter: $filter,
-                    years: library.availableYears,
-                    albums: library.albums,
-                    isFilterEnabled: showsLibrary,
-                    showsLimitedLibraryAction: library.accessScope == .limited,
-                    onPresentLimitedLibraryPicker: onPresentLimitedLibraryPicker,
-                    onPresentSettings: onPresentSettings
-                )
+                ToolbarItem(placement: .topBarTrailing) {
+                    SettingsToolbarButton(action: onPresentSettings)
+                }
             }
             .safeAreaInset(edge: .bottom) {
                 if let statusSnapshot {
@@ -311,52 +316,6 @@ private struct IOSLibraryBrowserContent: View {
     }
 }
 
-private struct LibraryActionsToolbarContent: ToolbarContent {
-    @Binding var filter: LibraryFilter
-    let years: [Int]
-    let albums: [PhotoAlbum]
-    let isFilterEnabled: Bool
-    let showsLimitedLibraryAction: Bool
-    let onPresentLimitedLibraryPicker: (() -> Void)?
-    let onPresentSettings: () -> Void
-
-    var body: some ToolbarContent {
-        if #available(iOS 26.0, *) {
-            ToolbarItem(placement: .topBarTrailing) {
-                LibraryFilterMenu(
-                    filter: $filter,
-                    years: years,
-                    albums: albums,
-                    isEnabled: isFilterEnabled,
-                    showsLimitedLibraryAction: showsLimitedLibraryAction,
-                    onPresentLimitedLibraryPicker: onPresentLimitedLibraryPicker
-                )
-            }
-
-            ToolbarSpacer(.fixed, placement: .topBarTrailing)
-
-            ToolbarItem(placement: .topBarTrailing) {
-                SettingsToolbarButton(action: onPresentSettings)
-            }
-        } else {
-            ToolbarItem(placement: .topBarTrailing) {
-                LibraryFilterMenu(
-                    filter: $filter,
-                    years: years,
-                    albums: albums,
-                    isEnabled: isFilterEnabled,
-                    showsLimitedLibraryAction: showsLimitedLibraryAction,
-                    onPresentLimitedLibraryPicker: onPresentLimitedLibraryPicker
-                )
-            }
-
-            ToolbarItem(placement: .topBarTrailing) {
-                SettingsToolbarButton(action: onPresentSettings)
-            }
-        }
-    }
-}
-
 private struct SettingsToolbarButton: View {
     let action: () -> Void
 
@@ -367,65 +326,59 @@ private struct SettingsToolbarButton: View {
     }
 }
 
-private struct LibraryFilterMenu: View {
+private struct LibraryFilterMenuContent: View {
     @Binding var filter: LibraryFilter
     let years: [Int]
     let albums: [PhotoAlbum]
-    let isEnabled: Bool
     let showsLimitedLibraryAction: Bool
     let onPresentLimitedLibraryPicker: (() -> Void)?
 
     var body: some View {
-        Menu {
-            Button {
-                filter = .all
-            } label: {
-                FilterMenuLabel(
-                    title: AppLocalization.string("全部照片"),
-                    systemImage: filter == .all ? "checkmark" : "photo.on.rectangle.angled"
-                )
-            }
-
-            if !years.isEmpty {
-                Menu("年份") {
-                    ForEach(years, id: \.self) { year in
-                        Button {
-                            filter = .year(year)
-                        } label: {
-                            FilterMenuLabel(
-                                title: localizedYear(year),
-                                systemImage: filter == .year(year) ? "checkmark" : "calendar"
-                            )
-                        }
-                    }
-                }
-            }
-
-            if !albums.isEmpty {
-                Menu("相册") {
-                    ForEach(albums) { album in
-                        Button {
-                            filter = .album(album.id)
-                        } label: {
-                            FilterMenuLabel(
-                                title: album.title,
-                                systemImage: filter == .album(album.id) ? "checkmark" : "rectangle.stack"
-                            )
-                        }
-                    }
-                }
-            }
-
-            if showsLimitedLibraryAction {
-                Divider()
-                Button("重新选择照片") {
-                    onPresentLimitedLibraryPicker?()
-                }
-            }
+        Button {
+            filter = .all
         } label: {
-            Label("筛选", systemImage: "line.3.horizontal.decrease")
+            FilterMenuLabel(
+                title: AppLocalization.string("全部照片"),
+                systemImage: filter == .all ? "checkmark" : "photo.on.rectangle.angled"
+            )
         }
-        .disabled(!isEnabled)
+
+        if !years.isEmpty {
+            Menu("年份") {
+                ForEach(years, id: \.self) { year in
+                    Button {
+                        filter = .year(year)
+                    } label: {
+                        FilterMenuLabel(
+                            title: localizedYear(year),
+                            systemImage: filter == .year(year) ? "checkmark" : "calendar"
+                        )
+                    }
+                }
+            }
+        }
+
+        if !albums.isEmpty {
+            Menu("相册") {
+                ForEach(albums) { album in
+                    Button {
+                        filter = .album(album.id)
+                    } label: {
+                        FilterMenuLabel(
+                            title: album.title,
+                            systemImage: filter == .album(album.id) ? "checkmark" : "rectangle.stack"
+                        )
+                    }
+                }
+            }
+        }
+
+        if showsLimitedLibraryAction {
+            Divider()
+            Button("重新选择照片") {
+                onPresentLimitedLibraryPicker?()
+            }
+        }
     }
 
     private func localizedYear(_ year: Int) -> String {
