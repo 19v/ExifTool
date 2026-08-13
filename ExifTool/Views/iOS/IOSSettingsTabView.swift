@@ -9,7 +9,6 @@ struct IOSSettingsTabView: View {
     let accessScope: PhotoLibraryViewModel.AccessScope
     let authorizationState: PhotoLibraryViewModel.AuthorizationState
     let localPhotosSummarySnapshot: LocalPhotosStatusSnapshot?
-    let localPhotosSummaryDestination: AppTab?
     let onOpenLocalPhotosSummary: (() -> Void)?
     let onRequestPhotoPermission: (() -> Void)?
     let onPresentLimitedLibraryPicker: (() -> Void)?
@@ -72,25 +71,13 @@ struct IOSSettingsTabView: View {
     }
 
     private var summaryDestinationIconName: String {
-        switch localPhotosSummaryDestination {
-        case .albums:
-            return "rectangle.stack"
-        case .photos:
-            return "photo.on.rectangle.angled"
-        case .settings, .picker, .none:
-            return "arrow.up.forward"
-        }
+        onOpenLocalPhotosSummary == nil ? "arrow.up.forward" : "photo.on.rectangle.angled"
     }
 
     private var summaryDestinationAccessibilityHint: String {
-        switch localPhotosSummaryDestination {
-        case .albums:
-            return AppLocalization.string("settings.localPhotosSummaryHint.albums")
-        case .photos:
-            return AppLocalization.string("settings.localPhotosSummaryHint.photos")
-        case .settings, .picker, .none:
-            return AppLocalization.string("settings.localPhotosSummaryHint.default")
-        }
+        onOpenLocalPhotosSummary == nil
+            ? AppLocalization.string("settings.localPhotosSummaryHint.default")
+            : AppLocalization.string("settings.localPhotosSummaryHint.photos")
     }
 
     private func handlePhotoPermissionAction() {

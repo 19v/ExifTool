@@ -34,6 +34,7 @@
       }
     },
     "album.photoCount" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -982,22 +983,6 @@
         }
       }
     },
-    "settings.localPhotosSummaryHint.albums" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open Albums to view local photo stats"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "打开相册页面查看本地照片统计"
-          }
-        }
-      }
-    },
     "settings.localPhotosSummaryHint.default" : {
       "localizations" : {
         "en" : {
@@ -1395,6 +1380,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "允许联网下载 iCloud 原图？"
+          }
+        }
+      }
+    },
+    "全部照片" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All Photos"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部照片"
           }
         }
       }
@@ -2131,6 +2132,22 @@
         }
       }
     },
+    "年份" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Year"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "年份"
+          }
+        }
+      }
+    },
     "应用" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -2379,23 +2396,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "打开相关页面查看本地照片状态"
-          }
-        }
-      }
-    },
-    "打开相册页面查看本地照片统计" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open Albums to view local photo stats"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "打开相册页面查看本地照片统计"
           }
         }
       }
@@ -2694,6 +2694,7 @@
       }
     },
     "更多操作" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2874,6 +2875,22 @@
         }
       }
     },
+    "正在载入照片" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading Photos"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在载入照片"
+          }
+        }
+      }
+    },
     "没有 Exif 信息" : {
       "localizations" : {
         "en" : {
@@ -2956,6 +2973,7 @@
       }
     },
     "没有找到相册" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2967,6 +2985,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "没有找到相册"
+          }
+        }
+      }
+    },
+    "没有符合筛选条件的照片" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Photos Match the Filter"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有符合筛选条件的照片"
           }
         }
       }
@@ -3166,6 +3200,22 @@
         }
       }
     },
+    "筛选" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "筛选"
+          }
+        }
+      }
+    },
     "系统地图" : {
       "localizations" : {
         "en" : {
@@ -3281,6 +3331,7 @@
       }
     },
     "选图" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {

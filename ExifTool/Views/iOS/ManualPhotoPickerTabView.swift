@@ -3,7 +3,7 @@
 internal import PhotosUI
 import SwiftUI
 
-struct ManualPhotoPickerTabView: View {
+struct ManualPhotoPickerView: View {
     let readOnlyMode: Bool
     let authorizationState: PhotoLibraryViewModel.AuthorizationState
     let onRequestPhotoPermission: (() -> Void)?
@@ -20,18 +20,15 @@ struct ManualPhotoPickerTabView: View {
     @State private var showsInitialAuthorizationCTAThisSession = false
 
     var body: some View {
-        NavigationStack {
-            ManualPhotoPickerEmptyState(
-                selectedItems: $selectedItems,
-                showsAuthorizationCTA: shouldShowInitialAuthorizationCTA,
-                onRequestPhotoPermission: onRequestPhotoPermission
-            )
-            .navigationTitle("选图")
-            .onAppear(perform: updateInitialAuthorizationCTA)
-            .onChange(of: authorizationState) { _, newValue in
-                if newValue != .unknown {
-                    showsInitialAuthorizationCTAThisSession = false
-                }
+        ManualPhotoPickerEmptyState(
+            selectedItems: $selectedItems,
+            showsAuthorizationCTA: shouldShowInitialAuthorizationCTA,
+            onRequestPhotoPermission: onRequestPhotoPermission
+        )
+        .onAppear(perform: updateInitialAuthorizationCTA)
+        .onChange(of: authorizationState) { _, newValue in
+            if newValue != .unknown {
+                showsInitialAuthorizationCTAThisSession = false
             }
         }
         .sheet(item: $selectedAssetForDetail, onDismiss: cleanupPresentedTemporaryFile) { asset in

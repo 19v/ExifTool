@@ -62,6 +62,8 @@ final class PhotoLibraryViewModel: NSObject {
     private(set) var authorizationState: AuthorizationState = .unknown
     private(set) var assets: [PhotoAsset] = []
     private(set) var albums: [PhotoAlbum] = []
+    private(set) var availableYears: [Int] = []
+    private(set) var assetCollectionRevision = 0
     private(set) var localOnlyAssetIDs: Set<String> = []
     private(set) var showsOnlyLocalAssets = false
     private(set) var albumContentRevisions = CollectionRevisionIndex()
@@ -300,6 +302,8 @@ final class PhotoLibraryViewModel: NSObject {
             let fetchedAssets = snapshot.assets
             self.assetFetchResult = snapshot.result
             self.allFetchedAssets = fetchedAssets
+            self.updateAvailableYears()
+            self.assetCollectionRevision &+= 1
 
             if showsOnlyLocalAssets {
                 isFilteringLocalAssets = true
@@ -378,6 +382,27 @@ final class PhotoLibraryViewModel: NSObject {
             options.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.image.rawValue)
             let result = collection.map { PHAsset.fetchAssets(in: $0, options: options) }
                 ?? PHAsset.fetchAssets(with: options)
+            var assets: [PhotoAsset] = []
+            assets.reserveCapacity(result.count)
+            result.enumerateObjects { asset, _, stop in
+                guard !cancellation.isCancelled else { stop.pointee = true; return }
+                assets.append(photoAsset(from: asset))
+            }
+            return assets
+        }
+    }
+
+    nonisolated static func fetchImageAssetsOffMain(in interval: DateInterval) async -> [PhotoAsset] {
+        await PhotoLibraryQueryService.run { cancellation in
+            let options = PHFetchOptions()
+            options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+            options.predicate = NSPredicate(
+                format: "mediaType == %d AND creationDate >= %@ AND creationDate < %@",
+                PHAssetMediaType.image.rawValue,
+                interval.start as NSDate,
+                interval.end as NSDate
+            )
+            let result = PHAsset.fetchAssets(with: options)
             var assets: [PhotoAsset] = []
             assets.reserveCapacity(result.count)
             result.enumerateObjects { asset, _, stop in
@@ -470,6 +495,8 @@ final class PhotoLibraryViewModel: NSObject {
         isLoadingNextLocalOnlyPage = false
         assets = []
         albums = []
+        availableYears = []
+        assetCollectionRevision &+= 1
         localOnlyAssetIDs = []
         hasMoreLocalAssets = false
         isFilteringLocalAssets = false
@@ -486,6 +513,10 @@ final class PhotoLibraryViewModel: NSObject {
         }
 
         showsOnlyLocalAssets = enabled
+    }
+
+    private func updateAvailableYears() {
+        availableYears = PhotoAssetYearIndex.years(in: allFetchedAssets)
     }
 
     private func scheduleLibraryChangeRefresh(_ change: PhotoLibraryChange) {
@@ -570,6 +601,8 @@ final class PhotoLibraryViewModel: NSObject {
         }
 
         allFetchedAssets = updatedAssets
+        updateAvailableYears()
+        assetCollectionRevision &+= 1
         localAvailabilityIndex.invalidate(assetIDs: removedIDs.union(affectedIDs))
         localOnlyAssetIDs.subtract(removedIDs.union(affectedIDs))
         countedLocalAssetIDs.subtract(removedIDs.union(affectedIDs))

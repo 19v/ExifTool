@@ -6,57 +6,26 @@ import SwiftUI
 import UIKit
 
 struct IOSRootView: View {
-    private enum LibraryNavigationMode {
-        case pickerOnly
-        case limitedLibrary
-        case fullLibrary
-    }
-
     @State private var library = PhotoLibraryViewModel()
-    @State private var selectedTab = AppTab.picker
     @State private var sharedPhotoAsset: PhotoAsset?
     @State private var presentedFileURLToCleanup: URL?
     @State private var isRequestingLibraryAccess = false
     @State private var isPresentingLimitedLibraryPicker = false
+    @State private var isPresentingSettings = false
+    @State private var presentsLimitedLibraryPickerAfterSettingsDismissal = false
     @AppStorage("readOnlyMode") private var readOnlyMode = true
     @AppStorage("allowsICloudDownload") private var allowsICloudDownload = false
     @AppStorage("showsOnlyLocalPhotos") private var showsOnlyLocalPhotos = false
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
-        TabView(selection: $selectedTab) {
-            if showsLibraryTabs {
-                Tab("图库", systemImage: "photo.on.rectangle.angled", value: AppTab.photos) {
-                    PhotoPickerTabView(
-                        library: library,
-                        readOnlyMode: readOnlyMode,
-                        onPresentLimitedLibraryPicker: presentLimitedLibraryPicker
-                    )
-                }
-
-                if showsAlbumsTab {
-                    Tab("相册", systemImage: "rectangle.stack", value: AppTab.albums) {
-                        AlbumsTabView(library: library, readOnlyMode: readOnlyMode)
-                    }
-                }
-
-                Tab("设置", systemImage: "gearshape", value: AppTab.settings) {
-                    settingsView
-                }
-            } else {
-                Tab("选图", systemImage: "plus.square.on.square", value: AppTab.picker) {
-                    ManualPhotoPickerTabView(
-                        readOnlyMode: readOnlyMode,
-                        authorizationState: library.authorizationState,
-                        onRequestPhotoPermission: requestLibraryAccess
-                    )
-                }
-
-                Tab("设置", systemImage: "gearshape", value: AppTab.settings) {
-                    settingsView
-                }
-            }
-        }
+        IOSLibraryBrowserView(
+            library: library,
+            readOnlyMode: readOnlyMode,
+            onRequestPhotoPermission: requestLibraryAccess,
+            onPresentLimitedLibraryPicker: presentLimitedLibraryPicker,
+            onPresentSettings: { isPresentingSettings = true }
+        )
         .task {
             PhotoTemporaryFileStore.cleanupStaleFiles()
             SharedPhotoImport.cleanupStaleFiles()
@@ -74,18 +43,27 @@ struct IOSRootView: View {
                 )
             }
         }
+        .sheet(isPresented: $isPresentingSettings, onDismiss: finishSettingsPresentation) {
+            IOSSettingsTabView(
+                readOnlyMode: $readOnlyMode,
+                accessScope: library.accessScope,
+                authorizationState: library.authorizationState,
+                localPhotosSummarySnapshot: library.localPhotosSummarySnapshot,
+                onOpenLocalPhotosSummary: showsLibrary ? { isPresentingSettings = false } : nil,
+                onRequestPhotoPermission: requestLibraryAccess,
+                onPresentLimitedLibraryPicker: queueLimitedLibraryPickerAfterSettings,
+                allowsICloudDownload: $allowsICloudDownload,
+                showsOnlyLocalPhotos: $showsOnlyLocalPhotos
+            )
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+        }
         .background {
             LimitedLibraryPickerPresenter(isPresented: $isPresentingLimitedLibraryPicker) {
                 Task {
                     await library.refresh()
                 }
             }
-        }
-        .onAppear {
-            syncSelectedTab()
-        }
-        .onChange(of: library.accessScope) { _, _ in
-            syncSelectedTab()
         }
         .onChange(of: showsOnlyLocalPhotos) { _, isEnabled in
             Task {
@@ -101,48 +79,9 @@ struct IOSRootView: View {
         }
     }
 
-    private var settingsView: some View {
-        IOSSettingsTabView(
-            readOnlyMode: $readOnlyMode,
-            accessScope: library.accessScope,
-            authorizationState: library.authorizationState,
-            localPhotosSummarySnapshot: library.localPhotosSummarySnapshot,
-            localPhotosSummaryDestination: localPhotosSummaryDestination,
-            onOpenLocalPhotosSummary: openLocalPhotosSummary,
-            onRequestPhotoPermission: requestLibraryAccess,
-            onPresentLimitedLibraryPicker: presentLimitedLibraryPicker,
-            allowsICloudDownload: $allowsICloudDownload,
-            showsOnlyLocalPhotos: $showsOnlyLocalPhotos
-        )
-    }
-
-    private var showsLibraryTabs: Bool {
-        navigationMode != .pickerOnly
-    }
-
-    private var showsAlbumsTab: Bool {
-        navigationMode == .fullLibrary
-    }
-
-    private var navigationMode: LibraryNavigationMode {
-        switch library.accessScope {
-        case .full:
-            return .fullLibrary
-        case .limited:
-            return library.authorizationState == .empty ? .pickerOnly : .limitedLibrary
-        case .unknown, .denied:
-            return .pickerOnly
-        }
-    }
-
-    private func syncSelectedTab() {
-        if showsLibraryTabs {
-            if selectedTab == .picker || (selectedTab == .albums && !showsAlbumsTab) {
-                selectedTab = .photos
-            }
-        } else if selectedTab != .picker && selectedTab != .settings {
-            selectedTab = .picker
-        }
+    private var showsLibrary: Bool {
+        library.accessScope == .full ||
+            (library.accessScope == .limited && library.authorizationState != .empty)
     }
 
     private func requestLibraryAccess() {
@@ -161,28 +100,17 @@ struct IOSRootView: View {
         isPresentingLimitedLibraryPicker = true
     }
 
-    private var localPhotosSummaryDestination: AppTab? {
-        guard showsOnlyLocalPhotos else {
-            return nil
-        }
-
-        if library.isBuildingLocalAlbumStats && showsAlbumsTab {
-            return .albums
-        }
-
-        if showsLibraryTabs {
-            return .photos
-        }
-
-        return .settings
+    private func queueLimitedLibraryPickerAfterSettings() {
+        presentsLimitedLibraryPickerAfterSettingsDismissal = true
+        isPresentingSettings = false
     }
 
-    private func openLocalPhotosSummary() {
-        guard let destination = localPhotosSummaryDestination else {
+    private func finishSettingsPresentation() {
+        guard presentsLimitedLibraryPickerAfterSettingsDismissal else {
             return
         }
-
-        selectedTab = destination
+        presentsLimitedLibraryPickerAfterSettingsDismissal = false
+        presentLimitedLibraryPicker()
     }
 
     private func openIncomingPhoto(from url: URL) {
@@ -202,11 +130,9 @@ struct IOSRootView: View {
         }
 
         guard let asset = PhotoFileImporter.importAssetCopyingToTemporaryStorage(from: url) else {
-            selectedTab = fallbackTabAfterSharedPhotoDismissal
             return
         }
 
-        selectedTab = fallbackTabAfterSharedPhotoDismissal
         presentedFileURLToCleanup = asset.localFile?.fileURL
         sharedPhotoAsset = asset
     }
@@ -215,11 +141,9 @@ struct IOSRootView: View {
         guard let fileName = SharedPhotoImport.fileName(from: url),
               let fileURL = SharedPhotoImport.fileURL(forSharedFileName: fileName),
               let asset = PhotoFileImporter.importAsset(from: fileURL) else {
-            selectedTab = fallbackTabAfterSharedPhotoDismissal
             return
         }
 
-        selectedTab = fallbackTabAfterSharedPhotoDismissal
         presentedFileURLToCleanup = fileURL
         sharedPhotoAsset = asset
     }
@@ -234,9 +158,6 @@ struct IOSRootView: View {
         self.presentedFileURLToCleanup = nil
     }
 
-    private var fallbackTabAfterSharedPhotoDismissal: AppTab {
-        showsLibraryTabs ? .photos : .picker
-    }
 }
 
 private struct LimitedLibraryPickerPresenter: UIViewControllerRepresentable {

@@ -4,13 +4,6 @@ import CoreLocation
 import Foundation
 import Photos
 
-enum AppTab: Hashable {
-    case photos
-    case picker
-    case albums
-    case settings
-}
-
 enum PhotoDetailState: Equatable {
     case loading
     case loaded(PhotoMetadata)
@@ -102,6 +95,14 @@ struct PhotoAsset: Identifiable, Hashable {
         }
 
         return file
+    }
+}
+
+enum PhotoAssetYearIndex {
+    static func years(in assets: [PhotoAsset], calendar: Calendar = .current) -> [Int] {
+        Array(Set(assets.compactMap { asset in
+            asset.creationDate.map { calendar.component(.year, from: $0) }
+        })).sorted(by: >)
     }
 }
 
