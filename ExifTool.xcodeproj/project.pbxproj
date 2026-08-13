@@ -11,12 +11,12 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		05C682072F92A1000020F602 /* PBXContainerItemProxy */ = {
+		05C680112F91A0000020F602 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 05C67FD92F8F69DD0020F602 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 05C67FE02F8F69DD0020F602;
-			remoteInfo = ExifTool;
+			remoteGlobalIDString = 05C680052F91A0000020F602;
+			remoteInfo = ExifToolShareExtension;
 		};
 		05C681072F91A1000020F602 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -25,12 +25,12 @@
 			remoteGlobalIDString = 05C67FE02F8F69DD0020F602;
 			remoteInfo = ExifTool;
 		};
-		05C680112F91A0000020F602 /* PBXContainerItemProxy */ = {
+		05C682072F92A1000020F602 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 05C67FD92F8F69DD0020F602 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 05C680052F91A0000020F602;
-			remoteInfo = ExifToolShareExtension;
+			remoteGlobalIDString = 05C67FE02F8F69DD0020F602;
+			remoteInfo = ExifTool;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -55,9 +55,22 @@
 		05C682012F92A1000020F602 /* ExifToolIOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ExifToolIOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		05CFF861302DB24C0043A122 /* Exceptions for "ExifTool" folder in "ExifTool" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 05C67FE02F8F69DD0020F602 /* ExifTool */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		05C67FE32F8F69DD0020F602 /* ExifTool */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				05CFF861302DB24C0043A122 /* Exceptions for "ExifTool" folder in "ExifTool" target */,
+			);
 			path = ExifTool;
 			sourceTree = "<group>";
 		};
@@ -339,6 +352,12 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		05C680122F91A0000020F602 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			platformFilter = ios;
+			target = 05C680052F91A0000020F602 /* ExifToolShareExtension */;
+			targetProxy = 05C680112F91A0000020F602 /* PBXContainerItemProxy */;
+		};
 		05C681082F91A1000020F602 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 05C67FE02F8F69DD0020F602 /* ExifTool */;
@@ -348,12 +367,6 @@
 			isa = PBXTargetDependency;
 			target = 05C67FE02F8F69DD0020F602 /* ExifTool */;
 			targetProxy = 05C682072F92A1000020F602 /* PBXContainerItemProxy */;
-		};
-		05C680122F91A0000020F602 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			platformFilter = ios;
-			target = 05C680052F91A0000020F602 /* ExifToolShareExtension */;
-			targetProxy = 05C680112F91A0000020F602 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -489,10 +502,12 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				"GENERATE_INFOPLIST_FILE[sdk=iphoneos*]" = NO;
 				"GENERATE_INFOPLIST_FILE[sdk=iphonesimulator*]" = NO;
+				INFOPLIST_FILE = ExifTool/Info.plist;
 				"INFOPLIST_FILE[sdk=iphoneos*]" = "iOS-Info.plist";
 				"INFOPLIST_FILE[sdk=iphonesimulator*]" = "iOS-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Exif Tool";
 				"INFOPLIST_KEY_CFBundleDocumentTypes[sdk=macosx*]" = "{\n    CFBundleTypeName = Image;\n    CFBundleTypeRole = Viewer;\n    LSHandlerRank = Default;\n    LSItemContentTypes =     (\n        \"public.image\"\n    );\n}";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "用于展示手机照片并读取本机 Exif 信息。";
 				INFOPLIST_KEY_PHPhotoLibraryPreventAutomaticLimitedAccessAlert = YES;
@@ -519,8 +534,8 @@
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -544,10 +559,12 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				"GENERATE_INFOPLIST_FILE[sdk=iphoneos*]" = NO;
 				"GENERATE_INFOPLIST_FILE[sdk=iphonesimulator*]" = NO;
+				INFOPLIST_FILE = ExifTool/Info.plist;
 				"INFOPLIST_FILE[sdk=iphoneos*]" = "iOS-Info.plist";
 				"INFOPLIST_FILE[sdk=iphonesimulator*]" = "iOS-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Exif Tool";
 				"INFOPLIST_KEY_CFBundleDocumentTypes[sdk=macosx*]" = "{\n    CFBundleTypeName = Image;\n    CFBundleTypeRole = Viewer;\n    LSHandlerRank = Default;\n    LSItemContentTypes =     (\n        \"public.image\"\n    );\n}";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "用于展示手机照片并读取本机 Exif 信息。";
 				INFOPLIST_KEY_PHPhotoLibraryPreventAutomaticLimitedAccessAlert = YES;
@@ -574,8 +591,8 @@
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -606,8 +623,8 @@
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -639,8 +656,8 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
