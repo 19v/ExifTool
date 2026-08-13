@@ -144,24 +144,6 @@ nonisolated enum ThumbnailSizeBucket {
     }
 }
 
-nonisolated struct PhotoSearchSeed: Sendable {
-    let assetID: String
-    let pixelWidth: Int
-    let pixelHeight: Int
-    let displayName: String?
-    let creationDate: Date?
-    let modificationDate: Date?
-
-    init(asset: PhotoAsset, displayName: String? = nil) {
-        assetID = asset.id
-        pixelWidth = asset.pixelWidth
-        pixelHeight = asset.pixelHeight
-        self.displayName = displayName ?? asset.displayName
-        creationDate = asset.creationDate
-        modificationDate = asset.modificationDate
-    }
-}
-
 nonisolated struct PhotoLibraryFilenameSeed: @unchecked Sendable {
     let assetID: String
     let asset: PHAsset
@@ -194,29 +176,6 @@ nonisolated enum PhotoLibraryFilenameResolver {
             }
             return namesByID
         }
-    }
-}
-
-nonisolated enum PhotoSearchIndex {
-    static func document(for seed: PhotoSearchSeed) -> PhotoSearchDocument {
-        var parts = [
-            seed.assetID,
-            "\(seed.pixelWidth)x\(seed.pixelHeight)"
-        ]
-
-        if let displayName = seed.displayName {
-            parts.append(displayName)
-        }
-
-        if let creationDate = seed.creationDate {
-            parts.append(creationDate.formatted(date: .numeric, time: .shortened))
-        }
-
-        if let modificationDate = seed.modificationDate {
-            parts.append(modificationDate.formatted(date: .numeric, time: .shortened))
-        }
-
-        return PhotoSearchDocument(assetID: seed.assetID, text: parts.joined(separator: " "))
     }
 }
 

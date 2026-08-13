@@ -77,8 +77,6 @@ struct IOSSettingsTabView: View {
             return "rectangle.stack"
         case .photos:
             return "photo.on.rectangle.angled"
-        case .search:
-            return "magnifyingglass"
         case .settings, .picker, .none:
             return "arrow.up.forward"
         }
@@ -90,8 +88,6 @@ struct IOSSettingsTabView: View {
             return AppLocalization.string("settings.localPhotosSummaryHint.albums")
         case .photos:
             return AppLocalization.string("settings.localPhotosSummaryHint.photos")
-        case .search:
-            return AppLocalization.string("settings.localPhotosSummaryHint.search")
         case .settings, .picker, .none:
             return AppLocalization.string("settings.localPhotosSummaryHint.default")
         }

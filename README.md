@@ -10,7 +10,6 @@ ExifTool 是一款使用 SwiftUI 编写的 iOS 与 macOS 照片元数据查看�
 
 - 浏览系统照片图库和相册，兼容完整、受限及拒绝图库权限的场景
 - 无需完整图库权限即可通过系统照片选择器打开照片
-- 按文件名、日期、尺寸或照片标识符搜索照片
 - 可选择仅显示已经下载到本机的照片
 - 默认不联网读取 iCloud 原图，需要时可由用户明确允许下载
 - 通过 Share Extension 从其他应用将单张图片发送到 ExifTool
@@ -65,7 +64,7 @@ xcodebuild \
 
 ## 测试
 
-测试覆盖厂商 MakerNote 解析、照片搜索、增量图库更新、异步取消与缓存、元数据显示投影和 macOS 元数据对比，并记录大型搜索与增量集合更新的耗时和内存指标。运行 macOS 测试：
+测试覆盖厂商 MakerNote 解析、增量图库更新、异步取消与缓存、元数据显示投影和 macOS 元数据对比，并记录增量集合更新的耗时和内存指标。运行 macOS 测试：
 
 ```sh
 xcodebuild \
@@ -84,10 +83,10 @@ GitHub Actions 会验证中英文字符串目录、隐私清单与 RAW 测试样
 ```text
 ExifTool/
 ├── Metadata/          标准元数据与厂商 MakerNote 解析
-├── Models/            照片、搜索和元数据显示模型
+├── Models/            照片和元数据显示模型
 └── Views/
     ├── Common/        跨平台复用视图
-    ├── iOS/           iOS 图库、搜索、详情和服务
+    ├── iOS/           iOS 图库、详情和服务
     └── macOS/         macOS 文件工作区、详情和对比
 ExifToolTests/         解析器和业务模型测试
 ShareExtension/        iOS 分享扩展

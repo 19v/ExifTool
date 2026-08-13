@@ -982,54 +982,6 @@
         }
       }
     },
-    "search.localPhotos.buildingAlbums" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Search results are loaded. Album stats are still updating in the background."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "搜索结果已加载完成，后台仍在补充相册统计"
-          }
-        }
-      }
-    },
-    "search.localPhotos.loading" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Filtering local photos that match the search"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在筛选符合搜索条件的本地照片"
-          }
-        }
-      }
-    },
-    "search.localPhotos.more" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Search results are still loading. Keep scrolling to load more local photos."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "当前搜索结果还在补充，继续下滑会加载更多本地照片"
-          }
-        }
-      }
-    },
     "settings.localPhotosSummaryHint.albums" : {
       "localizations" : {
         "en" : {
@@ -1074,22 +1026,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "打开图库页面继续加载本地照片"
-          }
-        }
-      }
-    },
-    "settings.localPhotosSummaryHint.search" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open Search to view local photos"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "打开搜索页面查看本地照片"
           }
         }
       }
@@ -1821,22 +1757,6 @@
         }
       }
     },
-    "可以搜索文件名、日期、尺寸或照片标识符。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Search by file name, date, dimensions, or photo identifier."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "可以搜索文件名、日期、尺寸或照片标识符。"
-          }
-        }
-      }
-    },
     "可以直接点加号手动选择图片，多选后照样查看 Exif。" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -2329,23 +2249,6 @@
         }
       }
     },
-    "当前搜索结果还在补充，继续下滑会加载更多本地照片" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Search results are still loading. Keep scrolling to load more local photos."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "当前搜索结果还在补充，继续下滑会加载更多本地照片"
-          }
-        }
-      }
-    },
     "当前未允许访问系统照片库。如果想重新开启权限，可以前往系统设置调整。" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -2459,23 +2362,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "打开图库页面继续加载本地照片"
-          }
-        }
-      }
-    },
-    "打开搜索页面查看本地照片" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open Search to view local photos"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "打开搜索页面查看本地照片"
           }
         }
       }
@@ -2674,55 +2560,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "排序"
-          }
-        }
-      }
-    },
-    "搜索" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Search"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "搜索"
-          }
-        }
-      }
-    },
-    "搜索照片" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Search Photos"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "搜索照片"
-          }
-        }
-      }
-    },
-    "搜索结果已加载完成，后台仍在补充相册统计" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Search results are loaded. Album stats are still updating in the background."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "搜索结果已加载完成，后台仍在补充相册统计"
           }
         }
       }
@@ -2938,22 +2775,6 @@
         }
       }
     },
-    "正在搜索" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Searching"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在搜索"
-          }
-        }
-      }
-    },
     "正在筛选已下载到本地的照片" : {
       "localizations" : {
         "en" : {
@@ -2966,23 +2787,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在筛选已下载到本地的照片"
-          }
-        }
-      }
-    },
-    "正在筛选符合搜索条件的本地照片" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Filtering local photos that match the search"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在筛选符合搜索条件的本地照片"
           }
         }
       }
@@ -3102,22 +2906,6 @@
         }
       }
     },
-    "没有匹配照片" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No Matching Photos"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "没有匹配照片"
-          }
-        }
-      }
-    },
     "没有可对比的第二张照片" : {
       "localizations" : {
         "en" : {
@@ -3130,22 +2918,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "没有可对比的第二张照片"
-          }
-        }
-      }
-    },
-    "没有可搜索的照片" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No Photos to Search"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "没有可搜索的照片"
           }
         }
       }

@@ -43,12 +43,6 @@ struct IOSRootView: View {
                 Tab("设置", systemImage: "gearshape", value: AppTab.settings) {
                     settingsView
                 }
-
-                if showsSearchTab {
-                    Tab("搜索", systemImage: "magnifyingglass", value: AppTab.search, role: .search) {
-                        SearchTabView(library: library, readOnlyMode: readOnlyMode)
-                    }
-                }
             } else {
                 Tab("选图", systemImage: "plus.square.on.square", value: AppTab.picker) {
                     ManualPhotoPickerTabView(
@@ -128,10 +122,6 @@ struct IOSRootView: View {
 
     private var showsAlbumsTab: Bool {
         navigationMode == .fullLibrary
-    }
-
-    private var showsSearchTab: Bool {
-        navigationMode != .pickerOnly
     }
 
     private var navigationMode: LibraryNavigationMode {

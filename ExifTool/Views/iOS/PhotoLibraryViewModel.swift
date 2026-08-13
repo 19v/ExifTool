@@ -64,16 +64,11 @@ final class PhotoLibraryViewModel: NSObject {
     private(set) var albums: [PhotoAlbum] = []
     private(set) var localOnlyAssetIDs: Set<String> = []
     private(set) var showsOnlyLocalAssets = false
-    private(set) var searchableAssetsRevision = 0
     private(set) var albumContentRevisions = CollectionRevisionIndex()
     private(set) var isFilteringLocalAssets = false
     private(set) var hasMoreLocalAssets = false
     private(set) var isBuildingLocalAlbumStats = false
     let localAvailabilityIndex = LocalAssetAvailabilityIndex()
-
-    var searchableAssets: [PhotoAsset] {
-        showsOnlyLocalAssets ? allFetchedAssets : assets
-    }
 
     var localPhotosSummaryText: String? {
         guard showsOnlyLocalAssets else {
@@ -307,7 +302,6 @@ final class PhotoLibraryViewModel: NSObject {
             self.allFetchedAssets = fetchedAssets
 
             if showsOnlyLocalAssets {
-                self.markSearchableAssetsChanged()
                 isFilteringLocalAssets = true
                 self.nextLocalOnlyScanIndex = 0
                 self.isLoadingNextLocalOnlyPage = false
@@ -332,7 +326,6 @@ final class PhotoLibraryViewModel: NSObject {
                 self.hasMoreLocalAssets = false
                 self.localOnlyAssetIDs = Set(fetchedAssets.map(\.id))
                 self.assets = fetchedAssets
-                self.markSearchableAssetsChanged()
                 let fetchedAlbums = await Self.fetchImageAlbumsOffMain()
                 guard !Task.isCancelled, generation == self.refreshGeneration else {
                     return
@@ -485,7 +478,6 @@ final class PhotoLibraryViewModel: NSObject {
         localAlbumCountsByID = [:]
         countedLocalAssetIDs = []
         hasRequestedLocalAlbumStats = false
-        markSearchableAssetsChanged()
     }
 
     private func updateShowsOnlyLocalAssets(_ enabled: Bool) {
@@ -494,11 +486,6 @@ final class PhotoLibraryViewModel: NSObject {
         }
 
         showsOnlyLocalAssets = enabled
-        markSearchableAssetsChanged()
-    }
-
-    private func markSearchableAssetsChanged() {
-        searchableAssetsRevision &+= 1
     }
 
     private func scheduleLibraryChangeRefresh(_ change: PhotoLibraryChange) {
@@ -586,7 +573,6 @@ final class PhotoLibraryViewModel: NSObject {
         localAvailabilityIndex.invalidate(assetIDs: removedIDs.union(affectedIDs))
         localOnlyAssetIDs.subtract(removedIDs.union(affectedIDs))
         countedLocalAssetIDs.subtract(removedIDs.union(affectedIDs))
-        markSearchableAssetsChanged()
 
         guard showsOnlyLocalAssets else {
             assets = updatedAssets

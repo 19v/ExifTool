@@ -9,7 +9,6 @@ enum AppTab: Hashable {
     case picker
     case albums
     case settings
-    case search
 }
 
 enum PhotoDetailState: Equatable {
