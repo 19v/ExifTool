@@ -344,7 +344,7 @@ private struct LibraryNavigationTitle: View {
             .lineLimit(1)
             .truncationMode(.tail)
             .padding(.horizontal, 12)
-            .padding(.vertical, 6)
+            .frame(height: 44)
             .platformGlassBackground(in: Capsule())
     }
 }
