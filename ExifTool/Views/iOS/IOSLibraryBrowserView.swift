@@ -509,6 +509,7 @@ private struct ToolbarFilterLabel: View {
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: systemImage)
+                .imageScale(.small)
             Text(title)
                 .lineLimit(1)
         }
