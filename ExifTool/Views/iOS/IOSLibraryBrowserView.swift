@@ -370,11 +370,10 @@ private struct LibraryYearFilterMenu: View {
                 }
             }
         } label: {
-            Label(
-                selectedYear.map(localizedYear) ?? AppLocalization.string("年份"),
+            ToolbarFilterLabel(
+                title: selectedYear.map(localizedYear) ?? AppLocalization.string("年份"),
                 systemImage: "calendar"
             )
-            .labelStyle(.titleAndIcon)
         }
         .disabled(years.isEmpty && selectedYear == nil)
     }
@@ -427,11 +426,10 @@ private struct LibraryAlbumFilterMenu: View {
                 }
             }
         } label: {
-            Label(
-                selectedAlbumTitle ?? AppLocalization.string("相册"),
+            ToolbarFilterLabel(
+                title: selectedAlbumTitle ?? AppLocalization.string("相册"),
                 systemImage: "rectangle.stack"
             )
-            .labelStyle(.titleAndIcon)
         }
         .disabled(albums.isEmpty && !showsLimitedLibraryAction && selectedAlbumTitle == nil)
     }
@@ -441,6 +439,19 @@ private struct LibraryAlbumFilterMenu: View {
             return nil
         }
         return albums.first(where: { $0.id == albumID })?.title
+    }
+}
+
+private struct ToolbarFilterLabel: View {
+    let title: String
+    let systemImage: String
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: systemImage)
+            Text(title)
+                .lineLimit(1)
+        }
     }
 }
 
