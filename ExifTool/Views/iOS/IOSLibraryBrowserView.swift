@@ -1,6 +1,7 @@
 #if os(iOS)
 
 import SwiftUI
+import UIKit
 
 struct IOSLibraryBrowserView: View {
     let library: PhotoLibraryViewModel
@@ -338,14 +339,23 @@ private struct SettingsToolbarButton: View {
 private struct LibraryNavigationTitle: View {
     let title: String
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
         Text(title)
             .font(.headline)
             .lineLimit(1)
             .truncationMode(.tail)
             .padding(.horizontal, 12)
-            .frame(width: 120, height: 44)
+            .frame(width: measuredWidth, height: 44)
             .platformGlassBackground(in: Capsule())
+    }
+
+    private var measuredWidth: CGFloat {
+        _ = dynamicTypeSize
+        let font = UIFont.preferredFont(forTextStyle: .headline)
+        let textWidth = (title as NSString).size(withAttributes: [.font: font]).width
+        return min(max(ceil(textWidth) + 24, 128), 200)
     }
 }
 
