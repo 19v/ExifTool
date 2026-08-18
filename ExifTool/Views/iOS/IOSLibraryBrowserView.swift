@@ -49,17 +49,6 @@ struct IOSLibraryBrowserView: View {
             )
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarTitleMenu {
-                if showsLibrary {
-                    LibraryFilterMenuContent(
-                        filter: $filter,
-                        years: library.availableYears,
-                        albums: library.albums,
-                        showsLimitedLibraryAction: library.accessScope == .limited,
-                        onPresentLimitedLibraryPicker: onPresentLimitedLibraryPicker
-                    )
-                }
-            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(action: showSurprisePhoto) {
@@ -77,8 +66,15 @@ struct IOSLibraryBrowserView: View {
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                if let statusSnapshot {
-                    LocalPhotosStatusBanner(snapshot: statusSnapshot, emphasis: .floating)
+                if showsLibrary {
+                    LibraryBottomArea(
+                        filter: $filter,
+                        years: library.availableYears,
+                        albums: library.albums,
+                        statusSnapshot: statusSnapshot,
+                        showsLimitedLibraryAction: library.accessScope == .limited,
+                        onPresentLimitedLibraryPicker: onPresentLimitedLibraryPicker
+                    )
                 }
             }
             .navigationDestination(item: $surpriseAsset) { asset in
@@ -326,7 +322,33 @@ private struct SettingsToolbarButton: View {
     }
 }
 
-private struct LibraryFilterMenuContent: View {
+private struct LibraryBottomArea: View {
+    @Binding var filter: LibraryFilter
+    let years: [Int]
+    let albums: [PhotoAlbum]
+    let statusSnapshot: LocalPhotosStatusSnapshot?
+    let showsLimitedLibraryAction: Bool
+    let onPresentLimitedLibraryPicker: (() -> Void)?
+
+    var body: some View {
+        VStack(spacing: 8) {
+            if let statusSnapshot {
+                LocalPhotosStatusBanner(snapshot: statusSnapshot, emphasis: .floating)
+                    .padding(.horizontal)
+            }
+
+            LibraryBottomFilterBar(
+                filter: $filter,
+                years: years,
+                albums: albums,
+                showsLimitedLibraryAction: showsLimitedLibraryAction,
+                onPresentLimitedLibraryPicker: onPresentLimitedLibraryPicker
+            )
+        }
+    }
+}
+
+private struct LibraryBottomFilterBar: View {
     @Binding var filter: LibraryFilter
     let years: [Int]
     let albums: [PhotoAlbum]
@@ -334,17 +356,25 @@ private struct LibraryFilterMenuContent: View {
     let onPresentLimitedLibraryPicker: (() -> Void)?
 
     var body: some View {
-        Button {
-            filter = .all
-        } label: {
-            FilterMenuLabel(
-                title: AppLocalization.string("全部照片"),
-                systemImage: filter == .all ? "checkmark" : "photo.on.rectangle.angled"
-            )
+        HStack(spacing: 0) {
+            yearMenu
+            Divider()
+                .frame(height: 28)
+            albumMenu
         }
+        .padding(.vertical, 7)
+        .background(.bar)
+        .overlay(alignment: .top) {
+            Divider()
+        }
+    }
 
-        if !years.isEmpty {
-            Menu("年份") {
+    private var yearMenu: some View {
+        Menu {
+            allPhotosButton
+
+            if !years.isEmpty {
+                Divider()
                 ForEach(years, id: \.self) { year in
                     Button {
                         filter = .year(year)
@@ -356,10 +386,22 @@ private struct LibraryFilterMenuContent: View {
                     }
                 }
             }
+        } label: {
+            BottomFilterLabel(
+                title: selectedYear.map(localizedYear) ?? AppLocalization.string("年份"),
+                systemImage: "calendar"
+            )
         }
+        .disabled(years.isEmpty && selectedYear == nil)
+        .frame(maxWidth: .infinity)
+    }
 
-        if !albums.isEmpty {
-            Menu("相册") {
+    private var albumMenu: some View {
+        Menu {
+            allPhotosButton
+
+            if !albums.isEmpty {
+                Divider()
                 ForEach(albums) { album in
                     Button {
                         filter = .album(album.id)
@@ -371,14 +413,46 @@ private struct LibraryFilterMenuContent: View {
                     }
                 }
             }
-        }
 
-        if showsLimitedLibraryAction {
-            Divider()
-            Button("重新选择照片") {
-                onPresentLimitedLibraryPicker?()
+            if showsLimitedLibraryAction {
+                Divider()
+                Button("重新选择照片") {
+                    onPresentLimitedLibraryPicker?()
+                }
             }
+        } label: {
+            BottomFilterLabel(
+                title: selectedAlbumTitle ?? AppLocalization.string("相册"),
+                systemImage: "rectangle.stack"
+            )
         }
+        .disabled(albums.isEmpty && !showsLimitedLibraryAction && selectedAlbumTitle == nil)
+        .frame(maxWidth: .infinity)
+    }
+
+    private var allPhotosButton: some View {
+        Button {
+            filter = .all
+        } label: {
+            FilterMenuLabel(
+                title: AppLocalization.string("全部照片"),
+                systemImage: filter == .all ? "checkmark" : "photo.on.rectangle.angled"
+            )
+        }
+    }
+
+    private var selectedYear: Int? {
+        guard case .year(let year) = filter else {
+            return nil
+        }
+        return year
+    }
+
+    private var selectedAlbumTitle: String? {
+        guard case .album(let albumID) = filter else {
+            return nil
+        }
+        return albums.first(where: { $0.id == albumID })?.title
     }
 
     private func localizedYear(_ year: Int) -> String {
@@ -388,6 +462,20 @@ private struct LibraryFilterMenuContent: View {
         components.month = 1
         components.day = 1
         return components.date?.formatted(.dateTime.year()) ?? String(year)
+    }
+}
+
+private struct BottomFilterLabel: View {
+    let title: String
+    let systemImage: String
+
+    var body: some View {
+        Label(title, systemImage: systemImage)
+            .font(.subheadline.weight(.semibold))
+            .lineLimit(1)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 5)
+            .contentShape(Rectangle())
     }
 }
 
