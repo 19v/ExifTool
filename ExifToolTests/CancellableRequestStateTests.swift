@@ -3,6 +3,26 @@ import XCTest
 @testable import ExifTool
 
 final class CancellableRequestStateTests: XCTestCase {
+    func testFinishingWithCancellationBeforeRegisteringTokenCancelsRegisteredRequest() async {
+        let requestCancelled = expectation(description: "Request cancelled")
+        let state = CancellablePhotoRequestState<Bool, Int>(
+            cancellationValue: false,
+            cancelRequest: { token in
+                XCTAssertEqual(token, 42)
+                requestCancelled.fulfill()
+            }
+        )
+
+        let value = await withCheckedContinuation { continuation in
+            state.install(continuation)
+            state.finish(returning: true, cancellingRequest: true)
+            state.register(requestToken: 42)
+        }
+
+        XCTAssertTrue(value)
+        await fulfillment(of: [requestCancelled], timeout: 1)
+    }
+
     func testCancellationResumesInstalledContinuationAndCancelsRegisteredRequest() async {
         let recorder = CancelledTokenRecorder()
         let state = CancellablePhotoRequestState<Result<String, Error>, Int>(

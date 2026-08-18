@@ -1009,7 +1009,11 @@ enum PhotoLoader {
                 let requestID = PHAssetResourceManager.default().requestData(
                     for: resource,
                     options: options,
-                    dataReceivedHandler: { _ in },
+                    dataReceivedHandler: { _ in
+                        // One local data chunk is enough to prove availability. Avoid
+                        // streaming every original into memory just to answer a Boolean.
+                        state.finish(returning: true, cancellingRequest: true)
+                    },
                     completionHandler: { error in
                         state.finish(returning: error == nil)
                     }

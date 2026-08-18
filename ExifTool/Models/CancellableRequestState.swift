@@ -70,6 +70,9 @@ nonisolated final class CancellablePhotoRequestState<Value: Sendable, RequestTok
             guard case .pending = completion else {
                 return nil
             }
+            if shouldCancelRequest {
+                cancellationRequested = true
+            }
             completion = .finished(value)
             let continuationToResume = continuation
             continuation = nil
