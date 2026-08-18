@@ -189,7 +189,7 @@ final class PhotoLibraryViewModel: NSObject {
     @ObservationIgnored private let photoLibrary: PHPhotoLibrary
     @ObservationIgnored private var assetFetchResult: PHFetchResult<PHAsset>?
     @ObservationIgnored private var allFetchedAssets: [PhotoAsset] = []
-    @ObservationIgnored private var nextLocalOnlyScanIndex = 0
+    @ObservationIgnored private var nextLocalOnlyScanEndIndex = 0
     @ObservationIgnored private var isLoadingNextLocalOnlyPage = false
     @ObservationIgnored private var refreshGeneration = UUID()
     @ObservationIgnored private var localOnlySessionID = UUID()
@@ -322,7 +322,7 @@ final class PhotoLibraryViewModel: NSObject {
 
             if showsOnlyLocalAssets {
                 isFilteringLocalAssets = true
-                self.nextLocalOnlyScanIndex = 0
+                self.nextLocalOnlyScanEndIndex = fetchedAssets.count
                 self.isLoadingNextLocalOnlyPage = false
                 self.hasMoreLocalAssets = !fetchedAssets.isEmpty
                 self.localOnlyAssetIDs = []
@@ -341,7 +341,7 @@ final class PhotoLibraryViewModel: NSObject {
                 
                 await loadNextLocalOnlyPage(for: generation)
             } else {
-                self.nextLocalOnlyScanIndex = fetchedAssets.count
+                self.nextLocalOnlyScanEndIndex = 0
                 self.hasMoreLocalAssets = false
                 self.localOnlyAssetIDs = Set(fetchedAssets.map(\.id))
                 self.assets = fetchedAssets
@@ -360,7 +360,7 @@ final class PhotoLibraryViewModel: NSObject {
     
     nonisolated static func fetchImageAssets(in collection: PHAssetCollection? = nil) -> [PhotoAsset] {
         let options = PHFetchOptions()
-        options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+        options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
         options.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.image.rawValue)
         
         let result: PHFetchResult<PHAsset>
@@ -393,7 +393,7 @@ final class PhotoLibraryViewModel: NSObject {
     nonisolated static func fetchImageAssetsOffMain(in collection: PHAssetCollection? = nil) async -> [PhotoAsset] {
         await PhotoLibraryQueryService.run { cancellation in
             let options = PHFetchOptions()
-            options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+            options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
             options.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.image.rawValue)
             let result = collection.map { PHAsset.fetchAssets(in: $0, options: options) }
                 ?? PHAsset.fetchAssets(with: options)
@@ -410,7 +410,7 @@ final class PhotoLibraryViewModel: NSObject {
     nonisolated static func fetchImageAssetsOffMain(in interval: DateInterval) async -> [PhotoAsset] {
         await PhotoLibraryQueryService.run { cancellation in
             let options = PHFetchOptions()
-            options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+            options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
             options.predicate = NSPredicate(
                 format: "mediaType == %d AND creationDate >= %@ AND creationDate < %@",
                 PHAssetMediaType.image.rawValue,
@@ -431,7 +431,7 @@ final class PhotoLibraryViewModel: NSObject {
     nonisolated private static func fetchImageAssetSnapshotOffMain() async -> PhotoAssetFetchSnapshot {
         await PhotoLibraryQueryService.run { cancellation in
                 let options = PHFetchOptions()
-                options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+                options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
                 options.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.image.rawValue)
                 let result = PHAsset.fetchAssets(with: options)
                 var assets: [PhotoAsset] = []
@@ -461,8 +461,7 @@ final class PhotoLibraryViewModel: NSObject {
             return
         }
 
-        let thresholdIndex = max(assets.count - Self.localOnlyPrefetchThreshold, 0)
-        guard currentIndex >= thresholdIndex else {
+        guard currentIndex < Self.localOnlyPrefetchThreshold else {
             return
         }
 
@@ -506,7 +505,7 @@ final class PhotoLibraryViewModel: NSObject {
         albumRefreshTask?.cancel()
         assetFetchResult = nil
         allFetchedAssets = []
-        nextLocalOnlyScanIndex = 0
+        nextLocalOnlyScanEndIndex = 0
         isLoadingNextLocalOnlyPage = false
         assets = []
         albums = []
@@ -638,6 +637,7 @@ final class PhotoLibraryViewModel: NSObject {
             albumContentRevisions.markChanged(albums.map(\.id))
         }
 
+        let previouslyScannedCount = allFetchedAssets.count - nextLocalOnlyScanEndIndex
         allFetchedAssets = updatedAssets
         updateAvailableYears()
         assetCollectionRevision &+= 1
@@ -660,9 +660,9 @@ final class PhotoLibraryViewModel: NSObject {
         localOnlySessionID = UUID()
         isLoadingNextLocalOnlyPage = false
 
-        let scannedCount = min(nextLocalOnlyScanIndex, updatedAssets.count)
-        nextLocalOnlyScanIndex = scannedCount
-        let scannedAssets = Array(updatedAssets.prefix(scannedCount))
+        let scannedCount = min(previouslyScannedCount, updatedAssets.count)
+        nextLocalOnlyScanEndIndex = updatedAssets.count - scannedCount
+        let scannedAssets = Array(updatedAssets.suffix(scannedCount))
         let sessionID = localOnlySessionID
         Task { [weak self] in
             guard let self else { return }
@@ -670,7 +670,7 @@ final class PhotoLibraryViewModel: NSObject {
             guard !Task.isCancelled, sessionID == self.localOnlySessionID else { return }
             self.localOnlyAssetIDs.formUnion(resolvedIDs)
             self.assets = scannedAssets.filter { self.localOnlyAssetIDs.contains($0.id) }
-            self.hasMoreLocalAssets = scannedCount < updatedAssets.count
+            self.hasMoreLocalAssets = self.nextLocalOnlyScanEndIndex > 0
             self.authorizationState = self.assets.isEmpty && !self.hasMoreLocalAssets
                 ? .empty
                 : self.authorizationStateForCurrentScope
@@ -704,10 +704,10 @@ final class PhotoLibraryViewModel: NSObject {
         }
 
         var matchedAssets: [PhotoAsset] = []
-        while matchedAssets.count < Self.localOnlyPageSize, nextLocalOnlyScanIndex < allFetchedAssets.count {
-            let batchEnd = min(nextLocalOnlyScanIndex + Self.localOnlyScanBatchSize, allFetchedAssets.count)
-            let assetBatch = Array(allFetchedAssets[nextLocalOnlyScanIndex..<batchEnd])
-            nextLocalOnlyScanIndex = batchEnd
+        while matchedAssets.count < Self.localOnlyPageSize, nextLocalOnlyScanEndIndex > 0 {
+            let batchStart = max(nextLocalOnlyScanEndIndex - Self.localOnlyScanBatchSize, 0)
+            let assetBatch = Array(allFetchedAssets[batchStart..<nextLocalOnlyScanEndIndex])
+            nextLocalOnlyScanEndIndex = batchStart
 
             let batchAssetIDs = await locallyAvailableIDs(in: assetBatch, sessionID: sessionID)
             guard !Task.isCancelled, sessionID == localOnlySessionID else {
@@ -715,13 +715,16 @@ final class PhotoLibraryViewModel: NSObject {
             }
 
             localOnlyAssetIDs.formUnion(batchAssetIDs)
-            matchedAssets.append(contentsOf: assetBatch.filter { batchAssetIDs.contains($0.id) })
+            matchedAssets.insert(
+                contentsOf: assetBatch.filter { batchAssetIDs.contains($0.id) },
+                at: 0
+            )
         }
 
         if !matchedAssets.isEmpty {
-            assets.append(contentsOf: matchedAssets)
+            assets.insert(contentsOf: matchedAssets, at: 0)
         }
-        hasMoreLocalAssets = nextLocalOnlyScanIndex < allFetchedAssets.count
+        hasMoreLocalAssets = nextLocalOnlyScanEndIndex > 0
         authorizationState = assets.isEmpty && !hasMoreLocalAssets ? .empty : authorizationStateForCurrentScope
     }
 
@@ -742,14 +745,15 @@ final class PhotoLibraryViewModel: NSObject {
             return
         }
 
-        var scanIndex = nextLocalOnlyScanIndex
-        guard scanIndex < allFetchedAssets.count else {
+        let remainingScanEndIndex = nextLocalOnlyScanEndIndex
+        var scanIndex = 0
+        guard scanIndex < remainingScanEndIndex else {
             return
         }
 
         var scannedBatchCount = 0
-        while scanIndex < allFetchedAssets.count {
-            let batchEnd = min(scanIndex + Self.localOnlyScanBatchSize, allFetchedAssets.count)
+        while scanIndex < remainingScanEndIndex {
+            let batchEnd = min(scanIndex + Self.localOnlyScanBatchSize, remainingScanEndIndex)
             let assetBatch = Array(allFetchedAssets[scanIndex..<batchEnd])
             scanIndex = batchEnd
 
@@ -760,7 +764,7 @@ final class PhotoLibraryViewModel: NSObject {
 
             localOnlyAssetIDs.formUnion(batchAssetIDs)
             scannedBatchCount += 1
-            let shouldPublish = scannedBatchCount.isMultiple(of: 4) || batchEnd == allFetchedAssets.count
+            let shouldPublish = scannedBatchCount.isMultiple(of: 4) || batchEnd == remainingScanEndIndex
             await mergeLocalAlbumStats(for: batchAssetIDs, sessionID: sessionID, publish: shouldPublish)
             guard !Task.isCancelled, sessionID == localOnlySessionID else {
                 return

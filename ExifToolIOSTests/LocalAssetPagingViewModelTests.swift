@@ -5,6 +5,29 @@ import XCTest
 
 final class LocalAssetPagingViewModelTests: XCTestCase {
     @MainActor
+    func testLoadsNewestPageFirstAndPrependsOlderAssets() async {
+        let sourceAssets = (0..<120).map { makeAsset(id: String($0)) }
+        let model = LocalAssetPagingViewModel { assets in
+            Set(assets.map(\.id))
+        }
+
+        model.setSourceAssets(sourceAssets)
+        await waitUntil(timeout: .seconds(1)) {
+            model.assets.count == 96
+        }
+
+        XCTAssertEqual(model.assets.map(\.id), (24..<120).map(String.init))
+        XCTAssertTrue(model.hasMoreAssets)
+
+        model.loadMoreIfNeeded(currentAssetID: "24")
+        await waitUntil(timeout: .seconds(1)) {
+            !model.hasMoreAssets
+        }
+
+        XCTAssertEqual(model.assets.map(\.id), (0..<120).map(String.init))
+    }
+
+    @MainActor
     func testReplacingSourceWhilePreviousScanIsRunningLoadsNewestSession() async {
         let firstScanStarted = expectation(description: "First scan started")
         let firstAsset = makeAsset(id: "first")

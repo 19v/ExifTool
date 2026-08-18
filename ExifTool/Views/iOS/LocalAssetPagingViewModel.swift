@@ -23,7 +23,7 @@ final class LocalAssetPagingViewModel {
     private(set) var hasMoreAssets = false
 
     @ObservationIgnored private var sourceAssets: [PhotoAsset] = []
-    @ObservationIgnored private var nextScanIndex = 0
+    @ObservationIgnored private var nextScanEndIndex = 0
     @ObservationIgnored private var isLoading = false
     @ObservationIgnored private var sessionID = UUID()
     @ObservationIgnored private var loadTask: Task<Void, Never>?
@@ -37,7 +37,7 @@ final class LocalAssetPagingViewModel {
         loadTask?.cancel()
         sessionID = UUID()
         sourceAssets = assets
-        nextScanIndex = 0
+        nextScanEndIndex = assets.count
         isLoading = false
         self.assets = []
         hasMoreAssets = !assets.isEmpty
@@ -54,7 +54,7 @@ final class LocalAssetPagingViewModel {
         loadTask = nil
         sessionID = UUID()
         sourceAssets = []
-        nextScanIndex = 0
+        nextScanEndIndex = 0
         assets = []
         hasMoreAssets = false
         isLoading = false
@@ -75,8 +75,7 @@ final class LocalAssetPagingViewModel {
             return
         }
 
-        let thresholdIndex = max(assets.count - Self.prefetchThreshold, 0)
-        guard currentIndex >= thresholdIndex else {
+        guard currentIndex < Self.prefetchThreshold else {
             return
         }
 
@@ -104,24 +103,27 @@ final class LocalAssetPagingViewModel {
 
         var matchedAssets: [PhotoAsset] = []
 
-        while matchedAssets.count < Self.pageSize, nextScanIndex < sourceAssets.count {
-            let batchEnd = min(nextScanIndex + Self.scanBatchSize, sourceAssets.count)
-            let assetBatch = Array(sourceAssets[nextScanIndex..<batchEnd])
-            nextScanIndex = batchEnd
+        while matchedAssets.count < Self.pageSize, nextScanEndIndex > 0 {
+            let batchStart = max(nextScanEndIndex - Self.scanBatchSize, 0)
+            let assetBatch = Array(sourceAssets[batchStart..<nextScanEndIndex])
+            nextScanEndIndex = batchStart
 
             let localAssetIDs = await availabilityResolver(assetBatch)
             guard !Task.isCancelled, sessionID == self.sessionID else {
                 return
             }
 
-            matchedAssets.append(contentsOf: assetBatch.filter { localAssetIDs.contains($0.id) })
+            matchedAssets.insert(
+                contentsOf: assetBatch.filter { localAssetIDs.contains($0.id) },
+                at: 0
+            )
         }
 
         if !matchedAssets.isEmpty {
-            assets.append(contentsOf: matchedAssets)
+            assets.insert(contentsOf: matchedAssets, at: 0)
         }
 
-        hasMoreAssets = nextScanIndex < sourceAssets.count
+        hasMoreAssets = nextScanEndIndex > 0
     }
 }
 

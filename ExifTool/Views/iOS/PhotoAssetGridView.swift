@@ -19,6 +19,7 @@ struct PhotoAssetGridView: View {
     let onRefresh: (() async -> Void)?
 
     @State private var thumbnailPreheater = PhotoThumbnailPreheater()
+    @State private var hasPositionedInitialContent = false
     @Environment(\.displayScale) private var displayScale
 
     private let columns = [
@@ -45,20 +46,28 @@ struct PhotoAssetGridView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            ScrollView {
-                LazyVGrid(columns: columns, spacing: 3) {
-                    ForEach(assets) { asset in
-                        NavigationLink {
-                            PhotoDetailView(
-                                assets: assets,
-                                initialAssetID: asset.id,
-                                readOnlyMode: readOnlyMode
-                            )
-                        } label: {
-                            PhotoAssetGridCell(asset: asset)
+            ScrollViewReader { scrollProxy in
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: 3) {
+                        if isLoadingMore {
+                            ProgressView()
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .gridCellColumns(columns.count)
                         }
-                        .buttonStyle(.plain)
-                        .id(asset.id)
+
+                        ForEach(assets) { asset in
+                            NavigationLink {
+                                PhotoDetailView(
+                                    assets: assets,
+                                    initialAssetID: asset.id,
+                                    readOnlyMode: readOnlyMode
+                                )
+                            } label: {
+                                PhotoAssetGridCell(asset: asset)
+                            }
+                            .buttonStyle(.plain)
+                            .id(asset.id)
                             .onAppear {
                                 onAssetAppear?(asset.id)
                                 thumbnailPreheater.update(
@@ -67,19 +76,24 @@ struct PhotoAssetGridView: View {
                                     pixelLength: thumbnailPixelLength(containerWidth: proxy.size.width)
                                 )
                             }
+                        }
                     }
-
-                    if isLoadingMore {
-                        ProgressView()
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .gridCellColumns(columns.count)
+                    .padding(3)
+                }
+                .defaultScrollAnchor(.bottom, for: .initialOffset)
+                .onChange(of: assets.last?.id, initial: true) { _, lastAssetID in
+                    guard !hasPositionedInitialContent, let lastAssetID else {
+                        return
+                    }
+                    hasPositionedInitialContent = true
+                    Task { @MainActor in
+                        await Task.yield()
+                        scrollProxy.scrollTo(lastAssetID, anchor: .bottom)
                     }
                 }
-                .padding(3)
-            }
-            .refreshable {
-                await onRefresh?()
+                .refreshable {
+                    await onRefresh?()
+                }
             }
         }
         .onDisappear {
