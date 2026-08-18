@@ -872,6 +872,21 @@ enum PhotoLoader {
 
     private static func metadata(for asset: PHAsset, allowNetwork: Bool) async -> PhotoDetailState {
         let fallbackCoordinate = asset.location?.coordinate
+
+        if allowNetwork,
+           let fastData = await imageManagerData(
+               for: asset,
+               allowNetwork: true,
+               deliveryMode: .fastFormat
+           ) {
+            let fastMetadata = await MediaProcessing.run {
+                MetadataParser.parse(data: fastData, fallbackCoordinate: fallbackCoordinate)
+            }
+            if !fastMetadata.sections.isEmpty {
+                return .loaded(fastMetadata)
+            }
+        }
+
         if let resource = imageResource(for: asset) {
             do {
                 let fileURL = try await PhotoResourceFileWriter.write(
@@ -955,7 +970,11 @@ enum PhotoLoader {
         return resources.first
     }
 
-    private static func imageManagerData(for asset: PHAsset, allowNetwork: Bool) async -> Data? {
+    private static func imageManagerData(
+        for asset: PHAsset,
+        allowNetwork: Bool,
+        deliveryMode: PHImageRequestOptionsDeliveryMode = .highQualityFormat
+    ) async -> Data? {
         let state = CancellablePhotoRequestState<Data?, PHImageRequestID>(
             cancellationValue: nil,
             cancelRequest: { PHImageManager.default().cancelImageRequest($0) }
@@ -970,7 +989,7 @@ enum PhotoLoader {
 
                 let options = PHImageRequestOptions()
                 options.version = .current
-                options.deliveryMode = .highQualityFormat
+                options.deliveryMode = deliveryMode
                 options.isNetworkAccessAllowed = allowNetwork
 
                 let requestID = PHImageManager.default().requestImageDataAndOrientation(
