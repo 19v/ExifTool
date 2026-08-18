@@ -51,6 +51,7 @@ struct IOSLibraryBrowserView: View {
             )
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(action: showSurprisePhoto) {

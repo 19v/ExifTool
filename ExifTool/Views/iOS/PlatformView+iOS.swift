@@ -24,6 +24,15 @@ extension View {
     func platformTabBarHidden() -> some View {
         toolbar(.hidden, for: .tabBar)
     }
+
+    @ViewBuilder
+    func platformTopScrollEdgeEffectHidden() -> some View {
+        if #available(iOS 26.0, *) {
+            scrollEdgeEffectHidden(for: .top)
+        } else {
+            self
+        }
+    }
 }
 
 #endif

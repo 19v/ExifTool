@@ -100,6 +100,7 @@ struct PhotoAssetGridView: View {
                 .refreshable {
                     await onRefresh?()
                 }
+                .platformTopScrollEdgeEffectHidden()
             }
         }
         .onDisappear {
