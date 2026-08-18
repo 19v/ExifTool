@@ -53,6 +53,10 @@ struct IOSLibraryBrowserView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    LibraryNavigationTitle(title: navigationTitle)
+                }
+
                 ToolbarItem(placement: .topBarLeading) {
                     Button(action: showSurprisePhoto) {
                         if isLoadingSurprise {
@@ -328,6 +332,20 @@ private struct SettingsToolbarButton: View {
         Button(action: action) {
             Label("设置", systemImage: "gearshape")
         }
+    }
+}
+
+private struct LibraryNavigationTitle: View {
+    let title: String
+
+    var body: some View {
+        Text(title)
+            .font(.headline)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .platformGlassBackground(in: Capsule())
     }
 }
 

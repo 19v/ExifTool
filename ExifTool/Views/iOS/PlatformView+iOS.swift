@@ -33,6 +33,15 @@ extension View {
             self
         }
     }
+
+    @ViewBuilder
+    func platformGlassBackground<S: Shape>(in shape: S) -> some View {
+        if #available(iOS 26.0, *) {
+            glassEffect(.regular, in: shape)
+        } else {
+            background(.regularMaterial, in: shape)
+        }
+    }
 }
 
 #endif
