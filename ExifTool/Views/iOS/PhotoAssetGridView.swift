@@ -15,11 +15,12 @@ struct PhotoAssetGridView: View {
     let readOnlyMode: Bool
     let showsReadOnlyOverlay: Bool
     let isLoadingMore: Bool
+    let sortOrder: PhotoAssetSortOrder
     let onAssetAppear: ((String?) -> Void)?
     let onRefresh: (() async -> Void)?
 
     @State private var thumbnailPreheater = PhotoThumbnailPreheater()
-    @State private var hasPositionedInitialContent = false
+    @State private var positionedSortOrder: PhotoAssetSortOrder?
     @Environment(\.displayScale) private var displayScale
 
     private let columns = [
@@ -33,6 +34,7 @@ struct PhotoAssetGridView: View {
         readOnlyMode: Bool,
         showsReadOnlyOverlay: Bool = true,
         isLoadingMore: Bool = false,
+        sortOrder: PhotoAssetSortOrder = .oldestFirst,
         onAssetAppear: ((String?) -> Void)? = nil,
         onRefresh: (() async -> Void)? = nil
     ) {
@@ -40,6 +42,7 @@ struct PhotoAssetGridView: View {
         self.readOnlyMode = readOnlyMode
         self.showsReadOnlyOverlay = showsReadOnlyOverlay
         self.isLoadingMore = isLoadingMore
+        self.sortOrder = sortOrder
         self.onAssetAppear = onAssetAppear
         self.onRefresh = onRefresh
     }
@@ -49,19 +52,17 @@ struct PhotoAssetGridView: View {
             ScrollViewReader { scrollProxy in
                 ScrollView {
                     LazyVGrid(columns: columns, spacing: 3) {
-                        if isLoadingMore {
-                            ProgressView()
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 16)
-                                .gridCellColumns(columns.count)
+                        if isLoadingMore && sortOrder == .oldestFirst {
+                            PhotoGridLoadingIndicator(columnCount: columns.count)
                         }
 
-                        ForEach(assets) { asset in
+                        ForEach(orderedAssets) { asset in
                             NavigationLink {
                                 PhotoDetailView(
                                     assets: assets,
                                     initialAssetID: asset.id,
-                                    readOnlyMode: readOnlyMode
+                                    readOnlyMode: readOnlyMode,
+                                    sortOrder: sortOrder
                                 )
                             } label: {
                                 PhotoAssetGridCell(asset: asset)
@@ -77,18 +78,23 @@ struct PhotoAssetGridView: View {
                                 )
                             }
                         }
+
+                        if isLoadingMore && sortOrder == .newestFirst {
+                            PhotoGridLoadingIndicator(columnCount: columns.count)
+                        }
                     }
                     .padding(3)
                 }
-                .defaultScrollAnchor(.bottom, for: .initialOffset)
-                .onChange(of: assets.last?.id, initial: true) { _, lastAssetID in
-                    guard !hasPositionedInitialContent, let lastAssetID else {
+                .defaultScrollAnchor(initialScrollAnchor, for: .initialOffset)
+                .onChange(of: initialPositionRevision, initial: true) { _, revision in
+                    guard positionedSortOrder != revision.sortOrder,
+                          let newestAssetID = revision.newestAssetID else {
                         return
                     }
-                    hasPositionedInitialContent = true
+                    positionedSortOrder = revision.sortOrder
                     Task { @MainActor in
                         await Task.yield()
-                        scrollProxy.scrollTo(lastAssetID, anchor: .bottom)
+                        scrollProxy.scrollTo(newestAssetID, anchor: initialScrollAnchor)
                     }
                 }
                 .refreshable {
@@ -121,6 +127,37 @@ struct PhotoAssetGridView: View {
         return ceil(cellWidth * displayScale)
     }
 
+    private var orderedAssets: OrderedPhotoAssets {
+        OrderedPhotoAssets(assets: assets, sortOrder: sortOrder)
+    }
+
+    private var initialScrollAnchor: UnitPoint {
+        sortOrder == .oldestFirst ? .bottom : .top
+    }
+
+    private var initialPositionRevision: PhotoGridInitialPositionRevision {
+        PhotoGridInitialPositionRevision(
+            sortOrder: sortOrder,
+            newestAssetID: assets.last?.id
+        )
+    }
+
+}
+
+private struct PhotoGridInitialPositionRevision: Equatable {
+    let sortOrder: PhotoAssetSortOrder
+    let newestAssetID: String?
+}
+
+private struct PhotoGridLoadingIndicator: View {
+    let columnCount: Int
+
+    var body: some View {
+        ProgressView()
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .gridCellColumns(columnCount)
+    }
 }
 
 private struct PhotoAssetGridCell: View {

@@ -12,13 +12,20 @@ import SwiftUI
 struct PhotoDetailView: View {
     let assets: [PhotoAsset]
     let readOnlyMode: Bool
+    let sortOrder: PhotoAssetSortOrder
 
     @State private var currentAssetID: String
     @State private var showsChineseKeys: Bool
 
-    init(assets: [PhotoAsset], initialAssetID: String, readOnlyMode: Bool) {
+    init(
+        assets: [PhotoAsset],
+        initialAssetID: String,
+        readOnlyMode: Bool,
+        sortOrder: PhotoAssetSortOrder = .oldestFirst
+    ) {
         self.assets = assets
         self.readOnlyMode = readOnlyMode
+        self.sortOrder = sortOrder
         _currentAssetID = State(initialValue: initialAssetID)
         _showsChineseKeys = State(initialValue: MetadataLanguagePreference.defaultShowsChineseKeys)
     }
@@ -62,7 +69,7 @@ struct PhotoDetailView: View {
             return nil
         }
 
-        return assets.firstIndex(where: { $0.id == currentAsset.id })
+        return orderedAssets.firstIndex(where: { $0.id == currentAsset.id })
     }
 
     private var photoNavigation: PhotoNavigationConfiguration? {
@@ -83,7 +90,7 @@ struct PhotoDetailView: View {
             return
         }
 
-        currentAssetID = assets[currentIndex - 1].id
+        currentAssetID = orderedAssets[currentIndex - 1].id
     }
 
     private func selectNextAsset() {
@@ -91,15 +98,19 @@ struct PhotoDetailView: View {
             return
         }
 
-        currentAssetID = assets[currentIndex + 1].id
+        currentAssetID = orderedAssets[currentIndex + 1].id
     }
 
     private func ensureCurrentAssetExists() {
-        guard currentAsset == nil, let firstAsset = assets.first else {
+        guard currentAsset == nil, let firstAsset = orderedAssets.first else {
             return
         }
 
         currentAssetID = firstAsset.id
+    }
+
+    private var orderedAssets: OrderedPhotoAssets {
+        OrderedPhotoAssets(assets: assets, sortOrder: sortOrder)
     }
 }
 
@@ -114,6 +125,5 @@ enum MetadataLanguagePreference {
 }
 
 #endif
-
 
 

@@ -11,6 +11,40 @@ enum PhotoDetailState: Equatable {
     case failed(String)
 }
 
+nonisolated enum PhotoAssetSortOrder: String, CaseIterable {
+    case oldestFirst
+    case newestFirst
+}
+
+@MainActor
+struct OrderedPhotoAssets: @MainActor RandomAccessCollection {
+    typealias Index = Int
+
+    let assets: [PhotoAsset]
+    let sortOrder: PhotoAssetSortOrder
+
+    var startIndex: Int { 0 }
+    var endIndex: Int { assets.count }
+
+    subscript(position: Int) -> PhotoAsset {
+        precondition(indices.contains(position))
+        switch sortOrder {
+        case .oldestFirst:
+            return assets[position]
+        case .newestFirst:
+            return assets[assets.count - position - 1]
+        }
+    }
+
+    func index(after index: Int) -> Int {
+        index + 1
+    }
+
+    func index(before index: Int) -> Int {
+        index - 1
+    }
+}
+
 struct LocalPhotoFile {
     let id: String
     let fileURL: URL

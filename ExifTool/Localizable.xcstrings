@@ -2135,6 +2135,7 @@
       }
     },
     "年份" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2484,7 +2485,6 @@
       }
     },
     "按拍摄时间(新到旧)" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2501,7 +2501,6 @@
       }
     },
     "按拍摄时间(旧到新)" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2659,6 +2658,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无法读取 Exif"
+          }
+        }
+      }
+    },
+    "时间" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Time"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "时间"
           }
         }
       }

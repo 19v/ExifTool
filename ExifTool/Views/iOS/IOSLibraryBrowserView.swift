@@ -16,6 +16,7 @@ struct IOSLibraryBrowserView: View {
     @State private var isLoadingSurprise = false
     @State private var showsNoSurprisePhotoAlert = false
     @State private var pager: LocalAssetPagingViewModel
+    @AppStorage("libraryPhotoSortOrder") private var sortOrder: PhotoAssetSortOrder = .oldestFirst
 
     init(
         library: PhotoLibraryViewModel,
@@ -44,6 +45,7 @@ struct IOSLibraryBrowserView: View {
                 assets: displayedAssets,
                 isLoadingFilter: isLoadingFilter,
                 isLoadingMore: isLoadingMore,
+                sortOrder: sortOrder,
                 onAssetAppear: assetAppearHandler,
                 onRequestPhotoPermission: onRequestPhotoPermission
             )
@@ -70,6 +72,7 @@ struct IOSLibraryBrowserView: View {
                         filter: $filter,
                         years: library.availableYears,
                         albums: library.albums,
+                        sortOrder: $sortOrder,
                         showsLimitedLibraryAction: library.accessScope == .limited,
                         onPresentLimitedLibraryPicker: onPresentLimitedLibraryPicker
                     )
@@ -280,6 +283,7 @@ private struct IOSLibraryBrowserContent: View {
     let assets: [PhotoAsset]
     let isLoadingFilter: Bool
     let isLoadingMore: Bool
+    let sortOrder: PhotoAssetSortOrder
     let onAssetAppear: ((String?) -> Void)?
     let onRequestPhotoPermission: (() -> Void)?
 
@@ -300,6 +304,7 @@ private struct IOSLibraryBrowserContent: View {
                         readOnlyMode: readOnlyMode,
                         showsReadOnlyOverlay: false,
                         isLoadingMore: isLoadingMore,
+                        sortOrder: sortOrder,
                         onAssetAppear: onAssetAppear,
                         onRefresh: library.refresh
                     )
@@ -329,6 +334,7 @@ private struct LibraryFilterToolbarContent: ToolbarContent {
     @Binding var filter: LibraryFilter
     let years: [Int]
     let albums: [PhotoAlbum]
+    @Binding var sortOrder: PhotoAssetSortOrder
     let showsLimitedLibraryAction: Bool
     let onPresentLimitedLibraryPicker: (() -> Void)?
 
@@ -344,6 +350,10 @@ private struct LibraryFilterToolbarContent: ToolbarContent {
                 showsLimitedLibraryAction: showsLimitedLibraryAction,
                 onPresentLimitedLibraryPicker: onPresentLimitedLibraryPicker
             )
+
+            Spacer()
+
+            LibrarySortMenu(sortOrder: $sortOrder)
         }
     }
 }
@@ -371,7 +381,7 @@ private struct LibraryYearFilterMenu: View {
             }
         } label: {
             ToolbarFilterLabel(
-                title: selectedYear.map(localizedYear) ?? AppLocalization.string("年份"),
+                title: selectedYear.map(localizedYear) ?? AppLocalization.string("时间"),
                 systemImage: "calendar"
             )
         }
@@ -439,6 +449,37 @@ private struct LibraryAlbumFilterMenu: View {
             return nil
         }
         return albums.first(where: { $0.id == albumID })?.title
+    }
+}
+
+private struct LibrarySortMenu: View {
+    @Binding var sortOrder: PhotoAssetSortOrder
+
+    var body: some View {
+        Menu {
+            Button {
+                sortOrder = .oldestFirst
+            } label: {
+                FilterMenuLabel(
+                    title: AppLocalization.string("按拍摄时间(旧到新)"),
+                    systemImage: sortOrder == .oldestFirst ? "checkmark" : "arrow.down"
+                )
+            }
+
+            Button {
+                sortOrder = .newestFirst
+            } label: {
+                FilterMenuLabel(
+                    title: AppLocalization.string("按拍摄时间(新到旧)"),
+                    systemImage: sortOrder == .newestFirst ? "checkmark" : "arrow.up"
+                )
+            }
+        } label: {
+            ToolbarFilterLabel(
+                title: AppLocalization.string("排序"),
+                systemImage: "arrow.up.arrow.down"
+            )
+        }
     }
 }
 
