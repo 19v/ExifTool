@@ -374,6 +374,7 @@ private struct LibraryYearFilterMenu: View {
                 selectedYear.map(localizedYear) ?? AppLocalization.string("年份"),
                 systemImage: "calendar"
             )
+            .labelStyle(.titleAndIcon)
         }
         .disabled(years.isEmpty && selectedYear == nil)
     }
@@ -430,6 +431,7 @@ private struct LibraryAlbumFilterMenu: View {
                 selectedAlbumTitle ?? AppLocalization.string("相册"),
                 systemImage: "rectangle.stack"
             )
+            .labelStyle(.titleAndIcon)
         }
         .disabled(albums.isEmpty && !showsLimitedLibraryAction && selectedAlbumTitle == nil)
     }
