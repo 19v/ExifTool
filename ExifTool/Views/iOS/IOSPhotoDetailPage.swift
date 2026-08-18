@@ -45,6 +45,7 @@ struct PhotoDetailPage: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 PhotoPreview(asset: asset)
+                    .simultaneousGesture(photoSwipeGesture)
                 ReadOnlyStatusBanner(isReadOnly: readOnlyMode)
                 IOSPhotoDetailStateContent(
                     detail: model.detail,
@@ -121,6 +122,58 @@ struct PhotoDetailPage: View {
         )
     }
 
+    private var photoSwipeGesture: some Gesture {
+        DragGesture(minimumDistance: PhotoSwipeClassifier.minimumDistance)
+            .onEnded { value in
+                guard let photoNavigation,
+                      let direction = PhotoSwipeClassifier.direction(
+                          translation: value.translation,
+                          predictedEndTranslation: value.predictedEndTranslation
+                      ) else {
+                    return
+                }
+
+                switch direction {
+                case .previous where photoNavigation.canSelectPrevious:
+                    photoNavigation.selectPrevious()
+                case .next where photoNavigation.canSelectNext:
+                    photoNavigation.selectNext()
+                case .previous, .next:
+                    break
+                }
+            }
+    }
+
+}
+
+enum PhotoSwipeDirection: Equatable {
+    case previous
+    case next
+}
+
+enum PhotoSwipeClassifier {
+    static let minimumDistance: CGFloat = 20
+    private static let selectionDistance: CGFloat = 72
+    private static let horizontalDominance: CGFloat = 1.2
+
+    static func direction(
+        translation: CGSize,
+        predictedEndTranslation: CGSize
+    ) -> PhotoSwipeDirection? {
+        let horizontal = abs(predictedEndTranslation.width) > abs(translation.width)
+            ? predictedEndTranslation.width
+            : translation.width
+        let vertical = abs(predictedEndTranslation.height) > abs(translation.height)
+            ? predictedEndTranslation.height
+            : translation.height
+
+        guard abs(horizontal) >= selectionDistance,
+              abs(horizontal) > abs(vertical) * horizontalDominance else {
+            return nil
+        }
+
+        return horizontal > 0 ? .previous : .next
+    }
 }
 
 private struct IOSPhotoDetailStateContent: Equatable, View {
