@@ -10,10 +10,7 @@
 import SwiftUI
 
 struct PhotoPreview: View {
-    let asset: PhotoAsset
-
-    @State private var image: PlatformImage?
-    @State private var previewRequestID = UUID()
+    let image: PlatformImage?
 
     var body: some View {
         Group {
@@ -29,23 +26,8 @@ struct PhotoPreview: View {
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 8))
-        .task(id: asset.id) {
-            let requestID = UUID()
-            previewRequestID = requestID
-            image = nil
-            let newImage = await PhotoLoader.previewImage(
-                for: asset,
-                size: CGSize(width: 900, height: 900)
-            )
-            guard !Task.isCancelled, requestID == previewRequestID else {
-                return
-            }
-
-            image = newImage
-        }
     }
 }
 
 #endif
-
 

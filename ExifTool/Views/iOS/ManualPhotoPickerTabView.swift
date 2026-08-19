@@ -4,7 +4,6 @@ internal import PhotosUI
 import SwiftUI
 
 struct ManualPhotoPickerView: View {
-    let readOnlyMode: Bool
     let authorizationState: PhotoLibraryViewModel.AuthorizationState
     let onRequestPhotoPermission: (() -> Void)?
 
@@ -35,8 +34,7 @@ struct ManualPhotoPickerView: View {
             NavigationStack {
                 PhotoDetailView(
                     assets: [asset],
-                    initialAssetID: asset.id,
-                    readOnlyMode: readOnlyMode
+                    initialAssetID: asset.id
                 )
             }
             .presentationDetents([.large])
@@ -164,10 +162,6 @@ private struct ManualPhotoPickerEmptyState: View {
             VStack(spacing: 6) {
                 Text("选择图片")
                     .font(.headline)
-                Text("选中的图片只在当前会话中使用，不会修改系统照片库。")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
 
                 if showsAuthorizationCTA {
                     Button(AppLocalization.string("授权访问图库")) {

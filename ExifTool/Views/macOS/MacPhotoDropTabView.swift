@@ -11,8 +11,6 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct MacPhotoDropTabView: View {
-    let readOnlyMode: Bool
-
     @Environment(MacPhotoWorkspace.self) private var workspace
     @Environment(\.openWindow) private var openWindow
     @State private var isDropTargeted = false
@@ -51,13 +49,11 @@ struct MacPhotoDropTabView: View {
                                 MacPhotoCompareDetailView(
                                     assets: workspace.sortedAssets,
                                     primaryAsset: selectedAsset,
-                                    compareAssetID: $compareAssetID,
-                                    readOnlyMode: readOnlyMode
+                                    compareAssetID: $compareAssetID
                                 )
                             } else {
                                 MacPhotoDetailView(
-                                    asset: selectedAsset,
-                                    readOnlyMode: readOnlyMode
+                                    asset: selectedAsset
                                 )
                                 .id(selectedAsset.id)
                             }

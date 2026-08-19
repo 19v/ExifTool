@@ -44,15 +44,26 @@ struct PhotoDetailPlatformToolbar: ToolbarContent {
 
             Spacer()
 
-            Button {
-                guard let photosAppURL = URL(string: "photos-redirect://") else {
-                    return
+            Menu {
+                Button {
+                    guard let photosAppURL = URL(string: "photos-redirect://") else {
+                        return
+                    }
+                    openURL(photosAppURL)
+                } label: {
+                    Label("打开系统相册", systemImage: "photo.on.rectangle.angled")
                 }
-                openURL(photosAppURL)
+
+                Divider()
+
+                Button { } label: {
+                    Label("编辑（未上线）", systemImage: "pencil")
+                }
+                .disabled(true)
             } label: {
-                Image(systemName: "photo.on.rectangle.angled")
+                Image(systemName: "ellipsis.circle")
             }
-            .accessibilityLabel("打开系统相册")
+            .accessibilityLabel("照片操作")
         }
 
         ToolbarItem(placement: .primaryAction) {

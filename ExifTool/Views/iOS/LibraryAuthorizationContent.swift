@@ -26,7 +26,7 @@ struct LibraryAuthorizationContent<Content: View>: View {
                     ContentUnavailableView(
                         "无法访问照片",
                         systemImage: "photo.on.rectangle.angled",
-                        description: Text("请在系统设置中允许读取照片。应用只读取照片，不会修改照片。")
+                        description: Text("请在系统设置中允许访问照片。")
                     )
                 case .limited, .authorized:
                     content

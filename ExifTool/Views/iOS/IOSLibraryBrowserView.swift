@@ -5,7 +5,6 @@ import UIKit
 
 struct IOSLibraryBrowserView: View {
     let library: PhotoLibraryViewModel
-    let readOnlyMode: Bool
     let onRequestPhotoPermission: (() -> Void)?
     let onPresentLimitedLibraryPicker: (() -> Void)?
     let onPresentSettings: () -> Void
@@ -21,13 +20,11 @@ struct IOSLibraryBrowserView: View {
 
     init(
         library: PhotoLibraryViewModel,
-        readOnlyMode: Bool,
         onRequestPhotoPermission: (() -> Void)?,
         onPresentLimitedLibraryPicker: (() -> Void)?,
         onPresentSettings: @escaping () -> Void
     ) {
         self.library = library
-        self.readOnlyMode = readOnlyMode
         self.onRequestPhotoPermission = onRequestPhotoPermission
         self.onPresentLimitedLibraryPicker = onPresentLimitedLibraryPicker
         self.onPresentSettings = onPresentSettings
@@ -41,7 +38,6 @@ struct IOSLibraryBrowserView: View {
             IOSLibraryBrowserContent(
                 showsLibrary: showsLibrary,
                 library: library,
-                readOnlyMode: readOnlyMode,
                 hasActiveFilter: filter != .all,
                 assets: displayedAssets,
                 isLoadingFilter: isLoadingFilter,
@@ -92,8 +88,7 @@ struct IOSLibraryBrowserView: View {
             .navigationDestination(item: $surpriseAsset) { asset in
                 PhotoDetailView(
                     assets: [asset],
-                    initialAssetID: asset.id,
-                    readOnlyMode: readOnlyMode
+                    initialAssetID: asset.id
                 )
             }
             .alert("没有可随机展示的照片", isPresented: $showsNoSurprisePhotoAlert) {
@@ -284,7 +279,6 @@ private struct LocalAlbumStatsRevision: Equatable {
 private struct IOSLibraryBrowserContent: View {
     let showsLibrary: Bool
     let library: PhotoLibraryViewModel
-    let readOnlyMode: Bool
     let hasActiveFilter: Bool
     let assets: [PhotoAsset]
     let isLoadingFilter: Bool
@@ -307,8 +301,6 @@ private struct IOSLibraryBrowserContent: View {
                 } else {
                     PhotoAssetGridView(
                         assets: assets,
-                        readOnlyMode: readOnlyMode,
-                        showsReadOnlyOverlay: false,
                         isLoadingMore: isLoadingMore,
                         sortOrder: sortOrder,
                         onAssetAppear: onAssetAppear,
@@ -318,7 +310,6 @@ private struct IOSLibraryBrowserContent: View {
             }
         } else {
             ManualPhotoPickerView(
-                readOnlyMode: readOnlyMode,
                 authorizationState: library.authorizationState,
                 onRequestPhotoPermission: onRequestPhotoPermission
             )

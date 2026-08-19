@@ -11,7 +11,6 @@ import SwiftUI
 
 struct PhotoDetailView: View {
     let assets: [PhotoAsset]
-    let readOnlyMode: Bool
     let sortOrder: PhotoAssetSortOrder
 
     @State private var currentAssetID: String
@@ -20,11 +19,9 @@ struct PhotoDetailView: View {
     init(
         assets: [PhotoAsset],
         initialAssetID: String,
-        readOnlyMode: Bool,
         sortOrder: PhotoAssetSortOrder = .oldestFirst
     ) {
         self.assets = assets
-        self.readOnlyMode = readOnlyMode
         self.sortOrder = sortOrder
         _currentAssetID = State(initialValue: initialAssetID)
         _showsChineseKeys = State(initialValue: MetadataLanguagePreference.defaultShowsChineseKeys)
@@ -35,7 +32,6 @@ struct PhotoDetailView: View {
             if let currentAsset {
                 PhotoDetailPage(
                     asset: currentAsset,
-                    readOnlyMode: readOnlyMode,
                     showsChineseKeys: $showsChineseKeys,
                     navigationTitle: navigationTitle,
                     photoNavigation: photoNavigation
@@ -125,5 +121,4 @@ enum MetadataLanguagePreference {
 }
 
 #endif
-
 

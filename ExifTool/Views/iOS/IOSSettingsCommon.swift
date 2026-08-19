@@ -9,19 +9,6 @@
 
 import SwiftUI
 
-struct ReadOnlySettingsSection: View {
-    @Binding var readOnlyMode: Bool
-
-    var body: some View {
-        Section(
-            header: Text("安全"),
-            footer: Text("开启后，应用只读取照片和 Exif，不会修改照片或写入元数据。")
-        ) {
-            Toggle("只读模式", isOn: $readOnlyMode)
-        }
-    }
-}
-
 struct AppVersionSettingsSection: View {
     var body: some View {
         Section {
@@ -69,6 +56,5 @@ struct AppVersionSettingsSection: View {
 }
 
 #endif
-
 
 

@@ -12,8 +12,6 @@ import UIKit
 
 struct PhotoAssetGridView: View {
     let assets: [PhotoAsset]
-    let readOnlyMode: Bool
-    let showsReadOnlyOverlay: Bool
     let isLoadingMore: Bool
     let sortOrder: PhotoAssetSortOrder
     let onAssetAppear: ((String?) -> Void)?
@@ -31,16 +29,12 @@ struct PhotoAssetGridView: View {
 
     init(
         assets: [PhotoAsset],
-        readOnlyMode: Bool,
-        showsReadOnlyOverlay: Bool = true,
         isLoadingMore: Bool = false,
         sortOrder: PhotoAssetSortOrder = .oldestFirst,
         onAssetAppear: ((String?) -> Void)? = nil,
         onRefresh: (() async -> Void)? = nil
     ) {
         self.assets = assets
-        self.readOnlyMode = readOnlyMode
-        self.showsReadOnlyOverlay = showsReadOnlyOverlay
         self.isLoadingMore = isLoadingMore
         self.sortOrder = sortOrder
         self.onAssetAppear = onAssetAppear
@@ -61,7 +55,6 @@ struct PhotoAssetGridView: View {
                                 PhotoDetailView(
                                     assets: assets,
                                     initialAssetID: asset.id,
-                                    readOnlyMode: readOnlyMode,
                                     sortOrder: sortOrder
                                 )
                             } label: {
@@ -108,16 +101,6 @@ struct PhotoAssetGridView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
             thumbnailPreheater.handleMemoryPressure()
-        }
-        .overlay(alignment: .bottom) {
-            if showsReadOnlyOverlay && readOnlyMode {
-                Text("只读模式已开启")
-                    .font(.footnote.weight(.medium))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
-                    .padding(.bottom, 12)
-            }
         }
     }
 

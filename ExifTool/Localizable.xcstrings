@@ -33,39 +33,6 @@
         }
       }
     },
-    "album.photoCount" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%d photos"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%d 张照片"
-          }
-        }
-      }
-    },
-    "album.untitled" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Untitled Album"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "未命名相册"
-          }
-        }
-      }
-    },
     "App" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -144,6 +111,55 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Google Maps"
+          }
+        }
+      }
+    },
+    "Nikon 参数" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nikon Parameters"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nikon 参数"
+          }
+        }
+      }
+    },
+    "album.photoCount" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d photos"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d 张照片"
+          }
+        }
+      }
+    },
+    "album.untitled" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Untitled Album"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未命名相册"
           }
         }
       }
@@ -356,22 +372,6 @@
         }
       }
     },
-    "mac.comparison.exported" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Exported to %@"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "已导出到 %@"
-          }
-        }
-      }
-    },
     "mac.comparison.exportFailed" : {
       "localizations" : {
         "en" : {
@@ -400,6 +400,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "导出对比结果"
+          }
+        }
+      }
+    },
+    "mac.comparison.exported" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exported to %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已导出到 %@"
           }
         }
       }
@@ -841,22 +857,6 @@
         }
       }
     },
-    "Nikon 参数" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nikon Parameters"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nikon 参数"
-          }
-        }
-      }
-    },
     "photoDetail.shareNeedsDownload" : {
       "localizations" : {
         "en" : {
@@ -1167,13 +1167,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Allow photo access to browse the system library. The app only reads photos and will not modify them."
+            "value" : "Allow photo access to browse the system library."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "授权后可以直接浏览系统图库。应用只读取照片，不会修改照片。"
+            "value" : "授权后可以直接浏览系统图库。"
           }
         }
       }
@@ -1450,22 +1450,6 @@
         }
       }
     },
-    "最近打开" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recent"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "最近打开"
-          }
-        }
-      }
-    },
     "分享" : {
       "localizations" : {
         "en" : {
@@ -1616,6 +1600,7 @@
       }
     },
     "参数分类" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1647,22 +1632,6 @@
         }
       }
     },
-    "只会为当前照片联网下载原图缓存，不会修改照片或写入元数据。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Only this photo's original will be downloaded to the local cache. Photos and metadata will not be modified."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "只会为当前照片联网下载原图缓存，不会修改照片或写入元数据。"
-          }
-        }
-      }
-    },
     "只看不同" : {
       "localizations" : {
         "en" : {
@@ -1675,70 +1644,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "只看不同"
-          }
-        }
-      }
-    },
-    "只读模式" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Read-Only Mode"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "只读模式"
-          }
-        }
-      }
-    },
-    "只读模式已关闭" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Read-only mode is off"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "只读模式已关闭"
-          }
-        }
-      }
-    },
-    "只读模式已开启" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Read-only mode is on"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "只读模式已开启"
-          }
-        }
-      }
-    },
-    "只读模式已开启，不会修改照片或写入元数据" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Read-only mode is on. Photos and metadata will not be modified."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "只读模式已开启，不会修改照片或写入元数据"
           }
         }
       }
@@ -1826,6 +1731,22 @@
         }
       }
     },
+    "在地图中打开" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open in Maps"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在地图中打开"
+          }
+        }
+      }
+    },
     "在新窗口中打开当前照片" : {
       "localizations" : {
         "en" : {
@@ -1907,6 +1828,7 @@
       }
     },
     "安全" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2164,22 +2086,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "应用"
-          }
-        }
-      }
-    },
-    "开启后，应用只读取照片和 Exif，不会修改照片或写入元数据。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "When enabled, the app only reads photos and Exif. It will not modify photos or write metadata."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "开启后，应用只读取照片和 Exif，不会修改照片或写入元数据。"
           }
         }
       }
@@ -2565,23 +2471,6 @@
         }
       }
     },
-    "支持多选。选中的图片只在当前会话中使用，不会修改系统照片库。" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Multiple selection is supported. Selected images are only used in this session and will not modify the system photo library."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "支持多选。选中的图片只在当前会话中使用，不会修改系统照片库。"
-          }
-        }
-      }
-    },
     "文件名" : {
       "localizations" : {
         "en" : {
@@ -2723,6 +2612,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "更多操作"
+          }
+        }
+      }
+    },
+    "最近打开" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recent"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近打开"
           }
         }
       }
@@ -2924,22 +2829,6 @@
         }
       }
     },
-    "没有最近文件" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No Recent Files"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "没有最近文件"
-          }
-        }
-      }
-    },
     "没有可对比的第二张照片" : {
       "localizations" : {
         "en" : {
@@ -3018,6 +2907,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "没有找到相册"
+          }
+        }
+      }
+    },
+    "没有最近文件" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Recent Files"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有最近文件"
           }
         }
       }
@@ -3169,6 +3074,23 @@
         }
       }
     },
+    "照片操作" : {
+      "comment" : "Accessibility label for the bottom-right photo actions menu.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photo Actions"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "照片操作"
+          }
+        }
+      }
+    },
     "照片查看" : {
       "localizations" : {
         "en" : {
@@ -3283,6 +3205,23 @@
         }
       }
     },
+    "编辑（未上线）" : {
+      "comment" : "Disabled photo-detail menu item reserved for a future editing feature.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit (Coming Later)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑（未上线）"
+          }
+        }
+      }
+    },
     "设置" : {
       "localizations" : {
         "en" : {
@@ -3299,18 +3238,18 @@
         }
       }
     },
-    "请在系统设置中允许读取照片。应用只读取照片，不会修改照片。" : {
+    "请在系统设置中允许访问照片。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Allow photo access in System Settings. The app only reads photos and will not modify them."
+            "value" : "Allow photo access in System Settings."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "请在系统设置中允许读取照片。应用只读取照片，不会修改照片。"
+            "value" : "请在系统设置中允许访问照片。"
           }
         }
       }
@@ -3344,22 +3283,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "这张照片的原图可能只保存在 iCloud。默认离线模式不会自动下载，点击下方按钮后仅下载当前照片。"
-          }
-        }
-      }
-    },
-    "选中的图片只在当前会话中使用，不会修改系统照片库。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Selected images are used only for this session. Your photo library will not be modified."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "选中的图片只在当前会话中使用，不会修改系统照片库。"
           }
         }
       }

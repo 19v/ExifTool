@@ -11,7 +11,6 @@ import SwiftUI
 
 struct MacPhotoDetailPage: View {
     let asset: PhotoAsset
-    let readOnlyMode: Bool
     let navigationTitle: String
     let highlightedMetadataKeys: Set<String>
     let visibleMetadataKeys: Set<String>?
@@ -20,13 +19,14 @@ struct MacPhotoDetailPage: View {
     @Binding private var showsChineseKeys: Bool
     @State private var detail = PhotoDetailState.loading
     @State private var metadataRequestID = UUID()
+    @State private var previewImage: PlatformImage?
+    @State private var previewRequestID = UUID()
     @State private var activityShareItem: ActivityShareItem?
     @State private var isPreparingPhotoShare = false
     @State private var shareErrorMessage: String?
 
     init(
         asset: PhotoAsset,
-        readOnlyMode: Bool,
         showsChineseKeys: Binding<Bool>,
         navigationTitle: String,
         highlightedMetadataKeys: Set<String> = [],
@@ -34,7 +34,6 @@ struct MacPhotoDetailPage: View {
         suppliedDetail: PhotoDetailState? = nil
     ) {
         self.asset = asset
-        self.readOnlyMode = readOnlyMode
         self.navigationTitle = navigationTitle
         _showsChineseKeys = showsChineseKeys
         self.highlightedMetadataKeys = highlightedMetadataKeys
@@ -43,26 +42,21 @@ struct MacPhotoDetailPage: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                MacPhotoPreview(asset: asset)
-                ReadOnlyStatusBanner(isReadOnly: readOnlyMode)
-
-                MacPhotoDetailStateContent(
-                    detail: displayedDetail,
-                    showsChineseKeys: showsChineseKeys,
-                    highlightedMetadataKeys: highlightedMetadataKeys,
-                    visibleMetadataKeys: visibleMetadataKeys
-                )
-                .equatable()
-            }
-            .padding()
-        }
+        MacPhotoDetailStateContent(
+            previewImage: previewImage,
+            detail: displayedDetail,
+            showsChineseKeys: showsChineseKeys,
+            highlightedMetadataKeys: highlightedMetadataKeys,
+            visibleMetadataKeys: visibleMetadataKeys
+        )
             .task(id: asset.id) {
                 guard suppliedDetail == nil else {
                     return
                 }
                 await loadMetadata()
+            }
+            .task(id: asset.id) {
+                await loadPreview()
             }
             .alert("无法分享", isPresented: shareErrorBinding) {
                 Button("好", role: .cancel) {
@@ -98,6 +92,21 @@ struct MacPhotoDetailPage: View {
         }
 
         detail = newDetail
+    }
+
+    private func loadPreview() async {
+        let requestID = UUID()
+        previewRequestID = requestID
+        previewImage = nil
+        let newImage = await PhotoLoader.previewImage(
+            for: asset,
+            size: CGSize(width: 900, height: 900)
+        )
+        guard !Task.isCancelled, requestID == previewRequestID else {
+            return
+        }
+
+        previewImage = newImage
     }
 
     private var loadedMetadata: PhotoMetadata? {
@@ -159,7 +168,8 @@ struct MacPhotoDetailPage: View {
 
 }
 
-private struct MacPhotoDetailStateContent: Equatable, View {
+private struct MacPhotoDetailStateContent: View {
+    let previewImage: PlatformImage?
     let detail: PhotoDetailState
     let showsChineseKeys: Bool
     let highlightedMetadataKeys: Set<String>
@@ -168,21 +178,49 @@ private struct MacPhotoDetailStateContent: Equatable, View {
     var body: some View {
         switch detail {
         case .loading:
-            ProgressView("正在读取 Exif")
-                .frame(maxWidth: .infinity, minHeight: 120)
+            List {
+                Section {
+                    MacPhotoPreview(image: previewImage)
+                }
+
+                Section {
+                    ProgressView("正在读取 Exif")
+                        .frame(maxWidth: .infinity, minHeight: 120)
+                }
+            }
         case .loaded(let metadata):
             MacPhotoMetadataContent(
+                previewImage: previewImage,
                 metadata: metadata,
                 showsChineseKeys: showsChineseKeys,
                 highlightedMetadataKeys: highlightedMetadataKeys,
                 visibleMetadataKeys: visibleMetadataKeys
             )
         case .failed(let message):
-            ContentUnavailableView(
-                "无法读取 Exif",
-                systemImage: "exclamationmark.triangle",
-                description: Text(message)
-            )
+            MacPhotoDetailPlaceholderList(previewImage: previewImage) {
+                ContentUnavailableView(
+                    "无法读取 Exif",
+                    systemImage: "exclamationmark.triangle",
+                    description: Text(message)
+                )
+            }
+        }
+    }
+}
+
+private struct MacPhotoDetailPlaceholderList<Content: View>: View {
+    let previewImage: PlatformImage?
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        List {
+            Section {
+                MacPhotoPreview(image: previewImage)
+            }
+
+            Section {
+                content
+            }
         }
     }
 }

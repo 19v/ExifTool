@@ -11,7 +11,6 @@ import SwiftUI
 
 struct PhotoDetailPage: View {
     let asset: PhotoAsset
-    let readOnlyMode: Bool
     let navigationTitle: String
     let photoNavigation: PhotoNavigationConfiguration?
     let highlightedMetadataKeys: Set<String>
@@ -20,10 +19,11 @@ struct PhotoDetailPage: View {
     @AppStorage("allowsICloudDownload") private var allowsICloudDownload = false
     @Binding private var showsChineseKeys: Bool
     @State private var model = IOSPhotoDetailModel()
+    @State private var previewImage: PlatformImage?
+    @State private var previewRequestID = UUID()
 
     init(
         asset: PhotoAsset,
-        readOnlyMode: Bool,
         showsChineseKeys: Binding<Bool>,
         navigationTitle: String,
         photoNavigation: PhotoNavigationConfiguration? = nil,
@@ -31,7 +31,6 @@ struct PhotoDetailPage: View {
         visibleMetadataKeys: Set<String>? = nil
     ) {
         self.asset = asset
-        self.readOnlyMode = readOnlyMode
         self.navigationTitle = navigationTitle
         self.photoNavigation = photoNavigation
         _showsChineseKeys = showsChineseKeys
@@ -42,25 +41,22 @@ struct PhotoDetailPage: View {
     var body: some View {
         @Bindable var model = model
 
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                PhotoPreview(asset: asset)
-                    .simultaneousGesture(photoSwipeGesture)
-                ReadOnlyStatusBanner(isReadOnly: readOnlyMode)
-                IOSPhotoDetailStateContent(
-                    detail: model.detail,
-                    isDownloadingOriginal: model.isDownloadingOriginal,
-                    showsChineseKeys: showsChineseKeys,
-                    highlightedMetadataKeys: highlightedMetadataKeys,
-                    visibleMetadataKeys: visibleMetadataKeys,
-                    onDownload: requestOriginalDownload
-                )
-                .equatable()
-            }
-            .padding()
-        }
+        IOSPhotoDetailStateContent(
+            asset: asset,
+            previewImage: previewImage,
+            detail: model.detail,
+            isDownloadingOriginal: model.isDownloadingOriginal,
+            showsChineseKeys: showsChineseKeys,
+            photoNavigation: photoNavigation,
+            highlightedMetadataKeys: highlightedMetadataKeys,
+            visibleMetadataKeys: visibleMetadataKeys,
+            onDownload: requestOriginalDownload
+        )
             .task(id: asset.id) {
                 await model.loadMetadata(for: asset, allowNetwork: false)
+            }
+            .task(id: asset.id) {
+                await loadPreview()
             }
             .alert("需要联网下载 iCloud 原图", isPresented: $model.showsICloudDownloadExplanation) {
                 Button("保持离线", role: .cancel) { }
@@ -85,6 +81,7 @@ struct PhotoDetailPage: View {
             .photoDetailActivityShareSheet(item: $model.activityShareItem)
             .navigationTitle(navigationTitle)
             .platformInlineNavigationTitle()
+            .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
             .toolbar {
                 PhotoDetailPlatformToolbar(
                     showsChineseKeys: $showsChineseKeys,
@@ -108,6 +105,21 @@ struct PhotoDetailPage: View {
         }
     }
 
+    private func loadPreview() async {
+        let requestID = UUID()
+        previewRequestID = requestID
+        previewImage = nil
+        let newImage = await PhotoLoader.previewImage(
+            for: asset,
+            size: CGSize(width: 900, height: 900)
+        )
+        guard !Task.isCancelled, requestID == previewRequestID else {
+            return
+        }
+
+        previewImage = newImage
+    }
+
     private func sharePhoto() {
         Task {
             await model.sharePhoto(asset: asset, allowsICloudDownload: allowsICloudDownload)
@@ -120,28 +132,6 @@ struct PhotoDetailPage: View {
             showsChineseKeys: showsChineseKeys,
             visibleMetadataKeys: visibleMetadataKeys
         )
-    }
-
-    private var photoSwipeGesture: some Gesture {
-        DragGesture(minimumDistance: PhotoSwipeClassifier.minimumDistance)
-            .onEnded { value in
-                guard let photoNavigation,
-                      let direction = PhotoSwipeClassifier.direction(
-                          translation: value.translation,
-                          predictedEndTranslation: value.predictedEndTranslation
-                      ) else {
-                    return
-                }
-
-                switch direction {
-                case .previous where photoNavigation.canSelectPrevious:
-                    photoNavigation.selectPrevious()
-                case .next where photoNavigation.canSelectNext:
-                    photoNavigation.selectNext()
-                case .previous, .next:
-                    break
-                }
-            }
     }
 
 }
@@ -176,46 +166,85 @@ enum PhotoSwipeClassifier {
     }
 }
 
-private struct IOSPhotoDetailStateContent: Equatable, View {
+private struct IOSPhotoDetailStateContent: View {
+    let asset: PhotoAsset
+    let previewImage: PlatformImage?
     let detail: PhotoDetailState
     let isDownloadingOriginal: Bool
     let showsChineseKeys: Bool
+    let photoNavigation: PhotoNavigationConfiguration?
     let highlightedMetadataKeys: Set<String>
     let visibleMetadataKeys: Set<String>?
     let onDownload: () -> Void
 
-    static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.detail == rhs.detail &&
-        lhs.isDownloadingOriginal == rhs.isDownloadingOriginal &&
-        lhs.showsChineseKeys == rhs.showsChineseKeys &&
-        lhs.highlightedMetadataKeys == rhs.highlightedMetadataKeys &&
-        lhs.visibleMetadataKeys == rhs.visibleMetadataKeys
-    }
-
     var body: some View {
         switch detail {
         case .loading:
-            ProgressView("正在读取 Exif")
-                .frame(maxWidth: .infinity, minHeight: 120)
+            List {
+                Section {
+                    IOSPhotoDetailPreview(
+                        image: previewImage,
+                        photoNavigation: photoNavigation
+                    )
+                }
+
+                Section {
+                    ProgressView("正在读取 Exif")
+                        .frame(maxWidth: .infinity, minHeight: 120)
+                }
+            }
         case .loaded(let metadata):
             IOSPhotoMetadataContent(
+                previewImage: previewImage,
                 metadata: metadata,
                 showsChineseKeys: showsChineseKeys,
+                photoNavigation: photoNavigation,
                 highlightedMetadataKeys: highlightedMetadataKeys,
                 visibleMetadataKeys: visibleMetadataKeys
             )
         case .needsDownload(let message):
-            IOSPhotoDownloadPrompt(
-                message: message,
-                isDownloading: isDownloadingOriginal,
-                onDownload: onDownload
-            )
+            IOSPhotoDetailPlaceholderList(
+                previewImage: previewImage,
+                photoNavigation: photoNavigation
+            ) {
+                IOSPhotoDownloadPrompt(
+                    message: message,
+                    isDownloading: isDownloadingOriginal,
+                    onDownload: onDownload
+                )
+            }
         case .failed(let message):
-            ContentUnavailableView(
-                "无法读取 Exif",
-                systemImage: "exclamationmark.triangle",
-                description: Text(message)
-            )
+            IOSPhotoDetailPlaceholderList(
+                previewImage: previewImage,
+                photoNavigation: photoNavigation
+            ) {
+                ContentUnavailableView(
+                    "无法读取 Exif",
+                    systemImage: "exclamationmark.triangle",
+                    description: Text(message)
+                )
+            }
+        }
+    }
+}
+
+private struct IOSPhotoDetailPlaceholderList<Content: View>: View {
+    let previewImage: PlatformImage?
+    let photoNavigation: PhotoNavigationConfiguration?
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        List {
+            Section {
+                IOSPhotoDetailPreview(
+                    image: previewImage,
+                    photoNavigation: photoNavigation
+                )
+            }
+
+            Section {
+                content
+            }
         }
     }
 }
@@ -245,10 +274,6 @@ private struct IOSPhotoDownloadPrompt: View {
             }
             .buttonStyle(.borderedProminent)
             .disabled(isDownloading)
-
-            Text("只会为当前照片联网下载原图缓存，不会修改照片或写入元数据。")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
         }
     }
 }

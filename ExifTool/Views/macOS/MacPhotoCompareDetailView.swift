@@ -13,7 +13,6 @@ struct MacPhotoCompareDetailView: View {
     let assets: [PhotoAsset]
     let primaryAsset: PhotoAsset
     @Binding var compareAssetID: String?
-    let readOnlyMode: Bool
 
     @State private var showsOnlyDifferences = false
     @State private var showsChineseKeys: Bool
@@ -22,13 +21,11 @@ struct MacPhotoCompareDetailView: View {
     init(
         assets: [PhotoAsset],
         primaryAsset: PhotoAsset,
-        compareAssetID: Binding<String?>,
-        readOnlyMode: Bool
+        compareAssetID: Binding<String?>
     ) {
         self.assets = assets
         self.primaryAsset = primaryAsset
         _compareAssetID = compareAssetID
-        self.readOnlyMode = readOnlyMode
         _showsChineseKeys = State(initialValue: MetadataLanguagePreference.defaultShowsChineseKeys)
     }
 
@@ -75,7 +72,6 @@ struct MacPhotoCompareDetailView: View {
                         title: "当前照片",
                         asset: primaryAsset,
                         detail: model.primaryMetadata,
-                        readOnlyMode: readOnlyMode,
                         showsChineseKeys: $showsChineseKeys,
                         highlightedMetadataKeys: model.snapshot.differingMetadataKeys,
                         visibleMetadataKeys: showsOnlyDifferences ? model.snapshot.differingMetadataKeys : nil
@@ -84,7 +80,6 @@ struct MacPhotoCompareDetailView: View {
                         title: "对比照片",
                         asset: compareAsset,
                         detail: model.compareMetadata,
-                        readOnlyMode: readOnlyMode,
                         showsChineseKeys: $showsChineseKeys,
                         highlightedMetadataKeys: model.snapshot.differingMetadataKeys,
                         visibleMetadataKeys: showsOnlyDifferences ? model.snapshot.differingMetadataKeys : nil
@@ -225,7 +220,6 @@ private struct MacComparisonColumn: View {
     let title: String
     let asset: PhotoAsset
     let detail: PhotoDetailState
-    let readOnlyMode: Bool
     @Binding var showsChineseKeys: Bool
     let highlightedMetadataKeys: Set<String>
     let visibleMetadataKeys: Set<String>?
@@ -246,7 +240,6 @@ private struct MacComparisonColumn: View {
 
             MacPhotoDetailPage(
                 asset: asset,
-                readOnlyMode: readOnlyMode,
                 showsChineseKeys: $showsChineseKeys,
                 navigationTitle: asset.displayName ?? title,
                 highlightedMetadataKeys: highlightedMetadataKeys,

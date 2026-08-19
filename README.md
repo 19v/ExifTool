@@ -1,8 +1,8 @@
 # ExifTool
 
-ExifTool 是一款使用 SwiftUI 编写的 iOS 与 macOS 照片元数据查看器。它以只读方式解析照片，通过 ImageIO 获取标准图像属性，并补充 Fujifilm、Nikon 和 Sony MakerNote 的专用解析。
+ExifTool 是一款使用 SwiftUI 编写的 iOS 与 macOS 照片元数据查看器。它通过 ImageIO 解析标准图像属性，并补充 Fujifilm、Nikon 和 Sony MakerNote 的专用解析。
 
-> 本项目虽然名为 ExifTool，但没有集成 Phil Harvey 的 `exiftool` 可执行文件或命令行工具。当前版本不会修改或写回照片元数据。
+> 本项目虽然名为 ExifTool，但没有集成 Phil Harvey 的 `exiftool` 可执行文件或命令行工具。
 
 ## 功能
 
@@ -95,7 +95,6 @@ ShareExtension/        iOS 分享扩展
 ## 隐私与数据处理
 
 - 照片和元数据解析均在设备本地完成。
-- 应用不会写入或修改原始照片。
 - iCloud 原图下载由用户设置控制。
 - 分享扩展通过 App Group 传递临时文件；过期文件及应用创建的其他临时资源会自动清理。
 

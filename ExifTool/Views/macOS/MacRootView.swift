@@ -4,14 +4,13 @@ import SwiftUI
 
 struct MacRootView: View {
     @State private var workspace: MacPhotoWorkspace
-    @AppStorage("readOnlyMode") private var readOnlyMode = true
 
     init(initialFileURLs: [URL] = []) {
         _workspace = State(initialValue: MacPhotoWorkspace(initialFileURLs: initialFileURLs))
     }
 
     var body: some View {
-        MacPhotoDropTabView(readOnlyMode: readOnlyMode)
+        MacPhotoDropTabView()
         .environment(workspace)
         .focusedSceneValue(\.macPhotoWorkspace, workspace)
         .onOpenURL { url in

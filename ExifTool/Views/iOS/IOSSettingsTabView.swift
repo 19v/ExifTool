@@ -5,7 +5,6 @@ import SwiftUI
 import UIKit
 
 struct IOSSettingsTabView: View {
-    @Binding var readOnlyMode: Bool
     let accessScope: PhotoLibraryViewModel.AccessScope
     let authorizationState: PhotoLibraryViewModel.AuthorizationState
     let localPhotosSummarySnapshot: LocalPhotosStatusSnapshot?
@@ -21,7 +20,6 @@ struct IOSSettingsTabView: View {
     var body: some View {
         NavigationStack {
             Form {
-                ReadOnlySettingsSection(readOnlyMode: $readOnlyMode)
                 IOSICloudSettingsSection(
                     allowsICloudDownload: iCloudDownloadBinding,
                     showsOnlyLocalPhotos: $showsOnlyLocalPhotos,

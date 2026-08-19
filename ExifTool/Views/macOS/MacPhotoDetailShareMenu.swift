@@ -31,5 +31,3 @@ struct MacPhotoDetailShareMenu: View {
 }
 
 #endif
-
-

@@ -32,5 +32,3 @@ struct PhotoDetailShareMenu: View {
 
 #endif
 
-
-

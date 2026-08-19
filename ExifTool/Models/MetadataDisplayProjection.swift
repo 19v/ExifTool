@@ -10,11 +10,8 @@ import ImageIO
 
 struct MetadataDisplayProjection {
     let sections: [MetadataDisplaySection]
+    let listSections: [MetadataDisplayListSection]
     let coordinate: CLLocationCoordinate2D?
-
-    var sectionIDs: [String] {
-        sections.map(\.id)
-    }
 
     init(
         metadata: PhotoMetadata,
@@ -23,7 +20,7 @@ struct MetadataDisplayProjection {
         visibleMetadataKeys: Set<String>? = nil
     ) {
         coordinate = metadata.coordinate
-        sections = Self.filteredAndOrderedSections(
+        let sections = Self.filteredAndOrderedSections(
             metadata.sections,
             visibleMetadataKeys: visibleMetadataKeys
         ).map { section in
@@ -33,6 +30,8 @@ struct MetadataDisplayProjection {
                 highlightedMetadataKeys: highlightedMetadataKeys
             )
         }
+        self.sections = sections
+        listSections = sections.flatMap(MetadataDisplayListSection.listSections)
     }
 
     func selectedSection(id: String?) -> MetadataDisplaySection? {
@@ -92,6 +91,45 @@ struct MetadataDisplayProjection {
         default:
             return 1
         }
+    }
+}
+
+struct MetadataDisplayListSection: Identifiable {
+    let id: String
+    let title: String
+    let items: [MetadataDisplayItem]
+    let showsLocationAction: Bool
+
+    init(section: MetadataDisplaySection) {
+        id = section.id
+        title = section.title
+        items = section.items
+        showsLocationAction = section.isLocationSection
+    }
+
+    init(section: MetadataDisplaySection, group: MetadataDisplayItemGroup, showsLocationAction: Bool) {
+        id = "\(section.id)::\(group.id)"
+        title = "\(section.title) · \(group.title)"
+        items = group.items
+        self.showsLocationAction = showsLocationAction
+    }
+
+    static func listSections(for section: MetadataDisplaySection) -> [MetadataDisplayListSection] {
+        var result: [MetadataDisplayListSection] = []
+        if !section.items.isEmpty {
+            result.append(MetadataDisplayListSection(section: section))
+        }
+
+        for (offset, group) in section.itemGroups.enumerated() {
+            result.append(
+                MetadataDisplayListSection(
+                    section: section,
+                    group: group,
+                    showsLocationAction: section.isLocationSection && result.isEmpty && offset == 0
+                )
+            )
+        }
+        return result
     }
 }
 

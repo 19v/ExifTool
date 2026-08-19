@@ -13,7 +13,6 @@ struct IOSRootView: View {
     @State private var isPresentingLimitedLibraryPicker = false
     @State private var isPresentingSettings = false
     @State private var presentsLimitedLibraryPickerAfterSettingsDismissal = false
-    @AppStorage("readOnlyMode") private var readOnlyMode = true
     @AppStorage("allowsICloudDownload") private var allowsICloudDownload = false
     @AppStorage("showsOnlyLocalPhotos") private var showsOnlyLocalPhotos = false
     @Environment(\.scenePhase) private var scenePhase
@@ -21,7 +20,6 @@ struct IOSRootView: View {
     var body: some View {
         IOSLibraryBrowserView(
             library: library,
-            readOnlyMode: readOnlyMode,
             onRequestPhotoPermission: requestLibraryAccess,
             onPresentLimitedLibraryPicker: presentLimitedLibraryPicker,
             onPresentSettings: { isPresentingSettings = true }
@@ -38,14 +36,12 @@ struct IOSRootView: View {
             NavigationStack {
                 PhotoDetailView(
                     assets: [asset],
-                    initialAssetID: asset.id,
-                    readOnlyMode: readOnlyMode
+                    initialAssetID: asset.id
                 )
             }
         }
         .sheet(isPresented: $isPresentingSettings, onDismiss: finishSettingsPresentation) {
             IOSSettingsTabView(
-                readOnlyMode: $readOnlyMode,
                 accessScope: library.accessScope,
                 authorizationState: library.authorizationState,
                 localPhotosSummarySnapshot: library.localPhotosSummarySnapshot,

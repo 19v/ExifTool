@@ -4,60 +4,55 @@ import CoreLocation
 import SwiftUI
 
 struct MacPhotoMetadataContent: View {
+    let previewImage: PlatformImage?
     private let projection: MetadataDisplayProjection
 
     @Environment(\.openURL) private var openURL
-    @State private var selectedSectionID: String?
     @State private var mapCoordinate: CLLocationCoordinate2D?
     @State private var isMapChooserPresented = false
 
     init(
+        previewImage: PlatformImage?,
         metadata: PhotoMetadata,
         showsChineseKeys: Bool,
         highlightedMetadataKeys: Set<String>,
         visibleMetadataKeys: Set<String>?
     ) {
-        projection = MetadataDisplayProjection(
+        self.previewImage = previewImage
+        let projection = MetadataDisplayProjection(
             metadata: metadata,
             showsChineseKeys: showsChineseKeys,
             highlightedMetadataKeys: highlightedMetadataKeys,
             visibleMetadataKeys: visibleMetadataKeys
         )
-    }
-
-    private var selectedSection: MetadataDisplaySection? {
-        projection.selectedSection(id: selectedSectionID)
+        self.projection = projection
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            if !projection.sections.isEmpty {
-                MacMetadataSectionPicker(
-                    sections: projection.sections,
-                    selectedSectionID: selectedSection?.id,
-                    onSelect: selectSection
-                )
+        List {
+            Section {
+                MacPhotoPreview(image: previewImage)
             }
 
-            if projection.sections.isEmpty {
+            if projection.listSections.isEmpty {
                 ContentUnavailableView("没有 Exif 信息", systemImage: "info.circle")
                     .frame(maxWidth: .infinity, minHeight: 160)
-            } else if let selectedSection {
-                if let coordinate = projection.coordinate, selectedSection.isLocationSection {
-                    MacMetadataLocationButton(coordinate: coordinate) {
-                        mapCoordinate = coordinate
-                        isMapChooserPresented = true
+            } else {
+                ForEach(projection.listSections) { section in
+                    Section(section.title) {
+                        if section.showsLocationAction, let coordinate = projection.coordinate {
+                            MacMetadataLocationButton(coordinate: coordinate) {
+                                mapCoordinate = coordinate
+                                isMapChooserPresented = true
+                            }
+                        }
+
+                        ForEach(section.items) { item in
+                            MacMetadataItemRow(item: item)
+                        }
                     }
                 }
-
-                MacMetadataSectionView(
-                    section: selectedSection
-                )
             }
-        }
-        .onAppear(perform: updateSelection)
-        .onChange(of: projection.sectionIDs) {
-            updateSelection()
         }
         .confirmationDialog("选择地图", isPresented: $isMapChooserPresented, titleVisibility: .visible) {
             if let mapCoordinate {
@@ -68,53 +63,19 @@ struct MacPhotoMetadataContent: View {
             Button("取消", role: .cancel) { }
         }
     }
-
-    private func selectSection(_ id: String) {
-        withAnimation(.easeInOut(duration: 0.2)) {
-            selectedSectionID = id
-        }
-    }
-
-    private func updateSelection() {
-        guard selectedSection?.id != selectedSectionID else {
-            return
-        }
-
-        selectedSectionID = projection.sections.first?.id
-    }
 }
 
-private struct MacMetadataSectionPicker: View {
-    let sections: [MetadataDisplaySection]
-    let selectedSectionID: String?
-    let onSelect: (String) -> Void
+private struct MacMetadataItemRow: View {
+    let item: MetadataDisplayItem
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(sections) { section in
-                    let isSelected = section.id == selectedSectionID
-                    Button {
-                        onSelect(section.id)
-                    } label: {
-                        Text(section.title)
-                            .font(.subheadline.weight(.semibold))
-                            .lineLimit(1)
-                            .padding(.vertical, 8)
-                            .padding(.horizontal, 12)
-                            .foregroundStyle(isSelected ? Color.white : Color.primary)
-                            .background(
-                                isSelected ? Color.accentColor : Color.platformSecondaryBackground,
-                                in: RoundedRectangle(cornerRadius: 8)
-                            )
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityAddTraits(isSelected ? .isSelected : [])
-                }
-            }
-            .padding(.vertical, 1)
+        LabeledContent {
+            Text(item.value)
+                .textSelection(.enabled)
+        } label: {
+            Text(item.title)
         }
-        .accessibilityLabel("参数分类")
+        .listRowBackground(item.isHighlighted ? Color.accentColor.opacity(0.12) : nil)
     }
 }
 
@@ -124,24 +85,12 @@ private struct MacMetadataLocationButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 10) {
-                Image(systemName: "map")
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("地理位置")
-                        .font(.headline)
-                    Text(LocationFormatter.coordinateText(coordinate))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Image(systemName: "arrow.up.forward")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.secondary)
+            LabeledContent {
+                Text(LocationFormatter.coordinateText(coordinate))
+            } label: {
+                Label("在地图中打开", systemImage: "map")
             }
-            .padding(12)
-            .background(Color.platformSecondaryBackground, in: RoundedRectangle(cornerRadius: 8))
         }
-        .buttonStyle(.plain)
         .accessibilityHint("选择地图应用打开这个位置")
     }
 }
