@@ -6,7 +6,6 @@ import SwiftUI
 struct IOSPhotoMetadataContent: View {
     let previewImage: PlatformImage?
     private let projection: MetadataDisplayProjection
-    let photoNavigation: PhotoNavigationConfiguration?
 
     @Environment(\.openURL) private var openURL
     @State private var mapCoordinate: CLLocationCoordinate2D?
@@ -16,7 +15,6 @@ struct IOSPhotoMetadataContent: View {
         previewImage: PlatformImage?,
         metadata: PhotoMetadata,
         showsChineseKeys: Bool,
-        photoNavigation: PhotoNavigationConfiguration?,
         highlightedMetadataKeys: Set<String>,
         visibleMetadataKeys: Set<String>?
     ) {
@@ -28,16 +26,12 @@ struct IOSPhotoMetadataContent: View {
             visibleMetadataKeys: visibleMetadataKeys
         )
         self.projection = projection
-        self.photoNavigation = photoNavigation
     }
 
     var body: some View {
         List {
             Section {
-                IOSPhotoDetailPreview(
-                    image: previewImage,
-                    photoNavigation: photoNavigation
-                )
+                IOSPhotoDetailPreview(image: previewImage)
             }
 
             if projection.listSections.isEmpty {
@@ -60,6 +54,7 @@ struct IOSPhotoMetadataContent: View {
                 }
             }
         }
+        .contentMargins(.top, 0, for: .scrollContent)
         .confirmationDialog("选择地图", isPresented: $isMapChooserPresented, titleVisibility: .visible) {
             if let mapCoordinate {
                 Button("系统地图") { openURL(MapDestination.appleMaps.url(for: mapCoordinate)) }
@@ -73,33 +68,9 @@ struct IOSPhotoMetadataContent: View {
 
 struct IOSPhotoDetailPreview: View {
     let image: PlatformImage?
-    let photoNavigation: PhotoNavigationConfiguration?
 
     var body: some View {
         PhotoPreview(image: image)
-            .simultaneousGesture(photoSwipeGesture)
-    }
-
-    private var photoSwipeGesture: some Gesture {
-        DragGesture(minimumDistance: PhotoSwipeClassifier.minimumDistance)
-            .onEnded { value in
-                guard let photoNavigation,
-                      let direction = PhotoSwipeClassifier.direction(
-                          translation: value.translation,
-                          predictedEndTranslation: value.predictedEndTranslation
-                      ) else {
-                    return
-                }
-
-                switch direction {
-                case .previous where photoNavigation.canSelectPrevious:
-                    photoNavigation.selectPrevious()
-                case .next where photoNavigation.canSelectNext:
-                    photoNavigation.selectNext()
-                case .previous, .next:
-                    break
-                }
-            }
     }
 }
 

@@ -102,4 +102,23 @@ final class IOSPhotoDetailModel {
     }
 }
 
+@MainActor
+final class IOSPhotoDetailModelStore {
+    private var models: [String: IOSPhotoDetailModel] = [:]
+
+    func model(for assetID: String) -> IOSPhotoDetailModel {
+        if let model = models[assetID] {
+            return model
+        }
+
+        let model = IOSPhotoDetailModel()
+        models[assetID] = model
+        return model
+    }
+
+    func removeModels(except assetIDs: Set<String>) {
+        models = models.filter { assetIDs.contains($0.key) }
+    }
+}
+
 #endif

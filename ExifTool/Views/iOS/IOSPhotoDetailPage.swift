@@ -11,28 +11,24 @@ import SwiftUI
 
 struct PhotoDetailPage: View {
     let asset: PhotoAsset
-    let navigationTitle: String
-    let photoNavigation: PhotoNavigationConfiguration?
+    let model: IOSPhotoDetailModel
     let highlightedMetadataKeys: Set<String>
     let visibleMetadataKeys: Set<String>?
 
     @AppStorage("allowsICloudDownload") private var allowsICloudDownload = false
     @Binding private var showsChineseKeys: Bool
-    @State private var model = IOSPhotoDetailModel()
     @State private var previewImage: PlatformImage?
     @State private var previewRequestID = UUID()
 
     init(
         asset: PhotoAsset,
+        model: IOSPhotoDetailModel,
         showsChineseKeys: Binding<Bool>,
-        navigationTitle: String,
-        photoNavigation: PhotoNavigationConfiguration? = nil,
         highlightedMetadataKeys: Set<String> = [],
         visibleMetadataKeys: Set<String>? = nil
     ) {
         self.asset = asset
-        self.navigationTitle = navigationTitle
-        self.photoNavigation = photoNavigation
+        self.model = model
         _showsChineseKeys = showsChineseKeys
         self.highlightedMetadataKeys = highlightedMetadataKeys
         self.visibleMetadataKeys = visibleMetadataKeys
@@ -42,16 +38,15 @@ struct PhotoDetailPage: View {
         @Bindable var model = model
 
         IOSPhotoDetailStateContent(
-            asset: asset,
             previewImage: previewImage,
             detail: model.detail,
             isDownloadingOriginal: model.isDownloadingOriginal,
             showsChineseKeys: showsChineseKeys,
-            photoNavigation: photoNavigation,
             highlightedMetadataKeys: highlightedMetadataKeys,
             visibleMetadataKeys: visibleMetadataKeys,
             onDownload: requestOriginalDownload
         )
+            .platformTopScrollEdgeEffectHidden()
             .task(id: asset.id) {
                 await model.loadMetadata(for: asset, allowNetwork: false)
             }
@@ -79,20 +74,6 @@ struct PhotoDetailPage: View {
                 }
             }
             .photoDetailActivityShareSheet(item: $model.activityShareItem)
-            .navigationTitle(navigationTitle)
-            .platformInlineNavigationTitle()
-            .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
-            .toolbar {
-                PhotoDetailPlatformToolbar(
-                    showsChineseKeys: $showsChineseKeys,
-                    photoNavigation: photoNavigation,
-                    isPreparingPhotoShare: model.isPreparingPhotoShare,
-                    canShareParameters: model.loadedMetadata != nil,
-                    onSharePhoto: sharePhoto,
-                    onShareParameters: shareParameters
-                )
-            }
-            .platformTabBarHidden()
     }
 
     private func requestOriginalDownload() {
@@ -119,60 +100,13 @@ struct PhotoDetailPage: View {
 
         previewImage = newImage
     }
-
-    private func sharePhoto() {
-        Task {
-            await model.sharePhoto(asset: asset, allowsICloudDownload: allowsICloudDownload)
-        }
-    }
-
-    private func shareParameters() {
-        model.shareParameters(
-            asset: asset,
-            showsChineseKeys: showsChineseKeys,
-            visibleMetadataKeys: visibleMetadataKeys
-        )
-    }
-
-}
-
-enum PhotoSwipeDirection: Equatable {
-    case previous
-    case next
-}
-
-enum PhotoSwipeClassifier {
-    static let minimumDistance: CGFloat = 20
-    private static let selectionDistance: CGFloat = 72
-    private static let horizontalDominance: CGFloat = 1.2
-
-    static func direction(
-        translation: CGSize,
-        predictedEndTranslation: CGSize
-    ) -> PhotoSwipeDirection? {
-        let horizontal = abs(predictedEndTranslation.width) > abs(translation.width)
-            ? predictedEndTranslation.width
-            : translation.width
-        let vertical = abs(predictedEndTranslation.height) > abs(translation.height)
-            ? predictedEndTranslation.height
-            : translation.height
-
-        guard abs(horizontal) >= selectionDistance,
-              abs(horizontal) > abs(vertical) * horizontalDominance else {
-            return nil
-        }
-
-        return horizontal > 0 ? .previous : .next
-    }
 }
 
 private struct IOSPhotoDetailStateContent: View {
-    let asset: PhotoAsset
     let previewImage: PlatformImage?
     let detail: PhotoDetailState
     let isDownloadingOriginal: Bool
     let showsChineseKeys: Bool
-    let photoNavigation: PhotoNavigationConfiguration?
     let highlightedMetadataKeys: Set<String>
     let visibleMetadataKeys: Set<String>?
     let onDownload: () -> Void
@@ -182,10 +116,7 @@ private struct IOSPhotoDetailStateContent: View {
         case .loading:
             List {
                 Section {
-                    IOSPhotoDetailPreview(
-                        image: previewImage,
-                        photoNavigation: photoNavigation
-                    )
+                    IOSPhotoDetailPreview(image: previewImage)
                 }
 
                 Section {
@@ -193,19 +124,18 @@ private struct IOSPhotoDetailStateContent: View {
                         .frame(maxWidth: .infinity, minHeight: 120)
                 }
             }
+            .contentMargins(.top, 0, for: .scrollContent)
         case .loaded(let metadata):
             IOSPhotoMetadataContent(
                 previewImage: previewImage,
                 metadata: metadata,
                 showsChineseKeys: showsChineseKeys,
-                photoNavigation: photoNavigation,
                 highlightedMetadataKeys: highlightedMetadataKeys,
                 visibleMetadataKeys: visibleMetadataKeys
             )
         case .needsDownload(let message):
             IOSPhotoDetailPlaceholderList(
-                previewImage: previewImage,
-                photoNavigation: photoNavigation
+                previewImage: previewImage
             ) {
                 IOSPhotoDownloadPrompt(
                     message: message,
@@ -215,8 +145,7 @@ private struct IOSPhotoDetailStateContent: View {
             }
         case .failed(let message):
             IOSPhotoDetailPlaceholderList(
-                previewImage: previewImage,
-                photoNavigation: photoNavigation
+                previewImage: previewImage
             ) {
                 ContentUnavailableView(
                     "无法读取 Exif",
@@ -230,22 +159,19 @@ private struct IOSPhotoDetailStateContent: View {
 
 private struct IOSPhotoDetailPlaceholderList<Content: View>: View {
     let previewImage: PlatformImage?
-    let photoNavigation: PhotoNavigationConfiguration?
     @ViewBuilder let content: Content
 
     var body: some View {
         List {
             Section {
-                IOSPhotoDetailPreview(
-                    image: previewImage,
-                    photoNavigation: photoNavigation
-                )
+                IOSPhotoDetailPreview(image: previewImage)
             }
 
             Section {
                 content
             }
         }
+        .contentMargins(.top, 0, for: .scrollContent)
     }
 }
 
