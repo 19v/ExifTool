@@ -1,40 +1,277 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "metadata.value.cropMode" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crop Mode"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "裁切模式"
+          }
+        }
+      }
+    },
+    "shareExtension.cancel" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消"
+          }
+        }
+      }
+    },
+    "shareExtension.done" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完成"
+          }
+        }
+      }
+    },
+    "shareExtension.failedTitle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unable to Read Photo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法读取照片"
+          }
+        }
+      }
+    },
+    "shareExtension.fileName" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File Name"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "文件名"
+          }
+        }
+      }
+    },
     "shareExtension.importFailed" : {
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Unable to open this photo" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "无法打开这张照片" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This photo could not be opened or is no longer available."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法打开这张照片，或照片已不可用。"
+          }
+        }
       }
     },
-    "shareExtension.openFailed" : {
+    "shareExtension.language.chinese" : {
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Unable to open ExifTool. Try again." } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "无法打开 ExifTool，请重试" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chinese"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "中文"
+          }
+        }
       }
     },
-    "shareExtension.openInApp" : {
+    "shareExtension.language.english" : {
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "View in ExifTool" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "在 ExifTool 中查看" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "English"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "英文"
+          }
+        }
       }
     },
-    "shareExtension.openingApp" : {
+    "shareExtension.metadataLanguage" : {
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Opening ExifTool" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "正在打开 ExifTool" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Metadata Language"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "参数语言"
+          }
+        }
       }
     },
-    "shareExtension.photoReady" : {
+    "shareExtension.noExif" : {
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Photo Ready" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "照片已准备好" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Exif Metadata"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有 Exif 信息"
+          }
+        }
       }
     },
-    "shareExtension.readingPhoto" : {
+    "shareExtension.noExif.detail" : {
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Reading Photo" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "正在读取照片" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The photo can be previewed, but it contains no readable Exif metadata."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可以预览这张照片，但其中没有可读取的 Exif 信息。"
+          }
+        }
+      }
+    },
+    "shareExtension.photoPreview" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shared photo preview"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分享照片预览"
+          }
+        }
+      }
+    },
+    "shareExtension.previewUnavailable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photo preview unavailable"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "照片预览不可用"
+          }
+        }
+      }
+    },
+    "shareExtension.readingExif" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reading Exif Metadata"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在读取 Exif 信息"
+          }
+        }
+      }
+    },
+    "shareExtension.readingExif.detail" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Large photos and RAW files may take a moment."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "较大的照片和 RAW 文件可能需要一些时间。"
+          }
+        }
+      }
+    },
+    "shareExtension.retry" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try Again"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重试"
+          }
+        }
+      }
+    },
+    "shareExtension.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photo Metadata"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "照片信息"
+          }
+        }
       }
     }
   },

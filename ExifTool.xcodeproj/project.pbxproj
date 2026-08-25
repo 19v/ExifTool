@@ -8,6 +8,16 @@
 
 /* Begin PBXBuildFile section */
 		05C6800F2F91A0000020F602 /* ExifToolShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 05C680022F91A0000020F602 /* ExifToolShareExtension.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		C0DE10012F9400010020F602 /* ExifTool/Models/Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE20012F9400010020F602 /* ExifTool/Models/Models.swift */; };
+		C0DE10022F9400010020F602 /* ExifTool/Models/MetadataDisplayProjection.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE20022F9400010020F602 /* ExifTool/Models/MetadataDisplayProjection.swift */; };
+		C0DE10032F9400010020F602 /* ExifTool/Localization.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE20032F9400010020F602 /* ExifTool/Localization.swift */; };
+		C0DE10042F9400010020F602 /* ExifTool/Metadata/AppleMetadataParsing.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE20042F9400010020F602 /* ExifTool/Metadata/AppleMetadataParsing.swift */; };
+		C0DE10052F9400010020F602 /* ExifTool/Metadata/FujifilmMetadataParsing.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE20052F9400010020F602 /* ExifTool/Metadata/FujifilmMetadataParsing.swift */; };
+		C0DE10062F9400010020F602 /* ExifTool/Metadata/MediaProcessing.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE20062F9400010020F602 /* ExifTool/Metadata/MediaProcessing.swift */; };
+		C0DE10072F9400010020F602 /* ExifTool/Metadata/MetadataParsing.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE20072F9400010020F602 /* ExifTool/Metadata/MetadataParsing.swift */; };
+		C0DE10082F9400010020F602 /* ExifTool/Metadata/NikonMetadataParsing.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE20082F9400010020F602 /* ExifTool/Metadata/NikonMetadataParsing.swift */; };
+		C0DE10092F9400010020F602 /* ExifTool/Metadata/SonyMetadataParsing.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE20092F9400010020F602 /* ExifTool/Metadata/SonyMetadataParsing.swift */; };
+		C0DE100A2F9400010020F602 /* ExifTool/Metadata/TIFFReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE200A2F9400010020F602 /* ExifTool/Metadata/TIFFReader.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -53,6 +63,16 @@
 		05C680022F91A0000020F602 /* ExifToolShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ExifToolShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		05C681012F91A1000020F602 /* ExifToolTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ExifToolTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		05C682012F92A1000020F602 /* ExifToolIOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ExifToolIOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C0DE20012F9400010020F602 /* ExifTool/Models/Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExifTool/Models/Models.swift; sourceTree = SOURCE_ROOT; };
+		C0DE20022F9400010020F602 /* ExifTool/Models/MetadataDisplayProjection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExifTool/Models/MetadataDisplayProjection.swift; sourceTree = SOURCE_ROOT; };
+		C0DE20032F9400010020F602 /* ExifTool/Localization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExifTool/Localization.swift; sourceTree = SOURCE_ROOT; };
+		C0DE20042F9400010020F602 /* ExifTool/Metadata/AppleMetadataParsing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExifTool/Metadata/AppleMetadataParsing.swift; sourceTree = SOURCE_ROOT; };
+		C0DE20052F9400010020F602 /* ExifTool/Metadata/FujifilmMetadataParsing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExifTool/Metadata/FujifilmMetadataParsing.swift; sourceTree = SOURCE_ROOT; };
+		C0DE20062F9400010020F602 /* ExifTool/Metadata/MediaProcessing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExifTool/Metadata/MediaProcessing.swift; sourceTree = SOURCE_ROOT; };
+		C0DE20072F9400010020F602 /* ExifTool/Metadata/MetadataParsing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExifTool/Metadata/MetadataParsing.swift; sourceTree = SOURCE_ROOT; };
+		C0DE20082F9400010020F602 /* ExifTool/Metadata/NikonMetadataParsing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExifTool/Metadata/NikonMetadataParsing.swift; sourceTree = SOURCE_ROOT; };
+		C0DE20092F9400010020F602 /* ExifTool/Metadata/SonyMetadataParsing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExifTool/Metadata/SonyMetadataParsing.swift; sourceTree = SOURCE_ROOT; };
+		C0DE200A2F9400010020F602 /* ExifTool/Metadata/TIFFReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExifTool/Metadata/TIFFReader.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -128,6 +148,7 @@
 			children = (
 				05C67FE32F8F69DD0020F602 /* ExifTool */,
 				05C680012F91A0000020F602 /* ShareExtension */,
+				C0DE30002F9400010020F602 /* Shared Extension Sources */,
 				05C681022F91A1000020F602 /* ExifToolTests */,
 				05C682022F92A1000020F602 /* ExifToolIOSTests */,
 				05C67FE22F8F69DD0020F602 /* Products */,
@@ -143,6 +164,23 @@
 				05C682012F92A1000020F602 /* ExifToolIOSTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		C0DE30002F9400010020F602 /* Shared Extension Sources */ = {
+			isa = PBXGroup;
+			children = (
+				C0DE20032F9400010020F602 /* ExifTool/Localization.swift */,
+				C0DE20012F9400010020F602 /* ExifTool/Models/Models.swift */,
+				C0DE20022F9400010020F602 /* ExifTool/Models/MetadataDisplayProjection.swift */,
+				C0DE20042F9400010020F602 /* ExifTool/Metadata/AppleMetadataParsing.swift */,
+				C0DE20052F9400010020F602 /* ExifTool/Metadata/FujifilmMetadataParsing.swift */,
+				C0DE20062F9400010020F602 /* ExifTool/Metadata/MediaProcessing.swift */,
+				C0DE20072F9400010020F602 /* ExifTool/Metadata/MetadataParsing.swift */,
+				C0DE20082F9400010020F602 /* ExifTool/Metadata/NikonMetadataParsing.swift */,
+				C0DE20092F9400010020F602 /* ExifTool/Metadata/SonyMetadataParsing.swift */,
+				C0DE200A2F9400010020F602 /* ExifTool/Metadata/TIFFReader.swift */,
+			);
+			name = "Shared Extension Sources";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -332,6 +370,16 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C0DE10012F9400010020F602 /* ExifTool/Models/Models.swift in Sources */,
+				C0DE10022F9400010020F602 /* ExifTool/Models/MetadataDisplayProjection.swift in Sources */,
+				C0DE10032F9400010020F602 /* ExifTool/Localization.swift in Sources */,
+				C0DE10042F9400010020F602 /* ExifTool/Metadata/AppleMetadataParsing.swift in Sources */,
+				C0DE10052F9400010020F602 /* ExifTool/Metadata/FujifilmMetadataParsing.swift in Sources */,
+				C0DE10062F9400010020F602 /* ExifTool/Metadata/MediaProcessing.swift in Sources */,
+				C0DE10072F9400010020F602 /* ExifTool/Metadata/MetadataParsing.swift in Sources */,
+				C0DE10082F9400010020F602 /* ExifTool/Metadata/NikonMetadataParsing.swift in Sources */,
+				C0DE10092F9400010020F602 /* ExifTool/Metadata/SonyMetadataParsing.swift in Sources */,
+				C0DE100A2F9400010020F602 /* ExifTool/Metadata/TIFFReader.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
