@@ -8,6 +8,7 @@ final class MakerNoteParserTests: XCTestCase {
     @MainActor
     func testRealCameraFixturesProduceVendorSections() throws {
         let fixtures = [
+            (fileName: "Apple_iPhone7", sectionID: "apple-parameters"),
             (fileName: "Fujifilm_FinePix_E500", sectionID: "fujifilm-parameters"),
             (fileName: "Nikon_D70", sectionID: "nikon-parameters"),
             (fileName: "Sony_HDR-HC3", sectionID: "sony-parameters")
@@ -25,6 +26,48 @@ final class MakerNoteParserTests: XCTestCase {
             )
             XCTAssertFalse(vendorSection.items.isEmpty, "Expected decoded fields for \(fixture.fileName)")
         }
+    }
+
+    @MainActor
+    func testExifToolAppleFixtureMatchesAppleMakerNoteProjection() throws {
+        let url = try XCTUnwrap(
+            Bundle(for: Self.self).url(forResource: "Apple_iPhone7", withExtension: "jpg")
+        )
+
+        let metadata = MetadataParser.parse(url: url, fallbackCoordinate: nil)
+        let section = try XCTUnwrap(metadata.sections.first { $0.id == "apple-parameters" })
+        let items = Dictionary(uniqueKeysWithValues: section.items.map { ($0.key, $0.value) })
+
+        XCTAssertEqual(items["MakerNote 版本"], "4")
+        XCTAssertEqual(items["运行时间标志"], "有效")
+        XCTAssertEqual(items["运行时间值"], "39772089846958")
+        XCTAssertEqual(items["运行时间纪元"], "0")
+        XCTAssertEqual(items["运行时间刻度"], "1000000000")
+        XCTAssertEqual(items["AE 稳定"], "是")
+        XCTAssertEqual(items["AE 目标"], "177")
+        XCTAssertEqual(items["AE 平均值"], "185")
+        XCTAssertEqual(items["AF 稳定"], "是")
+        XCTAssertEqual(items["对焦距离范围"], "0.54 – 0.68 m")
+        XCTAssertEqual(items["OIS 模式"], "2")
+        XCTAssertEqual(items["图像捕获类型"], "未知（5）")
+        XCTAssertEqual(items["加速度向量"], "-0.6483164, 0.002264119, -0.7500768")
+    }
+
+    func testAppleParsesBigEndianMakerNoteIFD() {
+        var data = Data("Apple iOS".utf8)
+        data.append(contentsOf: [0x00, 0x00, 0x01, 0x4d, 0x4d])
+        data.append(makeIFD(
+            endian: .big,
+            entries: [
+                IFDEntry(tag: 0x0001, type: 9, count: 1, inlineValue: 4),
+                IFDEntry(tag: 0x0014, type: 9, count: 1, inlineValue: 10)
+            ]
+        ))
+
+        let fields = AppleMakerNoteParser.parse(data)
+
+        XCTAssertEqual(fields["MakerNote 版本"], "4")
+        XCTAssertEqual(fields["图像捕获类型"], "照片")
     }
 
     @MainActor
@@ -191,6 +234,7 @@ final class MakerNoteParserTests: XCTestCase {
             XCTAssertTrue(FujifilmMakerNoteParser.parse(data).isEmpty)
             XCTAssertTrue(SonyMakerNoteParser.parse(data).isEmpty)
             XCTAssertTrue(NikonMakerNoteParser.parse(data).isEmpty)
+            XCTAssertTrue(AppleMakerNoteParser.parse(data).isEmpty)
         }
     }
 

@@ -10,6 +10,7 @@ import ImageIO
 
 nonisolated enum CameraMetadataSectionBuilder {
     static func sections(from properties: [String: Any], imageData: Data? = nil) -> [MetadataSection] {
+        [AppleMetadataExtractor.section(from: properties, imageData: imageData)].compactMap { $0 } +
         SonyMetadataExtractor.sections(from: properties, imageData: imageData) +
         FujifilmMetadataExtractor.sections(from: properties, imageData: imageData) +
         [NikonMetadataExtractor.section(from: properties)].compactMap { $0 }

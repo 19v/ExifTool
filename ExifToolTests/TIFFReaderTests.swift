@@ -111,6 +111,7 @@ final class TIFFReaderTests: XCTestCase {
             _ = FujifilmMakerNoteParser.parse(data)
             _ = SonyMakerNoteParser.parse(data)
             _ = NikonMakerNoteParser.parse(data)
+            _ = AppleMakerNoteParser.parse(data)
         }
     }
 
@@ -125,6 +126,7 @@ final class TIFFReaderTests: XCTestCase {
                 _ = FujifilmMakerNoteParser.parse(data)
                 _ = NikonMakerNoteParser.parse(data)
                 _ = SonyMakerNoteParser.parse(data)
+                _ = AppleMakerNoteParser.parse(data)
             }
         }
     }

@@ -1,5 +1,7 @@
 # MakerNote fixtures
 
+`Apple_iPhone7.jpg` is ExifTool's reduced `t/images/Apple.jpg` regression fixture. It is used to pin the Apple MakerNote projection against `t/Apple_2.out`.
+
 These reduced JPEG files retain real camera EXIF and MakerNote payloads while keeping the test bundle small:
 
 - `Fujifilm_FinePix_E500.jpg`

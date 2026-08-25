@@ -86,7 +86,7 @@ struct MetadataDisplayProjection {
 
     private static func specialSectionPriority(for section: MetadataSection) -> Int {
         switch section.id {
-        case "fujifilm-parameters", "nikon-parameters", "sony-parameters":
+        case "apple-parameters", "fujifilm-parameters", "nikon-parameters", "sony-parameters":
             return 0
         default:
             return 1
