@@ -33,6 +33,39 @@
         }
       }
     },
+    "album.photoCount" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d photos"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d 张照片"
+          }
+        }
+      }
+    },
+    "album.untitled" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Untitled Album"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未命名相册"
+          }
+        }
+      }
+    },
     "App" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -111,55 +144,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Google Maps"
-          }
-        }
-      }
-    },
-    "Nikon 参数" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nikon Parameters"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nikon 参数"
-          }
-        }
-      }
-    },
-    "album.photoCount" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%d photos"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%d 张照片"
-          }
-        }
-      }
-    },
-    "album.untitled" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Untitled Album"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "未命名相册"
           }
         }
       }
@@ -372,6 +356,22 @@
         }
       }
     },
+    "mac.comparison.exported" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exported to %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已导出到 %@"
+          }
+        }
+      }
+    },
     "mac.comparison.exportFailed" : {
       "localizations" : {
         "en" : {
@@ -400,22 +400,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "导出对比结果"
-          }
-        }
-      }
-    },
-    "mac.comparison.exported" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Exported to %@"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "已导出到 %@"
           }
         }
       }
@@ -857,6 +841,22 @@
         }
       }
     },
+    "Nikon 参数" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nikon Parameters"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nikon 参数"
+          }
+        }
+      }
+    },
     "photoDetail.shareNeedsDownload" : {
       "localizations" : {
         "en" : {
@@ -906,6 +906,7 @@
       }
     },
     "photoDetail.title.indexed" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1446,6 +1447,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "关闭对比模式"
+          }
+        }
+      }
+    },
+    "最近打开" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recent"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近打开"
           }
         }
       }
@@ -2616,22 +2633,6 @@
         }
       }
     },
-    "最近打开" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recent"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "最近打开"
-          }
-        }
-      }
-    },
     "有些照片的原图和 Exif 只存在 iCloud，应用需要短暂联网把原图下载到本机后才能读取。你也可以继续保持离线，只查看已经在本地的照片。" : {
       "localizations" : {
         "en" : {
@@ -2829,6 +2830,22 @@
         }
       }
     },
+    "没有最近文件" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Recent Files"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有最近文件"
+          }
+        }
+      }
+    },
     "没有可对比的第二张照片" : {
       "localizations" : {
         "en" : {
@@ -2907,22 +2924,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "没有找到相册"
-          }
-        }
-      }
-    },
-    "没有最近文件" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No Recent Files"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "没有最近文件"
           }
         }
       }
